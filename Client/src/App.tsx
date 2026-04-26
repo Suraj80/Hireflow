@@ -4,7 +4,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/components/AuthProvider";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -30,28 +32,37 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/apply/:jobId" element={<JobApplicationPage />} />
-            <Route path="/status/:token" element={<CandidateStatusPage />} />
+          <AuthProvider>
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/apply/:jobId" element={<JobApplicationPage />} />
+              <Route path="/status/:token" element={<CandidateStatusPage />} />
 
-            {/* Dashboard */}
-            <Route element={<DashboardLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/jobs" element={<JobsPage />} />
-              <Route path="/jobs/new" element={<CreateJobPage />} />
-              <Route path="/candidates" element={<CandidatesPage />} />
-              <Route path="/pipeline" element={<PipelinePage />} />
-              <Route path="/interviews" element={<InterviewsPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/audit-log" element={<AuditLogPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
+              <Route element={<ProtectedRoute />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/jobs" element={<JobsPage />} />
+                  <Route path="/candidates" element={<CandidatesPage />} />
+                  <Route path="/pipeline" element={<PipelinePage />} />
+                  <Route path="/interviews" element={<InterviewsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+                  <Route element={<ProtectedRoute allowedRoles={["recruiter", "admin"]} />}>
+                    <Route path="/jobs/new" element={<CreateJobPage />} />
+                  </Route>
+
+                  <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+                    <Route path="/audit-log" element={<AuditLogPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
+                </Route>
+              </Route>
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

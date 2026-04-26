@@ -56,11 +56,6 @@ export default function LandingPage() {
             <Link to="/login">
               <Button variant="ghost" size="sm">Sign In</Button>
             </Link>
-            <Link to="/login">
-              <Button size="sm" className="gradient-primary text-primary-foreground border-0">
-                Get Started <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            </Link>
           </div>
         </div>
       </nav>
@@ -80,15 +75,10 @@ export default function LandingPage() {
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
               The modern applicant tracking system that helps HR teams find, evaluate, and hire top talent faster with AI-powered workflows.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex items-center justify-center">
               <Link to="/dashboard">
                 <Button size="lg" className="gradient-primary text-primary-foreground border-0 h-12 px-8 text-base">
-                  Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link to="/apply/demo">
-                <Button size="lg" variant="outline" className="h-12 px-8 text-base">
-                  View Demo
+                  Get started <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </div>

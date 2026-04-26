@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, MoreHorizontal, Mail, Brain } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Link } from "react-router-dom";
+import { useAuth } from "@/components/AuthProvider";
 
 const candidates = [
   { id: 1, name: "Sarah Chen", email: "sarah@email.com", role: "Senior Frontend Dev", score: 92, stage: "Final Round", initials: "SC", applied: "Mar 15" },
@@ -37,6 +37,8 @@ const stageColors: Record<string, string> = {
 
 export default function CandidatesPage() {
   const [search, setSearch] = useState("");
+  const { user } = useAuth();
+  const canManageCandidates = user?.role === "admin" || user?.role === "recruiter";
   const filtered = candidates.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -108,9 +110,9 @@ export default function CandidatesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>View Profile</DropdownMenuItem>
-                        <DropdownMenuItem><Mail className="h-4 w-4 mr-2" /> Send Email</DropdownMenuItem>
-                        <DropdownMenuItem>Move Stage</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Reject</DropdownMenuItem>
+                        {canManageCandidates && <DropdownMenuItem><Mail className="h-4 w-4 mr-2" /> Send Email</DropdownMenuItem>}
+                        {canManageCandidates && <DropdownMenuItem>Move Stage</DropdownMenuItem>}
+                        {canManageCandidates && <DropdownMenuItem className="text-destructive">Reject</DropdownMenuItem>}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

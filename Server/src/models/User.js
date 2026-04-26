@@ -23,8 +23,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["recruiter", "admin"],
-      default: "recruiter",
+      enum: ["viewer", "recruiter", "admin"],
+      default: "viewer",
     },
   },
   {
@@ -32,10 +32,9 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.pre("save", async function saveHook(next) {
-  if (!this.isModified("password")) return next();
+userSchema.pre("save", async function saveHook() {
+  if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 userSchema.methods.comparePassword = function comparePassword(candidatePassword) {

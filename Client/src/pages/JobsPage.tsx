@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, MoreHorizontal, MapPin, Users, Eye } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/components/AuthProvider";
 
 const jobs = [
   { id: 1, title: "Senior Frontend Developer", dept: "Engineering", location: "Remote", type: "Full-time", applicants: 45, status: "Active", posted: "Mar 15" },
@@ -26,6 +27,8 @@ const statusColors: Record<string, string> = {
 
 export default function JobsPage() {
   const [search, setSearch] = useState("");
+  const { user } = useAuth();
+  const canManageJobs = user?.role === "admin" || user?.role === "recruiter";
   const filtered = jobs.filter((j) => j.title.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -35,11 +38,13 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Jobs</h1>
           <p className="text-muted-foreground">Manage your open positions</p>
         </div>
-        <Link to="/jobs/new">
-          <Button className="gradient-primary text-primary-foreground border-0">
-            <Plus className="h-4 w-4 mr-2" /> Create Job
-          </Button>
-        </Link>
+        {canManageJobs && (
+          <Link to="/jobs/new">
+            <Button className="gradient-primary text-primary-foreground border-0">
+              <Plus className="h-4 w-4 mr-2" /> Create Job
+            </Button>
+          </Link>
+        )}
       </div>
 
       <Card className="border border-border">
@@ -111,8 +116,8 @@ export default function JobsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem><Eye className="h-4 w-4 mr-2" /> View</DropdownMenuItem>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Close</DropdownMenuItem>
+                        {canManageJobs && <DropdownMenuItem>Edit</DropdownMenuItem>}
+                        {canManageJobs && <DropdownMenuItem className="text-destructive">Close</DropdownMenuItem>}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

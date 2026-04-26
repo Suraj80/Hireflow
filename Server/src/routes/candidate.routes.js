@@ -5,13 +5,13 @@ const {
   updateCandidate,
   deleteCandidate,
 } = require("../controllers/candidate.controller");
-const { protect } = require("../middleware/auth.middleware");
+const { protect, requireRole } = require("../middleware/auth.middleware");
 
 const router = express.Router();
 
 router.get("/", protect, getCandidates);
-router.post("/", protect, createCandidate);
-router.put("/:id", protect, updateCandidate);
-router.delete("/:id", protect, deleteCandidate);
+router.post("/", protect, requireRole("recruiter", "admin"), createCandidate);
+router.put("/:id", protect, requireRole("recruiter", "admin"), updateCandidate);
+router.delete("/:id", protect, requireRole("recruiter", "admin"), deleteCandidate);
 
 module.exports = router;
