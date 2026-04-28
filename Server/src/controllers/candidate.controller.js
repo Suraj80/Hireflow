@@ -26,7 +26,7 @@ const createCandidate = async (req, res) => {
 const getCandidates = async (_req, res) => {
   try {
     const candidates = await Candidate.find()
-      .populate("appliedJob", "title company location")
+      .populate("appliedJob", "title department location")
       .sort({ createdAt: -1 });
     return res.status(200).json(candidates);
   } catch (error) {

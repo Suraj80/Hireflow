@@ -19,6 +19,25 @@ const protect = (req, res, next) => {
   }
 };
 
+const optionalProtect = (req, _res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next();
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET);
+    req.user = { id: decoded.id, role: decoded.role };
+  } catch (_error) {
+    req.user = null;
+  }
+
+  return next();
+};
+
 const requireRole = (...roles) => (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ message: "Authentication required" });
@@ -31,4 +50,4 @@ const requireRole = (...roles) => (req, res, next) => {
   return next();
 };
 
-module.exports = { protect, requireRole };
+module.exports = { optionalProtect, protect, requireRole };
