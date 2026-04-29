@@ -108,14 +108,30 @@ const listApplicantsCount = async (jobIds) => {
   const counts = await Candidate.aggregate([
     {
       $match: {
-        appliedJob: {
-          $in: jobIds.map((id) => new mongoose.Types.ObjectId(id)),
+        $or: [
+          {
+            jobId: {
+              $in: jobIds.map((id) => new mongoose.Types.ObjectId(id)),
+            },
+          },
+          {
+            appliedJob: {
+              $in: jobIds.map((id) => new mongoose.Types.ObjectId(id)),
+            },
+          },
+        ],
+      },
+    },
+    {
+      $project: {
+        normalizedJobId: {
+          $ifNull: ["$jobId", "$appliedJob"],
         },
       },
     },
     {
       $group: {
-        _id: "$appliedJob",
+        _id: "$normalizedJobId",
         count: { $sum: 1 },
       },
     },
@@ -179,7 +195,9 @@ const getJobById = async (req, res) => {
       return res.status(404).json({ message: "Job not found" });
     }
 
-    const applicantsCount = await Candidate.countDocuments({ appliedJob: job._id });
+    const applicantsCount = await Candidate.countDocuments({
+      $or: [{ jobId: job._id }, { appliedJob: job._id }],
+    });
 
     if (req.user) {
       return res.status(200).json(normalizeJobResponse(job, applicantsCount));
@@ -263,7 +281,9 @@ const updateJob = async (req, res) => {
     const populatedJob = await Job.findById(job._id)
       .populate("createdBy", "name email role")
       .populate("updatedBy", "name email role");
-    const applicantsCount = await Candidate.countDocuments({ appliedJob: job._id });
+    const applicantsCount = await Candidate.countDocuments({
+      $or: [{ jobId: job._id }, { appliedJob: job._id }],
+    });
 
     return res.status(200).json(normalizeJobResponse(populatedJob, applicantsCount));
   } catch (error) {

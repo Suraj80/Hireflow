@@ -14,6 +14,8 @@ import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
 import CreateJobPage from "./pages/CreateJobPage";
 import CandidatesPage from "./pages/CandidatesPage";
+import CreateCandidatePage from "./pages/CreateCandidatePage";
+import CandidateDetailPage from "./pages/CandidateDetailPage";
 import PipelinePage from "./pages/PipelinePage";
 import InterviewsPage from "./pages/InterviewsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -45,6 +47,7 @@ const App = () => (
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/jobs" element={<JobsPage />} />
                   <Route path="/candidates" element={<CandidatesPage />} />
+                  <Route path="/candidates/:candidateId" element={<CandidateDetailPage />} />
                   <Route path="/pipeline" element={<PipelinePage />} />
                   <Route path="/interviews" element={<InterviewsPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
@@ -52,6 +55,8 @@ const App = () => (
                   <Route element={<ProtectedRoute allowedRoles={["recruiter", "admin"]} />}>
                     <Route path="/jobs/new" element={<CreateJobPage />} />
                     <Route path="/jobs/:jobId/edit" element={<CreateJobPage />} />
+                    <Route path="/candidates/new" element={<CreateCandidatePage />} />
+                    <Route path="/candidates/:candidateId/edit" element={<CreateCandidatePage />} />
                   </Route>
 
                   <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
