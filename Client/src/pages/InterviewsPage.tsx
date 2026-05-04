@@ -1,107 +1,253 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { AlertCircle, Download, LoaderCircle, XCircle } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/components/AuthProvider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { CalendarDays, Plus, Clock, Video, MapPin } from "lucide-react";
-
-const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-const hours = ["9 AM", "10 AM", "11 AM", "12 PM", "1 PM", "2 PM", "3 PM", "4 PM", "5 PM"];
-
-const interviews = [
-  { id: 1, name: "Sarah Chen", role: "Senior Frontend Dev", time: "Today, 2:00 PM", type: "Video", duration: "45 min", initials: "SC", day: 0, hour: 5 },
-  { id: 2, name: "Alex Kim", role: "Product Designer", time: "Today, 4:30 PM", type: "In-person", duration: "60 min", initials: "AK", day: 0, hour: 7 },
-  { id: 3, name: "Maria Garcia", role: "Data Analyst", time: "Tomorrow, 10:00 AM", type: "Video", duration: "30 min", initials: "MG", day: 1, hour: 1 },
-  { id: 4, name: "James Park", role: "Backend Engineer", time: "Wed, 11:00 AM", type: "Phone", duration: "30 min", initials: "JP", day: 2, hour: 2 },
-];
+import { Card, CardContent } from "@/components/ui/card";
+import { InterviewCalendarView } from "@/features/interviews/components/InterviewCalendarView";
+import { InterviewDrawer } from "@/features/interviews/components/InterviewDrawer";
+import { InterviewListView } from "@/features/interviews/components/InterviewListView";
+import { InterviewToolbar } from "@/features/interviews/components/InterviewToolbar";
+import { UpcomingSidebar } from "@/features/interviews/components/UpcomingSidebar";
+import { downloadInterviewCsv } from "@/features/interviews/helpers";
+import { useInterviewsStore } from "@/features/interviews/store";
+import { Interview } from "@/features/interviews/types";
 
 export default function InterviewsPage() {
+  const { user } = useAuth();
+  const canManage = user?.role === "admin" || user?.role === "recruiter";
+  const {
+    view,
+    weekStart,
+    filters,
+    meta,
+    items,
+    calendarItems,
+    upcoming,
+    pagination,
+    loadingList,
+    loadingCalendar,
+    error,
+    selectedIds,
+    drawerOpen,
+    selectedInterview,
+    detailLoading,
+    setView,
+    setFilters,
+    setPage,
+    setWeekStart,
+    shiftWeek,
+    toggleSelected,
+    toggleSelectAll,
+    clearSelection,
+    fetchList,
+    fetchCalendar,
+    openDrawer,
+    closeDrawer,
+    updateInterview,
+    rescheduleInterview,
+    updateStatus,
+    addFeedback,
+  } = useInterviewsStore();
+
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    void fetchCalendar();
+  }, [fetchCalendar, weekStart, filters.search, filters.team, filters.interviewer, filters.status, refreshKey]);
+
+  useEffect(() => {
+    void fetchList();
+  }, [fetchList, filters, pagination.page, pagination.limit, refreshKey]);
+
+  const handleReschedulePrompt = async (interview: Interview) => {
+    const next = window.prompt("New interview time in ISO format", interview.scheduledAt);
+    if (!next) {
+      return;
+    }
+    try {
+      await rescheduleInterview(interview.id, { scheduledAt: next, reason: "Rescheduled from interviews workspace" });
+      toast.success("Interview rescheduled");
+      setRefreshKey((value) => value + 1);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to reschedule interview");
+    }
+  };
+
+  const handleCancel = async (interview: Interview) => {
+    try {
+      await updateStatus(interview.id, { status: "Cancelled", reason: "Cancelled from interviews workspace" });
+      toast.success("Interview cancelled");
+      setRefreshKey((value) => value + 1);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to cancel interview");
+    }
+  };
+
+  const handleReminder = async (interview: Interview) => {
+    try {
+      await updateStatus(interview.id, {
+        status: interview.status,
+        reason: "Reminder sent to interview panel",
+        sendNotification: true,
+      });
+      toast.success("Reminder recorded");
+      setRefreshKey((value) => value + 1);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to send reminder");
+    }
+  };
+
+  const selectedRows = items.filter((item) => selectedIds.includes(item.id));
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Interviews</h1>
-          <p className="text-muted-foreground">Schedule and manage interviews</p>
-        </div>
-        <Button className="gradient-primary text-primary-foreground border-0">
-          <Plus className="h-4 w-4 mr-2" /> Schedule Interview
-        </Button>
-      </div>
+      <InterviewToolbar
+        canManage={canManage}
+        view={view}
+        weekStart={weekStart}
+        filters={filters}
+        meta={meta}
+        onViewChange={setView}
+        onWeekChange={shiftWeek}
+        onWeekStartChange={setWeekStart}
+        onFiltersChange={setFilters}
+      />
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Calendar */}
-        <Card className="lg:col-span-2 border border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-primary" /> This Week
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <div className="grid grid-cols-6 min-w-[600px]">
-                <div className="border-r border-border">
-                  <div className="h-10" />
-                  {hours.map((h) => (
-                    <div key={h} className="h-14 flex items-start justify-end pr-2 text-xs text-muted-foreground pt-1">{h}</div>
-                  ))}
-                </div>
-                {days.map((day, di) => (
-                  <div key={day} className="relative border-r border-border last:border-0">
-                    <div className="h-10 flex items-center justify-center text-sm font-medium border-b border-border">
-                      {day}
-                    </div>
-                    {hours.map((_, hi) => (
-                      <div key={hi} className="h-14 border-b border-border/30" />
-                    ))}
-                    {interviews
-                      .filter((i) => i.day === di)
-                      .map((i) => (
-                        <div
-                          key={i.id}
-                          className="absolute left-1 right-1 rounded-lg gradient-primary p-2 text-primary-foreground z-10"
-                          style={{ top: `${40 + i.hour * 56}px`, height: i.duration === "60 min" ? "56px" : "42px" }}
-                        >
-                          <p className="text-xs font-semibold truncate">{i.name}</p>
-                          <p className="text-[10px] opacity-80 truncate">{i.duration}</p>
-                        </div>
-                      ))}
-                  </div>
-                ))}
-              </div>
+      {canManage && selectedIds.length > 0 && (
+        <Card className="rounded-[28px] border border-primary/20 bg-primary/5 shadow-sm">
+          <CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="font-medium">{selectedIds.length} interviews selected</p>
+              <p className="text-sm text-muted-foreground">Use this for operational cleanup, bulk status updates, and export.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={async () => {
+                  await Promise.all(selectedRows.map((item) => updateStatus(item.id, { status: "Completed", reason: "Bulk marked completed" })));
+                  clearSelection();
+                  toast.success("Selected interviews marked completed");
+                }}
+              >
+                Mark completed
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={async () => {
+                  await Promise.all(selectedRows.map((item) => updateStatus(item.id, { status: "Cancelled", reason: "Bulk cancelled" })));
+                  clearSelection();
+                  toast.success("Selected interviews cancelled");
+                }}
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button variant="outline" className="rounded-2xl" onClick={() => downloadInterviewCsv(selectedRows)}>
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
             </div>
           </CardContent>
         </Card>
+      )}
 
-        {/* Upcoming */}
-        <Card className="border border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Upcoming</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {interviews.map((i) => (
-              <div key={i.id} className="p-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
-                <div className="flex items-center gap-3 mb-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs gradient-primary text-primary-foreground">{i.initials}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">{i.name}</p>
-                    <p className="text-xs text-muted-foreground">{i.role}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    <Clock className="h-3 w-3 mr-1" /> {i.time}
-                  </Badge>
-                  <Badge variant="secondary" className="text-xs">
-                    {i.type === "Video" ? <Video className="h-3 w-3 mr-1" /> : <MapPin className="h-3 w-3 mr-1" />}
-                    {i.type}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+      {error && (
+        <Alert variant="destructive" className="rounded-[28px]">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Unable to load interviews</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {view === "calendar" ? (
+        <div className="grid gap-6 lg:grid-cols-3">
+          {loadingCalendar ? (
+            <Card className="lg:col-span-2 rounded-[28px] border border-border/80 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-10 text-muted-foreground">
+                <LoaderCircle className="h-5 w-5 animate-spin" />
+                Loading interview calendar...
+              </CardContent>
+            </Card>
+          ) : (
+            <InterviewCalendarView
+              weekStart={weekStart}
+              items={calendarItems}
+              onOpen={(id) => void openDrawer(id)}
+              onReschedule={async (id, payload) => {
+                await rescheduleInterview(id, payload);
+                setRefreshKey((value) => value + 1);
+              }}
+            />
+          )}
+
+          <UpcomingSidebar
+            items={upcoming}
+            onView={(id) => void openDrawer(id)}
+            onReschedule={(interview) => void handleReschedulePrompt(interview)}
+            onCancel={(interview) => void handleCancel(interview)}
+            onReminder={(interview) => void handleReminder(interview)}
+          />
+        </div>
+      ) : loadingList ? (
+        <Card className="rounded-[28px] border border-border/80 shadow-sm">
+          <CardContent className="flex items-center gap-3 p-10 text-muted-foreground">
+            <LoaderCircle className="h-5 w-5 animate-spin" />
+            Loading interview list...
           </CardContent>
         </Card>
-      </div>
+      ) : (
+        <InterviewListView
+          items={items}
+          selectedIds={selectedIds}
+          pagination={pagination}
+          onToggleSelected={toggleSelected}
+          onToggleAll={toggleSelectAll}
+          onOpen={(id) => void openDrawer(id)}
+          onEdit={(interview) => void openDrawer(interview.id)}
+          onReschedule={(interview) => void handleReschedulePrompt(interview)}
+          onCancel={(interview) => void handleCancel(interview)}
+          onAddFeedback={(id) => void openDrawer(id)}
+          onMarkCompleted={async (interview) => {
+            await updateStatus(interview.id, { status: "Completed", reason: "Marked completed from list view" });
+            toast.success("Interview marked completed");
+            setRefreshKey((value) => value + 1);
+          }}
+          onSortChange={(sort) => setFilters({ sort })}
+          onPageChange={setPage}
+        />
+      )}
+
+      <InterviewDrawer
+        open={drawerOpen}
+        loading={detailLoading}
+        interview={selectedInterview}
+        meta={meta}
+        onOpenChange={closeDrawer}
+        onUpdate={async (id, values) => {
+          const next = await updateInterview(id, values);
+          setRefreshKey((value) => value + 1);
+          return next;
+        }}
+        onReschedule={async (id, payload) => {
+          const next = await rescheduleInterview(id, payload);
+          setRefreshKey((value) => value + 1);
+          return next;
+        }}
+        onUpdateStatus={async (id, payload) => {
+          const next = await updateStatus(id, payload);
+          setRefreshKey((value) => value + 1);
+          return next;
+        }}
+        onAddFeedback={async (id, values) => {
+          const next = await addFeedback(id, values);
+          setRefreshKey((value) => value + 1);
+          return next;
+        }}
+      />
     </div>
   );
 }
