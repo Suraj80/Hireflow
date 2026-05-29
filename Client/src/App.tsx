@@ -53,9 +53,9 @@ const App = () => (
                   <Route path="/pipeline" element={<PipelinePage />} />
                   <Route path="/pipeline/:jobId" element={<PipelinePage />} />
                   <Route path="/interviews" element={<InterviewsPage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
 
                   <Route element={<ProtectedRoute allowedRoles={["recruiter", "admin"]} />}>
+                    <Route path="/analytics" element={<AnalyticsPage />} />
                     <Route path="/interviews/new" element={<ScheduleInterviewPage />} />
                     <Route path="/jobs/new" element={<CreateJobPage />} />
                     <Route path="/jobs/:jobId/edit" element={<CreateJobPage />} />

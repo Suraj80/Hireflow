@@ -46,6 +46,9 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
+  const visibleMainItems = mainItems.filter(
+    (item) => item.title !== "Analytics" || user?.role === "admin" || user?.role === "recruiter"
+  );
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
@@ -64,7 +67,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainItems.map((item) => (
+              {visibleMainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
                     <NavLink to={item.url} className="flex items-center gap-2">
