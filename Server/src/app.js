@@ -8,6 +8,7 @@ const candidateRoutes = require("./routes/candidate.routes");
 const interviewRoutes = require("./routes/interview.routes");
 const userRoutes = require("./routes/user.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
+const dashboardRoutes = require("./routes/dashboard.routes");
 
 const app = express();
 
@@ -35,5 +36,6 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/candidates", candidateRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 module.exports = app;

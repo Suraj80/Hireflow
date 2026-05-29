@@ -1,179 +1,375 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Activity,
+  AlertCircle,
+  BriefcaseBusiness,
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  GitBranch,
+  Plus,
+  Users2,
+} from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StageBadge } from "@/features/candidates/components/StageBadge";
+import { scoreToneClass } from "@/features/candidates/helpers";
+import { dashboardApi } from "@/features/dashboard/api";
 import {
-  Users,
-  Briefcase,
-  TrendingUp,
-  Clock,
-  ArrowUpRight,
-  CalendarDays,
-} from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-} from "recharts";
+  formatDashboardDate,
+  formatDashboardDateTime,
+  formatDashboardNumber,
+  formatDashboardRelative,
+} from "@/features/dashboard/helpers";
+import { DashboardOverviewResponse } from "@/features/dashboard/types";
 
-const stats = [
-  { label: "Open Positions", value: "24", change: "+3 this week", icon: Briefcase, trend: "up" },
-  { label: "Total Candidates", value: "1,284", change: "+127 this month", icon: Users, trend: "up" },
-  { label: "Avg. Time to Hire", value: "18 days", change: "-2 days", icon: Clock, trend: "up" },
-  { label: "Offer Accept Rate", value: "87%", change: "+5%", icon: TrendingUp, trend: "up" },
-];
-
-const applicationData = [
-  { name: "Jan", applications: 65 },
-  { name: "Feb", applications: 85 },
-  { name: "Mar", applications: 120 },
-  { name: "Apr", applications: 95 },
-  { name: "May", applications: 140 },
-  { name: "Jun", applications: 180 },
-  { name: "Jul", applications: 165 },
-];
-
-const hiringByDept = [
-  { dept: "Engineering", hires: 12 },
-  { dept: "Design", hires: 5 },
-  { dept: "Marketing", hires: 8 },
-  { dept: "Sales", hires: 10 },
-  { dept: "Product", hires: 6 },
-];
-
-const upcomingInterviews = [
-  { name: "Sarah Chen", role: "Senior Frontend Dev", time: "Today, 2:00 PM", initials: "SC" },
-  { name: "Alex Kim", role: "Product Designer", time: "Today, 4:30 PM", initials: "AK" },
-  { name: "Maria Garcia", role: "Data Analyst", time: "Tomorrow, 10:00 AM", initials: "MG" },
-];
-
-const recentActivity = [
-  { action: "New application", detail: "James Park applied for Backend Engineer", time: "5m ago" },
-  { action: "Interview scheduled", detail: "Sarah Chen — Senior Frontend Dev", time: "1h ago" },
-  { action: "Candidate moved", detail: "Alex Kim moved to Final Round", time: "2h ago" },
-  { action: "Job posted", detail: "UI/UX Designer position published", time: "4h ago" },
-];
-
-export default function DashboardPage() {
+function LoadingState() {
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, here's your hiring overview.</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s) => (
-          <Card key={s.label} className="border border-border hover:shadow-elevated transition-all">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-                  <s.icon className="h-4 w-4 text-primary" />
-                </div>
-                <Badge variant="secondary" className="text-xs text-success font-medium">
-                  <ArrowUpRight className="h-3 w-3 mr-0.5" />
-                  {s.change}
-                </Badge>
-              </div>
-              <p className="text-2xl font-bold">{s.value}</p>
-              <p className="text-sm text-muted-foreground">{s.label}</p>
-            </CardContent>
-          </Card>
+    <div className="space-y-4">
+      <Skeleton className="h-28 rounded-[28px]" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Skeleton key={index} className="h-32 rounded-[28px]" />
         ))}
       </div>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Skeleton className="h-[360px] rounded-[28px] xl:col-span-2" />
+        <Skeleton className="h-[360px] rounded-[28px]" />
+      </div>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Skeleton className="h-[320px] rounded-[28px]" />
+        <Skeleton className="h-[320px] rounded-[28px]" />
+      </div>
+    </div>
+  );
+}
 
-      {/* Charts */}
-      <div className="grid lg:grid-cols-5 gap-6">
-        <Card className="lg:col-span-3 border border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Applications Over Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={applicationData}>
-                <defs>
-                  <linearGradient id="colorApps" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ borderRadius: "0.75rem", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
-                <Area type="monotone" dataKey="applications" stroke="hsl(221, 83%, 53%)" fillOpacity={1} fill="url(#colorApps)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+function EmptyListState({ message }: { message: string }) {
+  return (
+    <div className="flex h-[200px] items-center justify-center rounded-[24px] border border-dashed border-border/80 bg-muted/20 px-6 text-center">
+      <p className="max-w-sm text-sm text-muted-foreground">{message}</p>
+    </div>
+  );
+}
 
-        <Card className="lg:col-span-2 border border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Hires by Department</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={hiringByDept} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis dataKey="dept" type="category" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" width={80} />
-                <Tooltip contentStyle={{ borderRadius: "0.75rem", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
-                <Bar dataKey="hires" fill="hsl(221, 83%, 53%)" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [overview, setOverview] = useState<DashboardOverviewResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const canManage = user?.role === "admin" || user?.role === "recruiter";
+  const canViewAnalytics = canManage;
+
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await dashboardApi.overview();
+      setOverview(response);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
+
+  const kpis = useMemo(() => {
+    if (!overview) {
+      return [];
+    }
+
+    return [
+      {
+        label: "Total Candidates",
+        value: formatDashboardNumber(overview.totalCandidates),
+        helper: `${formatDashboardNumber(overview.candidatesInInterview)} in interview stage`,
+        icon: Users2,
+      },
+      {
+        label: "Active Jobs",
+        value: formatDashboardNumber(overview.activeJobs),
+        helper: `${formatDashboardNumber(overview.openJobs)} open for applications`,
+        icon: BriefcaseBusiness,
+      },
+      {
+        label: "Pending Applications",
+        value: formatDashboardNumber(overview.pendingApplications),
+        helper: "Fresh applications waiting for first review",
+        icon: GitBranch,
+      },
+      {
+        label: "Upcoming Interviews",
+        value: formatDashboardNumber(overview.upcomingInterviewsCount),
+        helper: "Scheduled over the next 7 days",
+        icon: CalendarClock,
+      },
+      {
+        label: "Hired This Month",
+        value: formatDashboardNumber(overview.hiredThisMonth),
+        helper: "Candidates that reached hired this month",
+        icon: CheckCircle2,
+      },
+    ];
+  }, [overview]);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="mt-1 text-muted-foreground">
+            Overview of your hiring activity and upcoming tasks.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {canManage && (
+            <Button className="h-11 rounded-2xl" onClick={() => navigate("/jobs/new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Job
+            </Button>
+          )}
+          <Button variant="outline" className="h-11 rounded-2xl" onClick={() => navigate("/pipeline")}>
+            View Pipeline
+          </Button>
+          {canViewAnalytics && (
+            <Button variant="outline" className="h-11 rounded-2xl" onClick={() => navigate("/analytics")}>
+              View Analytics
+            </Button>
+          )}
+          {canManage && (
+            <Button variant="outline" className="h-11 rounded-2xl" onClick={() => navigate("/interviews/new")}>
+              Schedule Interview
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Bottom row */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="border border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-primary" /> Upcoming Interviews
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {upcomingInterviews.map((i) => (
-              <div key={i.name} className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback className="text-xs gradient-primary text-primary-foreground">{i.initials}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{i.name}</p>
-                  <p className="text-xs text-muted-foreground">{i.role}</p>
-                </div>
-                <Badge variant="secondary" className="text-xs shrink-0">{i.time}</Badge>
-              </div>
+      {loading ? (
+        <LoadingState />
+      ) : error ? (
+        <Alert variant="destructive" className="rounded-[28px]">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Unable to load the dashboard</AlertTitle>
+          <AlertDescription className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <span>{error}</span>
+            <Button variant="outline" className="rounded-2xl" onClick={() => void loadDashboard()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : !overview ? (
+        <EmptyListState message="No dashboard data is available yet." />
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            {kpis.map((item) => (
+              <Card key={item.label} className="rounded-[28px] border border-border/80 shadow-sm">
+                <CardContent className="p-5">
+                  <div className="mb-4 flex items-center justify-between gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+                      <item.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
+                      Live
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{item.label}</p>
+                  <p className="mt-2 text-3xl font-semibold tracking-tight">{item.value}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{item.helper}</p>
+                </CardContent>
+              </Card>
             ))}
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="border border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {recentActivity.map((a, idx) => (
-              <div key={idx} className="flex gap-3 items-start">
-                <div className="h-2 w-2 rounded-full gradient-primary mt-2 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{a.action}</p>
-                  <p className="text-xs text-muted-foreground">{a.detail}</p>
-                </div>
-                <span className="text-xs text-muted-foreground shrink-0">{a.time}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+          <div className="grid gap-6 xl:grid-cols-3">
+            <Card className="rounded-[28px] border border-border/80 shadow-sm xl:col-span-2">
+              <CardHeader className="pb-3">
+                <CardTitle>Recent Applications</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  The latest candidates that entered the pipeline and may need review today.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {overview.recentCandidates.length > 0 ? (
+                  overview.recentCandidates.map((candidate) => (
+                    <div key={candidate.id} className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-semibold">{candidate.name}</p>
+                          <p className="text-sm text-muted-foreground">{candidate.jobTitle}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <StageBadge stage={candidate.stage} />
+                            {typeof candidate.aiScore === "number" && (
+                              <Badge
+                                variant="outline"
+                                className={`rounded-full border px-2.5 py-1 text-xs ${scoreToneClass(candidate.aiScore)}`}
+                              >
+                                AI {candidate.aiScore}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground sm:text-right">
+                          <p>{formatDashboardDate(candidate.appliedAt)}</p>
+                          <p className="mt-1 text-xs">{candidate.phone || candidate.email}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyListState message="No recent applications yet." />
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[28px] border border-border/80 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle>Pipeline Summary</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  A compact view of where candidates are sitting right now.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {overview.pipelineSummary.some((item) => item.count > 0) ? (
+                  overview.pipelineSummary.map((item) => (
+                    <div key={item.stage} className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <StageBadge stage={item.stage} />
+                        <span className="text-lg font-semibold">{formatDashboardNumber(item.count)}</span>
+                      </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{
+                            width: `${Math.max(
+                              8,
+                              overview.totalCandidates > 0 ? (item.count / overview.totalCandidates) * 100 : 0
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyListState message="No candidates in the pipeline yet." />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <Card className="rounded-[28px] border border-border/80 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle>Upcoming Interviews</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Interviews scheduled over the next 7 days that may need preparation.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {overview.upcomingInterviews.length > 0 ? (
+                  overview.upcomingInterviews.map((item) => (
+                    <div key={item.id} className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold">{item.candidateName}</p>
+                          <p className="text-sm text-muted-foreground">{item.jobTitle}</p>
+                        </div>
+                        <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
+                          {item.mode}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span>{formatDashboardDateTime(item.scheduledAt)}</span>
+                        <span>&bull;</span>
+                        <span>{item.round}</span>
+                        <span>&bull;</span>
+                        <span>{item.status}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyListState message="No interviews are scheduled in the next 7 days." />
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[28px] border border-border/80 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle>Active Jobs</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Open and active roles that currently need candidate flow and interview attention.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {overview.activeJobsList.length > 0 ? (
+                  overview.activeJobsList.map((job) => (
+                    <div key={job.id} className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold">{job.title}</p>
+                          <p className="text-sm text-muted-foreground">{job.department}</p>
+                        </div>
+                        <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs capitalize">
+                          {job.status}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span>{formatDashboardNumber(job.applicantsCount)} applicants</span>
+                        <span>&bull;</span>
+                        <span>Deadline {formatDashboardDate(job.deadline, "No deadline")}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyListState message="No active jobs are available right now." />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="rounded-[28px] border border-border/80 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle>Recent Activity</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Important events across candidates, interviews, and jobs so your team can spot what changed.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {overview.recentActivity.length > 0 ? (
+                overview.recentActivity.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10">
+                      <Activity className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-medium">{item.title}</p>
+                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{formatDashboardRelative(item.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <EmptyListState message="No recent activity has been recorded yet." />
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
