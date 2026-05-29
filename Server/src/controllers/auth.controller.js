@@ -31,22 +31,24 @@ const issueSession = async (res, user, rotatedFrom = null) => {
 
 const register = async (req, res) => {
   try {
+    const existingUsers = await User.countDocuments();
+    if (existingUsers > 0) {
+      return res.status(403).json({
+        message: "Public registration is disabled. Contact your administrator.",
+      });
+    }
+
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required" });
     }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(409).json({ message: "User already exists" });
-    }
-
-    const user = await User.create({ name, email, password });
+    const user = await User.create({ name, email, password, role: "admin" });
     const accessToken = await issueSession(res, user);
 
     return res.status(201).json({
-      message: "User registered successfully",
+      message: "Initial administrator created successfully",
       accessToken,
       user: sanitizeUser(user),
     });
