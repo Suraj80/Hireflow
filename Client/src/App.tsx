@@ -23,6 +23,7 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import AuditLogPage from "./pages/AuditLogPage";
 import SettingsPage from "./pages/SettingsPage";
 import UsersPage from "./pages/UsersPage";
+import ProfilePage from "./pages/ProfilePage";
 import JobApplicationPage from "./pages/JobApplicationPage";
 import CandidateStatusPage from "./pages/CandidateStatusPage";
 import NotFound from "./pages/NotFound";
@@ -47,6 +48,7 @@ const App = () => (
               <Route element={<ProtectedRoute />}>
                 <Route element={<DashboardLayout />}>
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/jobs" element={<JobsPage />} />
                   <Route path="/candidates" element={<CandidatesPage />} />
                   <Route path="/candidates/:candidateId" element={<CandidateDetailPage />} />

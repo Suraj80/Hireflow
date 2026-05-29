@@ -73,7 +73,7 @@ export function TopNavbar() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/profile")}>Profile</DropdownMenuItem>
             {user?.role === "admin" && (
               <>
                 <DropdownMenuItem onClick={() => navigate("/users")}>Users</DropdownMenuItem>

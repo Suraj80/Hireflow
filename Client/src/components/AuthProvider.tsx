@@ -15,6 +15,8 @@ export type AuthUser = {
   name: string;
   email: string;
   role: UserRole;
+  avatar: string;
+  createdAt: string;
 };
 
 type AuthContextValue = {
@@ -24,6 +26,7 @@ type AuthContextValue = {
   login: (payload: { email: string; password: string }) => Promise<void>;
   register: (payload: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (payload: { name: string; avatar?: string; currentPassword?: string; newPassword?: string }) => Promise<AuthUser>;
   refreshSession: () => Promise<string>;
   loadCurrentUser: () => Promise<AuthUser>;
 };
@@ -89,6 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfile = async (payload: { name: string; avatar?: string; currentPassword?: string; newPassword?: string }) => {
+    const { data } = await authApi.updateMe(payload);
+    setUser(data.user);
+    return data.user;
+  };
+
   useEffect(() => {
     setUnauthorizedHandler(() => {
       clearSession();
@@ -139,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       logout,
+      updateProfile,
       refreshSession,
       loadCurrentUser,
     }),
