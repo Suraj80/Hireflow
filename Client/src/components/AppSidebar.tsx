@@ -35,6 +35,7 @@ const mainItems = [
 ];
 
 const adminItems = [
+  { title: "Users", url: "/users", icon: Users },
   { title: "Audit Log", url: "/audit-log", icon: FileText },
   { title: "Settings", url: "/settings", icon: Settings },
 ];

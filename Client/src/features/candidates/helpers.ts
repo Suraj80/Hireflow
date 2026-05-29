@@ -17,6 +17,22 @@ export const stageOrder: CandidateStage[] = [
   "Rejected",
 ];
 
+export const groupCandidatesByStage = (candidates: Candidate[]) =>
+  stageOrder.reduce<Record<CandidateStage, Candidate[]>>(
+    (groups, stage) => {
+      groups[stage] = candidates.filter((candidate) => candidate.stage === stage);
+      return groups;
+    },
+    {
+      Applied: [],
+      Screening: [],
+      Interview: [],
+      Offer: [],
+      Hired: [],
+      Rejected: [],
+    }
+  );
+
 export const sourceLabels: Record<CandidateSource, string> = {
   portal: "Portal",
   referral: "Referral",

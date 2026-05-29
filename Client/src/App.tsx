@@ -22,6 +22,7 @@ import ScheduleInterviewPage from "./pages/ScheduleInterviewPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import AuditLogPage from "./pages/AuditLogPage";
 import SettingsPage from "./pages/SettingsPage";
+import UsersPage from "./pages/UsersPage";
 import JobApplicationPage from "./pages/JobApplicationPage";
 import CandidateStatusPage from "./pages/CandidateStatusPage";
 import NotFound from "./pages/NotFound";
@@ -50,6 +51,7 @@ const App = () => (
                   <Route path="/candidates" element={<CandidatesPage />} />
                   <Route path="/candidates/:candidateId" element={<CandidateDetailPage />} />
                   <Route path="/pipeline" element={<PipelinePage />} />
+                  <Route path="/pipeline/:jobId" element={<PipelinePage />} />
                   <Route path="/interviews" element={<InterviewsPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
 
@@ -62,6 +64,7 @@ const App = () => (
                   </Route>
 
                   <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+                    <Route path="/users" element={<UsersPage />} />
                     <Route path="/audit-log" element={<AuditLogPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Route>

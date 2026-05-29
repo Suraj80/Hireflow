@@ -15,10 +15,12 @@ import {
 import { useState } from "react";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { useAuth } from "@/components/AuthProvider";
+import { useNavigate } from "react-router-dom";
 
 export function TopNavbar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const initials = user?.name
     .split(" ")
     .filter(Boolean)
@@ -72,7 +74,12 @@ export function TopNavbar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem>Profile</DropdownMenuItem>
-            {user?.role === "admin" && <DropdownMenuItem>Settings</DropdownMenuItem>}
+            {user?.role === "admin" && (
+              <>
+                <DropdownMenuItem onClick={() => navigate("/users")}>Users</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings")}>Settings</DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={() => void logout()}>
               Log out

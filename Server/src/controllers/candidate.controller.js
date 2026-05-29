@@ -478,6 +478,15 @@ const ensureManageAccess = (candidate, req, res) => {
   return true;
 };
 
+const ensureStageMoveAccess = (req, res) => {
+  if (!req.user || !["admin", "recruiter"].includes(req.user.role)) {
+    res.status(403).json({ message: "Forbidden" });
+    return false;
+  }
+
+  return true;
+};
+
 const ensureAssignableRecruiter = async (recruiterId) => {
   if (!recruiterId) {
     return null;
@@ -782,7 +791,7 @@ const updateCandidateStage = async (req, res) => {
       return res.status(404).json({ message: "Candidate not found" });
     }
 
-    if (!ensureManageAccess(candidate, req, res)) {
+    if (!ensureStageMoveAccess(req, res)) {
       return;
     }
 
