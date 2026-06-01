@@ -32,6 +32,7 @@ const sanitizeUser = (user) => ({
   email: user.email,
   role: user.role,
   createdAt: user.createdAt,
+  lastLoginAt: user.lastLoginAt || null,
 });
 
 const signAccessToken = (user) =>

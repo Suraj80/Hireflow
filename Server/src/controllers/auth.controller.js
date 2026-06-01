@@ -44,7 +44,13 @@ const register = async (req, res) => {
       return res.status(400).json({ message: "Name, email and password are required" });
     }
 
-    const user = await User.create({ name, email, password, role: "admin" });
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role: "admin",
+      lastLoginAt: new Date(),
+    });
     const accessToken = await issueSession(res, user);
 
     return res.status(201).json({
@@ -74,6 +80,9 @@ const login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    user.lastLoginAt = new Date();
+    await user.save();
 
     const accessToken = await issueSession(res, user);
 

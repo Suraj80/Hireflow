@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema(
       enum: ["viewer", "recruiter", "admin"],
       default: "admin",
     },
+    lastLoginAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

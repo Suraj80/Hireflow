@@ -2,7 +2,6 @@ import { Bell, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -21,12 +20,6 @@ export function TopNavbar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const initials = user?.name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "HF";
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card/80 backdrop-blur-sm px-4">
@@ -63,11 +56,6 @@ export function TopNavbar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-9 gap-2 px-2">
-              <Avatar className="h-7 w-7">
-                <AvatarFallback className="text-xs gradient-primary text-primary-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
               <span className="text-sm font-medium hidden sm:inline">{user?.name || "HireFlow User"}</span>
               <ChevronDown className="h-3 w-3 text-muted-foreground" />
             </Button>
