@@ -171,7 +171,6 @@ const updateMe = async (req, res) => {
     }
 
     const nextName = typeof req.body.name === "string" ? req.body.name.trim() : user.name;
-    const nextAvatar = typeof req.body.avatar === "string" ? req.body.avatar.trim() : user.avatar || "";
     const currentPassword = typeof req.body.currentPassword === "string" ? req.body.currentPassword : "";
     const newPassword = typeof req.body.newPassword === "string" ? req.body.newPassword : "";
 
@@ -180,7 +179,6 @@ const updateMe = async (req, res) => {
     }
 
     user.name = nextName;
-    user.avatar = nextAvatar;
 
     if (newPassword) {
       if (newPassword.length < 6) {

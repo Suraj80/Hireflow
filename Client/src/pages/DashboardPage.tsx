@@ -1,17 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Activity,
   AlertCircle,
   BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
-  Clock3,
   GitBranch,
-  Plus,
   Users2,
 } from "lucide-react";
-import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,13 +54,9 @@ function EmptyListState({ message }: { message: string }) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [overview, setOverview] = useState<DashboardOverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const canManage = user?.role === "admin" || user?.role === "recruiter";
-  const canViewAnalytics = canManage;
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -125,33 +117,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="mt-1 text-muted-foreground">
             Overview of your hiring activity and upcoming tasks.
           </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canManage && (
-            <Button className="h-11 rounded-2xl" onClick={() => navigate("/jobs/new")}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Job
-            </Button>
-          )}
-          <Button variant="outline" className="h-11 rounded-2xl" onClick={() => navigate("/pipeline")}>
-            View Pipeline
-          </Button>
-          {canViewAnalytics && (
-            <Button variant="outline" className="h-11 rounded-2xl" onClick={() => navigate("/analytics")}>
-              View Analytics
-            </Button>
-          )}
-          {canManage && (
-            <Button variant="outline" className="h-11 rounded-2xl" onClick={() => navigate("/interviews/new")}>
-              Schedule Interview
-            </Button>
-          )}
         </div>
       </div>
 

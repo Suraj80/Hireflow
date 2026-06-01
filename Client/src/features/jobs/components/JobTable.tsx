@@ -11,10 +11,10 @@ type JobTableProps = {
   canManageJobs: boolean;
   onView: (job: Job) => void;
   onEdit: (job: Job) => void;
-  onArchive: (job: Job) => void;
+  onDelete: (job: Job) => void;
 };
 
-export function JobTable({ jobs, canManageJobs, onView, onEdit, onArchive }: JobTableProps) {
+export function JobTable({ jobs, canManageJobs, onView, onEdit, onDelete }: JobTableProps) {
   return (
     <>
       <div className="hidden overflow-hidden rounded-3xl border border-border bg-card shadow-sm lg:block">
@@ -66,8 +66,8 @@ export function JobTable({ jobs, canManageJobs, onView, onEdit, onArchive }: Job
                       <DropdownMenuItem onClick={() => onView(job)}>View</DropdownMenuItem>
                       {canManageJobs && <DropdownMenuItem onClick={() => onEdit(job)}>Edit</DropdownMenuItem>}
                       {canManageJobs && (
-                        <DropdownMenuItem onClick={() => onArchive(job)} className="text-destructive">
-                          Archive
+                        <DropdownMenuItem onClick={() => onDelete(job)} className="text-destructive">
+                          Delete
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
@@ -127,7 +127,7 @@ export function JobTable({ jobs, canManageJobs, onView, onEdit, onArchive }: Job
                   type="button"
                   variant="outline"
                   className="rounded-2xl text-destructive"
-                  onClick={() => onArchive(job)}
+                  onClick={() => onDelete(job)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

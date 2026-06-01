@@ -74,12 +74,6 @@ export function TopNavbar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={() => navigate("/profile")}>Profile</DropdownMenuItem>
-            {user?.role === "admin" && (
-              <>
-                <DropdownMenuItem onClick={() => navigate("/users")}>Users</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/settings")}>Settings</DropdownMenuItem>
-              </>
-            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={() => void logout()}>
               Log out

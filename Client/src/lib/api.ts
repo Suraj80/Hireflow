@@ -75,7 +75,7 @@ export const authApi = {
   register: (payload: { name: string; email: string; password: string }) =>
     api.post("/auth/register", payload),
   me: () => api.get("/auth/me"),
-  updateMe: (payload: { name: string; avatar?: string; currentPassword?: string; newPassword?: string }) =>
+  updateMe: (payload: { name: string; currentPassword?: string; newPassword?: string }) =>
     api.patch("/auth/me", payload),
   refresh: () => refreshClient.post("/auth/refresh"),
   logout: () => refreshClient.post("/auth/logout"),

@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Camera, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
+import { CalendarDays, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,6 @@ const roleLabel: Record<"admin" | "recruiter" | "viewer", string> = {
 export default function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const [name, setName] = useState(user?.name || "");
-  const [avatar, setAvatar] = useState(user?.avatar || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -49,7 +47,6 @@ export default function ProfilePage() {
       setSaving(true);
       await updateProfile({
         name: name.trim(),
-        avatar: avatar.trim(),
         currentPassword: currentPassword || undefined,
         newPassword: newPassword || undefined,
       });
@@ -76,12 +73,9 @@ export default function ProfilePage() {
         <Card className="rounded-[28px] border border-border/80 shadow-sm">
           <CardContent className="space-y-6 p-6">
             <div className="flex flex-col items-center text-center">
-              <Avatar className="h-24 w-24">
-                {user.avatar ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
-                <AvatarFallback className="text-2xl gradient-primary text-primary-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <div className="flex h-24 w-24 items-center justify-center rounded-full gradient-primary text-2xl font-semibold text-primary-foreground">
+                {initials}
+              </div>
               <h2 className="mt-4 text-xl font-semibold">{user.name}</h2>
               <p className="text-sm text-muted-foreground">{user.email}</p>
               <Badge variant="outline" className="mt-3 rounded-full px-3 py-1">
@@ -130,19 +124,6 @@ export default function ProfilePage() {
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="profile-email">Email</Label>
                 <Input id="profile-email" value={user.email} disabled className="h-11 rounded-2xl opacity-80" />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="profile-avatar">Avatar URL</Label>
-                <Input
-                  id="profile-avatar"
-                  value={avatar}
-                  onChange={(event) => setAvatar(event.target.value)}
-                  placeholder="https://example.com/avatar.png"
-                  className="h-11 rounded-2xl"
-                />
-                <p className="text-xs text-muted-foreground">
-                  File upload can be added later. For now, profile avatars use a direct image URL.
-                </p>
               </div>
             </CardContent>
           </Card>

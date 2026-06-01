@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlertCircle, Brain, BriefcaseBusiness, GripVertical, Mail, Phone, RefreshCw, Search, Users2 } from "lucide-react";
+import { AlertCircle, GripVertical, Mail, Phone, Search, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -69,9 +69,7 @@ function EmptyState({ onReset }: { onReset: () => void }) {
           <Users2 className="h-8 w-8 text-primary" />
         </div>
         <h2 className="mt-5 text-xl font-semibold">No candidates match this pipeline view</h2>
-        <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          Try broadening the search, switching jobs, or lowering the AI score threshold to bring more candidates into view.
-        </p>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground">Try broadening the search or switching jobs to bring more candidates into view.</p>
         <Button className="mt-6 h-11 rounded-2xl" variant="outline" onClick={onReset}>
           Reset filters
         </Button>
@@ -155,38 +153,6 @@ export default function PipelinePage() {
 
   const groupedCandidates = useMemo(() => groupCandidatesByStage(candidates), [candidates]);
 
-  const stats = useMemo(() => {
-    const scoredCandidates = candidates.filter((candidate) => typeof candidate.aiScore === "number");
-    const averageScore = scoredCandidates.length
-      ? Math.round(
-          scoredCandidates.reduce((total, candidate) => total + (candidate.aiScore || 0), 0) /
-            scoredCandidates.length
-        )
-      : null;
-
-    return [
-      { label: "Candidates in board", value: candidates.length, hint: "Across the filtered pipeline", icon: Users2 },
-      {
-        label: "Open interviews",
-        value: groupedCandidates.Interview.length,
-        hint: "Candidates currently in interview stage",
-        icon: BriefcaseBusiness,
-      },
-      {
-        label: "Offer stage",
-        value: groupedCandidates.Offer.length,
-        hint: "Finalists close to decision",
-        icon: RefreshCw,
-      },
-      {
-        label: "Average AI score",
-        value: averageScore ?? "Pending",
-        hint: "Across candidates with AI scoring",
-        icon: Brain,
-      },
-    ];
-  }, [candidates, groupedCandidates]);
-
   const handleJobChange = (value: string) => {
     setFilters((current) => ({ ...current, job: value }));
     navigate(value === "all" ? "/pipeline" : `/pipeline/${value}`);
@@ -249,24 +215,6 @@ export default function PipelinePage() {
           {canMoveCandidates ? "Drag and drop enabled" : "View only"}
         </Badge>
       </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="rounded-[28px] border border-border/80 shadow-sm">
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                <stat.icon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-semibold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.hint}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
       <Card className="rounded-[28px] border border-border/80 shadow-sm">
         <CardContent className="grid gap-3 p-5 md:grid-cols-[minmax(0,1fr)_260px_180px_auto]">
           <div className="relative">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, BrainCircuit, CalendarDays, Plus, Users2, UserRoundCheck } from "lucide-react";
+import { AlertCircle, Plus, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -19,12 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { CandidateFilters } from "@/features/candidates/components/CandidateFilters";
 import { CandidateTable } from "@/features/candidates/components/CandidateTable";
 import { averageAiScore, downloadCandidatesCsv } from "@/features/candidates/helpers";
 import { candidateInterviewModeOptions, candidateInterviewStatusOptions } from "@/features/candidates/schema";
 import {
-  defaultCandidateFilters,
   defaultCandidateMeta,
   defaultCandidatePagination,
   useCandidatesStore,
@@ -54,7 +52,7 @@ function EmptyState({ canManageCandidates, onCreate }: { canManageCandidates: bo
         </div>
         <h2 className="mt-5 text-xl font-semibold">No candidates match the current view</h2>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          Reset the filters, widen the search, or create a fresh manual entry to start building this pipeline segment.
+          Create a fresh manual entry to start building this pipeline segment.
         </p>
         {canManageCandidates && (
           <Button className="mt-6 h-11 rounded-2xl" onClick={onCreate}>
@@ -80,10 +78,7 @@ export default function CandidatesPage() {
     pagination,
     meta,
     selectedIds,
-    setFilters,
     setPage,
-    setLimit,
-    resetFilters,
     toggleSelected,
     toggleSelectAll,
     clearSelection,
@@ -95,7 +90,6 @@ export default function CandidatesPage() {
     bulkAction,
   } = candidatesState;
   const safeCandidates = candidates ?? EMPTY_CANDIDATES;
-  const safeFilters = filters ?? defaultCandidateFilters;
   const safePagination = pagination ?? defaultCandidatePagination;
   const safeMeta = meta ?? defaultCandidateMeta;
   const safeSelectedIds = selectedIds ?? EMPTY_SELECTED_IDS;
@@ -117,22 +111,7 @@ export default function CandidatesPage() {
 
   useEffect(() => {
     void fetchCandidates();
-  }, [fetchCandidates, safeFilters, safePagination.page, safePagination.limit]);
-
-  const stats = useMemo(() => {
-    const interviewing = safeCandidates.filter((candidate) => candidate.stage === "Interview").length;
-    const pendingReview = safeCandidates.filter(
-      (candidate) => candidate.stage === "Applied" || candidate.stage === "Screening"
-    ).length;
-    const avgAi = averageAiScore(safeCandidates);
-
-    return [
-      { label: "Candidates in view", value: safeCandidates.length, hint: `${safePagination.total} total matches`, icon: Users2 },
-      { label: "Pending review", value: pendingReview, hint: "Applied or screening", icon: UserRoundCheck },
-      { label: "Interviewing", value: interviewing, hint: "Active loops this view", icon: CalendarDays },
-      { label: "Average AI", value: avgAi ?? "Pending", hint: "Across scored candidates", icon: BrainCircuit },
-    ];
-  }, [safeCandidates, safePagination.total]);
+  }, [fetchCandidates, filters, safePagination.page, safePagination.limit]);
 
   const selectedCandidates = useMemo(
     () => safeCandidates.filter((candidate) => safeSelectedIds.includes(candidate.id)),
@@ -344,13 +323,7 @@ export default function CandidatesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
-          <p className="mt-1 text-muted-foreground">
-            Manage active applicants, recruiter ownership, notes, interviews, and stage flow from one workspace.
-          </p>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {canManageCandidates && (
           <Button className="h-11 rounded-2xl self-start" onClick={() => navigate("/candidates/new")}>
             <Plus className="mr-2 h-4 w-4" />
@@ -358,33 +331,6 @@ export default function CandidatesPage() {
           </Button>
         )}
       </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="rounded-[28px] border border-border/80 shadow-sm">
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                <stat.icon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-semibold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.hint}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <CandidateFilters
-        filters={safeFilters}
-        meta={safeMeta}
-        pagination={safePagination}
-        onChange={setFilters}
-        onLimitChange={setLimit}
-        onReset={resetFilters}
-      />
-
       {safeSelectedIds.length > 0 && canManageCandidates && (
         <Card className="rounded-[28px] border border-primary/20 bg-primary/5 shadow-sm">
           <CardContent className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto]">

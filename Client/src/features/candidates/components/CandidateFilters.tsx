@@ -4,24 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CandidateFilters as CandidateFiltersType, CandidateMeta, CandidatePagination } from "@/features/candidates/types";
+import { CandidateFilters as CandidateFiltersType, CandidateMeta } from "@/features/candidates/types";
 import { sourceLabels } from "@/features/candidates/helpers";
 
 type CandidateFiltersProps = {
   filters: CandidateFiltersType;
   meta: CandidateMeta;
-  pagination: CandidatePagination;
   onChange: (filters: Partial<CandidateFiltersType>) => void;
-  onLimitChange: (limit: CandidatePagination["limit"]) => void;
   onReset: () => void;
 };
 
 export function CandidateFilters({
   filters,
   meta,
-  pagination,
   onChange,
-  onLimitChange,
   onReset,
 }: CandidateFiltersProps) {
   return (
@@ -33,7 +29,7 @@ export function CandidateFilters({
             Search and filters
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Slice by recruiter, stage, source, date, or score without leaving the pipeline view.
+            Narrow the candidate list by job, department, stage, source, or status.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -128,23 +124,6 @@ export function CandidateFilters({
         </div>
 
         <div className="space-y-2">
-          <Label>Recruiter</Label>
-          <Select value={filters.recruiter} onValueChange={(value) => onChange({ recruiter: value })}>
-            <SelectTrigger className="h-11 rounded-2xl">
-              <SelectValue placeholder="All recruiters" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All recruiters</SelectItem>
-              {meta.recruiters.map((recruiter) => (
-                <SelectItem key={recruiter.id} value={recruiter.id}>
-                  {recruiter.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
           <Label>Status</Label>
           <Select
             value={filters.status}
@@ -164,86 +143,6 @@ export function CandidateFilters({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Applied from</Label>
-          <Input
-            type="date"
-            value={filters.appliedFrom}
-            onChange={(event) => onChange({ appliedFrom: event.target.value })}
-            className="h-11 rounded-2xl"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Applied to</Label>
-          <Input
-            type="date"
-            value={filters.appliedTo}
-            onChange={(event) => onChange({ appliedTo: event.target.value })}
-            className="h-11 rounded-2xl"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>AI score min</Label>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={filters.aiScoreMin ?? ""}
-            onChange={(event) => onChange({ aiScoreMin: event.target.value === "" ? null : Number(event.target.value) })}
-            className="h-11 rounded-2xl"
-            placeholder="0"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>AI score max</Label>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={filters.aiScoreMax ?? ""}
-            onChange={(event) => onChange({ aiScoreMax: event.target.value === "" ? null : Number(event.target.value) })}
-            className="h-11 rounded-2xl"
-            placeholder="100"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Sort</Label>
-          <Select value={filters.sort} onValueChange={(value) => onChange({ sort: value as CandidateFiltersType["sort"] })}>
-            <SelectTrigger className="h-11 rounded-2xl">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
-              <SelectItem value="highest-ai">Highest AI score</SelectItem>
-              <SelectItem value="stage">Stage</SelectItem>
-              <SelectItem value="name">Name A-Z</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Rows per page</Label>
-          <Select
-            value={String(pagination.limit)}
-            onValueChange={(value) => onLimitChange(Number(value) as CandidatePagination["limit"])}
-          >
-            <SelectTrigger className="h-11 rounded-2xl">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[10, 25, 50, 100].map((limit) => (
-                <SelectItem key={limit} value={String(limit)}>
-                  {limit} rows
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </CardContent>
     </Card>
   );
