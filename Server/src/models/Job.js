@@ -41,6 +41,11 @@ const jobSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    hiringManagerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     descriptionHTML: {
       type: String,
       required: true,
@@ -139,6 +144,7 @@ jobSchema.index({ status: 1 });
 jobSchema.index({ createdBy: 1 });
 jobSchema.index({ tags: 1 });
 jobSchema.index({ department: 1 });
+jobSchema.index({ hiringManagerId: 1 });
 jobSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Job", jobSchema);

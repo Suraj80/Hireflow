@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import { JobFormValues, formatJobPayload } from "@/features/jobs/schema";
-import { Job, JobsFilters, JobsListResponse, PublicJob } from "@/features/jobs/types";
+import { Job, JobMetaResponse, JobsFilters, JobsListResponse, PublicJob } from "@/features/jobs/types";
 
 export const jobsApi = {
   list: async (params: JobsFilters & { page: number; limit: number }) => {
@@ -23,6 +23,10 @@ export const jobsApi = {
   },
   getPublicById: async (id: string) => {
     const response = await api.get<PublicJob>(`/jobs/${id}`);
+    return response.data;
+  },
+  meta: async () => {
+    const response = await api.get<JobMetaResponse>("/jobs/meta");
     return response.data;
   },
   create: async (values: JobFormValues) => {

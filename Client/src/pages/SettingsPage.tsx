@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,14 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { departmentsApi } from "@/features/departments/api";
+import { DepartmentItem } from "@/features/departments/types";
 import {
   BellRing,
   BriefcaseBusiness,
   Building2,
+  LoaderCircle,
   LockKeyhole,
+  Plus,
   PlugZap,
-  Save,
-  ShieldCheck,
 } from "lucide-react";
 
 function ComingSoonCard({
@@ -44,6 +48,76 @@ function ComingSoonCard({
 }
 
 export default function SettingsPage() {
+  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
+  const [departmentName, setDepartmentName] = useState("");
+  const [creatingDepartment, setCreatingDepartment] = useState(false);
+  const [workingDepartmentId, setWorkingDepartmentId] = useState<string | null>(null);
+
+  const loadDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const response = await departmentsApi.list(true);
+      setDepartments(response.items);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to load departments");
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadDepartments();
+  }, []);
+
+  const activeDepartments = useMemo(
+    () => departments.filter((department) => department.isActive),
+    [departments]
+  );
+
+  const handleCreateDepartment = async () => {
+    const nextName = departmentName.trim();
+
+    if (!nextName) {
+      toast.error("Department name is required");
+      return;
+    }
+
+    try {
+      setCreatingDepartment(true);
+      const response = await departmentsApi.create({ name: nextName });
+      setDepartments((current) =>
+        [...current, response.item].sort((left, right) => left.name.localeCompare(right.name))
+      );
+      setDepartmentName("");
+      toast.success("Department added");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to add department");
+    } finally {
+      setCreatingDepartment(false);
+    }
+  };
+
+  const handleToggleDepartment = async (department: DepartmentItem, isActive: boolean) => {
+    if (department.isLegacy) {
+      toast.error("Legacy departments need to be recreated before they can be managed here");
+      return;
+    }
+
+    try {
+      setWorkingDepartmentId(department.id);
+      const response = await departmentsApi.update(department.id, { isActive });
+      setDepartments((current) =>
+        current.map((item) => (item.id === department.id ? response.item : item))
+      );
+      toast.success(isActive ? "Department activated" : "Department archived");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to update department");
+    } finally {
+      setWorkingDepartmentId(null);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -77,10 +151,10 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-primary" />
-                Workspace
+                Workspace Defaults
               </CardTitle>
               <CardDescription>
-                Workspace-level settings are not yet backed by the server, so these values are shown as placeholders only.
+                Core workspace settings are still placeholder-only, but departments are now managed centrally and reused across job creation.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 lg:grid-cols-2">
@@ -125,10 +199,87 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <ComingSoonCard
-            title="Save workspace configuration"
-            description="A dedicated settings API can be added later with GET /api/settings and PATCH /api/settings."
-          />
+          <Card className="rounded-[28px] border border-border/80 shadow-sm">
+            <CardHeader>
+              <CardTitle>Departments</CardTitle>
+              <CardDescription>
+                Add departments once here, then reuse them in job creation and filters to avoid typos and reporting drift.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+                <Input
+                  value={departmentName}
+                  onChange={(event) => setDepartmentName(event.target.value)}
+                  placeholder="Add a department like Engineering, Design, or Talent"
+                  className="h-11 rounded-2xl"
+                />
+                <Button
+                  className="h-11 rounded-2xl"
+                  disabled={creatingDepartment}
+                  onClick={() => void handleCreateDepartment()}
+                >
+                  {creatingDepartment ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                  Add department
+                </Button>
+              </div>
+
+              <div className="rounded-[24px] border border-border/80 bg-muted/20 p-4">
+                <p className="text-sm font-medium">Active departments</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {loadingDepartments
+                    ? "Loading department list..."
+                    : `${activeDepartments.length} active department${activeDepartments.length === 1 ? "" : "s"} available for jobs.`}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {loadingDepartments ? (
+                  <div className="rounded-[24px] border border-border/80 bg-muted/20 p-5 text-sm text-muted-foreground">
+                    Loading departments...
+                  </div>
+                ) : departments.length === 0 ? (
+                  <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5 text-sm text-muted-foreground">
+                    No departments exist yet. Add your first department to start using dropdown-based selection in job forms.
+                  </div>
+                ) : (
+                  departments.map((department) => (
+                    <div
+                      key={department.id}
+                      className="flex flex-col gap-4 rounded-[24px] border border-border/80 bg-background/80 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">{department.name}</p>
+                          <Badge variant={department.isActive ? "secondary" : "outline"} className="rounded-full px-2.5 py-1 text-xs">
+                            {department.isActive ? "Active" : "Archived"}
+                          </Badge>
+                          {department.isLegacy && (
+                            <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
+                              Legacy
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {department.isLegacy
+                            ? "This department exists on older job records. Recreate it here if you want full settings control."
+                            : "Used in structured job creation and downstream filtering."}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-muted-foreground">Available in forms</span>
+                        <Switch
+                          checked={department.isActive}
+                          disabled={Boolean(workingDepartmentId) || department.isLegacy}
+                          onCheckedChange={(checked) => void handleToggleDepartment(department, checked)}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-6">

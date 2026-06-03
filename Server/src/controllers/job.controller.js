@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const Candidate = require("../models/Candidate");
+const Department = require("../models/Department");
 const Job = require("../models/Job");
+const User = require("../models/User");
+const { getMergedDepartments } = require("./department.controller");
 const {
   jobCreateSchema,
   jobsQuerySchema,
@@ -43,6 +46,15 @@ const normalizeJobResponse = (job, applicantsCount = 0) => ({
   title: job.title,
   department: job.department,
   hiringManager: job.hiringManager,
+  hiringManagerId: job.hiringManagerId?._id?.toString?.() || job.hiringManagerId?.toString?.() || null,
+  hiringManagerUser: job.hiringManagerId
+    ? {
+        id: job.hiringManagerId._id?.toString?.() || job.hiringManagerId.toString(),
+        name: job.hiringManagerId.name,
+        email: job.hiringManagerId.email,
+        role: job.hiringManagerId.role,
+      }
+    : null,
   descriptionHTML: job.descriptionHTML,
   type: job.type,
   location: job.location,
@@ -104,6 +116,39 @@ const buildListQuery = ({ search, status, department, includeArchived }) => {
   return query;
 };
 
+const getHiringManagerRecord = async (hiringManagerId) => {
+  if (!hiringManagerId) {
+    return null;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(hiringManagerId)) {
+    return false;
+  }
+
+  return User.findById(hiringManagerId).select("name email role");
+};
+
+const isDepartmentAllowed = async (departmentName) => {
+  const normalizedDepartment = String(departmentName || "").trim();
+
+  if (!normalizedDepartment) {
+    return false;
+  }
+
+  const [storedDepartment, legacyDepartment] = await Promise.all([
+    Department.findOne({
+      name: new RegExp(`^${normalizedDepartment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      isActive: true,
+    }),
+    Job.findOne({
+      department: new RegExp(`^${normalizedDepartment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      archived: false,
+    }).select("_id"),
+  ]);
+
+  return Boolean(storedDepartment || legacyDepartment);
+};
+
 const listApplicantsCount = async (jobIds) => {
   const counts = await Candidate.aggregate([
     {
@@ -159,11 +204,12 @@ const getJobs = async (req, res) => {
       Job.find(query)
         .populate("createdBy", "name email role")
         .populate("updatedBy", "name email role")
+        .populate("hiringManagerId", "name email role")
         .sort(applySort(sort))
         .skip(skip)
         .limit(limit),
       Job.countDocuments(query),
-      Job.distinct("department", { archived: false }),
+      getMergedDepartments(),
     ]);
 
     const applicantsCountMap = await listApplicantsCount(jobs.map((job) => job._id.toString()));
@@ -177,7 +223,7 @@ const getJobs = async (req, res) => {
         totalPages: Math.max(1, Math.ceil(total / limit)),
       },
       filters: {
-        departments,
+        departments: departments.filter((item) => item.isActive).map((item) => item.name),
       },
     });
   } catch (error) {
@@ -189,7 +235,8 @@ const getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id)
       .populate("createdBy", "name email role")
-      .populate("updatedBy", "name email role");
+      .populate("updatedBy", "name email role")
+      .populate("hiringManagerId", "name email role");
 
     if (!job || job.archived) {
       return res.status(404).json({ message: "Job not found" });
@@ -222,15 +269,31 @@ const createJob = async (req, res) => {
 
   try {
     const payload = parsedBody.data;
+    const [departmentAllowed, hiringManagerRecord] = await Promise.all([
+      isDepartmentAllowed(payload.department),
+      getHiringManagerRecord(payload.hiringManagerId),
+    ]);
+
+    if (!departmentAllowed) {
+      return res.status(400).json({ message: "Select a department from the workspace list" });
+    }
+
+    if (hiringManagerRecord === false) {
+      return res.status(400).json({ message: "Selected hiring manager is invalid" });
+    }
+
     const job = await Job.create({
       ...payload,
+      hiringManager: hiringManagerRecord?.name || "",
+      hiringManagerId: hiringManagerRecord?._id || null,
       createdBy: req.user.id,
       updatedBy: req.user.id,
     });
 
     const populatedJob = await Job.findById(job._id)
       .populate("createdBy", "name email role")
-      .populate("updatedBy", "name email role");
+      .populate("updatedBy", "name email role")
+      .populate("hiringManagerId", "name email role");
 
     return res.status(201).json(normalizeJobResponse(populatedJob, 0));
   } catch (error) {
@@ -253,6 +316,7 @@ const updateJob = async (req, res) => {
       title: req.body.title ?? job.title,
       department: req.body.department ?? job.department,
       hiringManager: req.body.hiringManager ?? job.hiringManager,
+      hiringManagerId: typeof req.body.hiringManagerId === "undefined" ? job.hiringManagerId?.toString?.() || null : req.body.hiringManagerId,
       descriptionHTML: req.body.descriptionHTML ?? job.descriptionHTML,
       type: req.body.type ?? job.type,
       location: req.body.location ?? job.location,
@@ -275,12 +339,32 @@ const updateJob = async (req, res) => {
       return res.status(400).json(buildValidationError(parsedBody.error.issues));
     }
 
-    Object.assign(job, parsedBody.data, { updatedBy: req.user.id });
+    const [departmentAllowed, hiringManagerRecord] = await Promise.all([
+      parsedBody.data.department === job.department
+        ? true
+        : isDepartmentAllowed(parsedBody.data.department),
+      getHiringManagerRecord(parsedBody.data.hiringManagerId),
+    ]);
+
+    if (!departmentAllowed) {
+      return res.status(400).json({ message: "Select a department from the workspace list" });
+    }
+
+    if (hiringManagerRecord === false) {
+      return res.status(400).json({ message: "Selected hiring manager is invalid" });
+    }
+
+    Object.assign(job, parsedBody.data, {
+      hiringManager: hiringManagerRecord?.name || "",
+      hiringManagerId: hiringManagerRecord?._id || null,
+      updatedBy: req.user.id,
+    });
     await job.save();
 
     const populatedJob = await Job.findById(job._id)
       .populate("createdBy", "name email role")
-      .populate("updatedBy", "name email role");
+      .populate("updatedBy", "name email role")
+      .populate("hiringManagerId", "name email role");
     const applicantsCount = await Candidate.countDocuments({
       $or: [{ jobId: job._id }, { appliedJob: job._id }],
     });
@@ -313,10 +397,32 @@ const deleteJob = async (req, res) => {
   }
 };
 
+const getJobMeta = async (_req, res) => {
+  try {
+    const [departments, hiringManagers] = await Promise.all([
+      getMergedDepartments(),
+      User.find({}).select("name email role").sort({ name: 1, email: 1 }),
+    ]);
+
+    return res.status(200).json({
+      departments: departments.filter((item) => item.isActive),
+      hiringManagers: hiringManagers.map((user) => ({
+        id: String(user._id),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createJob,
   deleteJob,
   getJobById,
+  getJobMeta,
   getJobs,
   updateJob,
 };

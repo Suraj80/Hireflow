@@ -52,6 +52,7 @@ const jobPayloadBaseSchema = z.object({
   title: trimString(3, 120),
   department: trimString(2, 80),
   hiringManager: z.string().trim().max(120).optional().default(""),
+  hiringManagerId: z.string().trim().optional().nullable().default(null),
   descriptionHTML: trimString(30, 50000),
   type: z.enum(employmentTypes),
   location: trimString(2, 120),

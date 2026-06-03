@@ -22,6 +22,8 @@ export type Job = {
   title: string;
   department: string;
   hiringManager: string;
+  hiringManagerId: string | null;
+  hiringManagerUser: UserSummary | null;
   descriptionHTML: string;
   type: EmploymentType;
   location: string;
@@ -47,7 +49,15 @@ export type Job = {
 
 export type PublicJob = Omit<
   Job,
-  "createdBy" | "updatedBy" | "archived" | "applicantsCount" | "hiringManager" | "maxApplicants" | "autoClose"
+  | "createdBy"
+  | "updatedBy"
+  | "archived"
+  | "applicantsCount"
+  | "hiringManager"
+  | "hiringManagerId"
+  | "hiringManagerUser"
+  | "maxApplicants"
+  | "autoClose"
 >;
 
 export type JobsFilters = {
@@ -70,4 +80,16 @@ export type JobsListResponse = {
   filters: {
     departments: string[];
   };
+};
+
+export type JobDepartmentOption = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  isLegacy?: boolean;
+};
+
+export type JobMetaResponse = {
+  departments: JobDepartmentOption[];
+  hiringManagers: UserSummary[];
 };

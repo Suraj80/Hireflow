@@ -10,6 +10,13 @@ const buildUserResponse = (user) => ({
   status: "active",
 });
 
+const buildUserOption = (user) => ({
+  id: String(user._id),
+  name: user.name,
+  email: user.email,
+  role: user.role,
+});
+
 const buildValidationError = (message, field = null) => ({
   message,
   ...(field
@@ -49,6 +56,18 @@ const listUsers = async (req, res) => {
 
     return res.status(200).json({
       items: users.map(buildUserResponse),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const listUserOptions = async (_req, res) => {
+  try {
+    const users = await User.find({}).sort({ name: 1, email: 1 });
+
+    return res.status(200).json({
+      items: users.map(buildUserOption),
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -129,5 +148,6 @@ const updateRole = async (req, res) => {
 module.exports = {
   createUser,
   listUsers,
+  listUserOptions,
   updateRole,
 };

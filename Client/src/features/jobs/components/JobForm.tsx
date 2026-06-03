@@ -20,7 +20,7 @@ import { SalaryInput } from "@/features/jobs/components/SalaryInput";
 import { TagSelector } from "@/features/jobs/components/TagSelector";
 import { jobsApi } from "@/features/jobs/api";
 import { defaultJobFormValues, employmentTypeOptions, JobFormValues, jobFormSchema, toJobFormValues } from "@/features/jobs/schema";
-import { Job } from "@/features/jobs/types";
+import { Job, JobDepartmentOption, UserSummary } from "@/features/jobs/types";
 import { cn } from "@/lib/utils";
 
 const defaultTagSuggestions = ["urgent", "remote", "engineering", "product", "marketing"];
@@ -40,6 +40,9 @@ export function JobForm({ mode, job = null }: JobFormProps) {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState<"draft" | "open" | null>(null);
   const [autosaveStamp, setAutosaveStamp] = useState<string | null>(null);
+  const [departmentOptions, setDepartmentOptions] = useState<JobDepartmentOption[]>([]);
+  const [hiringManagerOptions, setHiringManagerOptions] = useState<UserSummary[]>([]);
+  const [metaLoading, setMetaLoading] = useState(true);
   const submitIntentRef = useRef<"draft" | "open">("draft");
   const autosaveTimerRef = useRef<number | null>(null);
   const storageKey = `hireflow-job-draft:${job?.id || "new"}`;
@@ -49,6 +52,64 @@ export function JobForm({ mode, job = null }: JobFormProps) {
     defaultValues: job ? toJobFormValues(job) : defaultJobFormValues,
     mode: "onBlur",
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMeta = async () => {
+      try {
+        setMetaLoading(true);
+        const response = await jobsApi.meta();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const nextDepartments = [...response.departments];
+        if (job?.department && !nextDepartments.some((department) => department.name === job.department)) {
+          nextDepartments.push({
+            id: `current-${job.department}`,
+            name: job.department,
+            isActive: true,
+            isLegacy: true,
+          });
+        }
+
+        const nextHiringManagers = [...response.hiringManagers];
+        if (
+          job?.hiringManagerId &&
+          job.hiringManager &&
+          !nextHiringManagers.some((manager) => manager.id === job.hiringManagerId)
+        ) {
+          nextHiringManagers.push({
+            id: job.hiringManagerId,
+            name: job.hiringManager,
+            email: "",
+            role: "recruiter",
+          });
+        }
+
+        setDepartmentOptions(
+          nextDepartments.sort((left, right) => left.name.localeCompare(right.name))
+        );
+        setHiringManagerOptions(
+          nextHiringManagers.sort((left, right) => left.name.localeCompare(right.name))
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Unable to load department and hiring manager options");
+      } finally {
+        if (isMounted) {
+          setMetaLoading(false);
+        }
+      }
+    };
+
+    void loadMeta();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [job?.department, job?.hiringManager, job?.hiringManagerId]);
 
   useEffect(() => {
     if (job) {
@@ -205,22 +266,62 @@ export function JobForm({ mode, job = null }: JobFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Department *</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Engineering" className="h-11 rounded-2xl" />
-                  </FormControl>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={metaLoading}>
+                    <FormControl>
+                      <SelectTrigger className="h-11 rounded-2xl">
+                        <SelectValue placeholder={metaLoading ? "Loading departments..." : "Choose a department"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {departmentOptions.map((department) => (
+                        <SelectItem key={department.id} value={department.name}>
+                          {department.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Departments are managed centrally in Settings to keep reporting and filters consistent.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
-              name="hiringManager"
+              name="hiringManagerId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Hiring Manager</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Avery Stone" className="h-11 rounded-2xl" />
-                  </FormControl>
+                  <Select
+                    value={field.value || "unassigned"}
+                    onValueChange={(value) => {
+                      const manager = hiringManagerOptions.find((item) => item.id === value);
+                      field.onChange(value === "unassigned" ? null : value);
+                      form.setValue("hiringManager", value === "unassigned" ? "" : manager?.name || "", {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }}
+                    disabled={metaLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-11 rounded-2xl">
+                        <SelectValue placeholder={metaLoading ? "Loading users..." : "Select a hiring manager"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {hiringManagerOptions.map((manager) => (
+                        <SelectItem key={manager.id} value={manager.id}>
+                          {manager.name}{manager.email ? ` • ${manager.email}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Select from existing internal users instead of typing manually, so ownership stays clean.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
