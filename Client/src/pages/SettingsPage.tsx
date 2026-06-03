@@ -10,6 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { departmentsApi } from "@/features/departments/api";
 import { DepartmentItem } from "@/features/departments/types";
+import { settingsApi } from "@/features/settings/api";
+import { WorkspaceSettings } from "@/features/settings/types";
 import {
   BellRing,
   BriefcaseBusiness,
@@ -18,6 +20,7 @@ import {
   LockKeyhole,
   Plus,
   PlugZap,
+  Save,
 } from "lucide-react";
 
 function ComingSoonCard({
@@ -48,11 +51,35 @@ function ComingSoonCard({
 }
 
 export default function SettingsPage() {
+  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>({
+    workspaceName: "",
+    companyName: "",
+    defaultPipelineDisplay: "Applied -> Screening -> Interview -> Offer -> Hired",
+    defaultTimezone: "Asia/Kolkata",
+    defaultCurrency: "USD",
+    brandingLogo: "",
+  });
+  const [initialWorkspaceSettings, setInitialWorkspaceSettings] = useState<WorkspaceSettings | null>(null);
+  const [loadingWorkspace, setLoadingWorkspace] = useState(true);
+  const [savingWorkspace, setSavingWorkspace] = useState(false);
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [departmentName, setDepartmentName] = useState("");
   const [creatingDepartment, setCreatingDepartment] = useState(false);
   const [workingDepartmentId, setWorkingDepartmentId] = useState<string | null>(null);
+
+  const loadWorkspaceSettings = async () => {
+    try {
+      setLoadingWorkspace(true);
+      const response = await settingsApi.getWorkspace();
+      setWorkspaceSettings(response);
+      setInitialWorkspaceSettings(response);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to load workspace settings");
+    } finally {
+      setLoadingWorkspace(false);
+    }
+  };
 
   const loadDepartments = async () => {
     try {
@@ -67,6 +94,7 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
+    void loadWorkspaceSettings();
     void loadDepartments();
   }, []);
 
@@ -74,6 +102,42 @@ export default function SettingsPage() {
     () => departments.filter((department) => department.isActive),
     [departments]
   );
+
+  const workspaceDirty = useMemo(() => {
+    if (!initialWorkspaceSettings) {
+      return false;
+    }
+
+    return JSON.stringify(workspaceSettings) !== JSON.stringify(initialWorkspaceSettings);
+  }, [initialWorkspaceSettings, workspaceSettings]);
+
+  const handleWorkspaceChange = <K extends keyof WorkspaceSettings>(key: K, value: WorkspaceSettings[K]) => {
+    setWorkspaceSettings((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  };
+
+  const handleSaveWorkspace = async () => {
+    try {
+      setSavingWorkspace(true);
+      const response = await settingsApi.updateWorkspace({
+        workspaceName: workspaceSettings.workspaceName.trim(),
+        companyName: workspaceSettings.companyName.trim(),
+        defaultPipelineDisplay: workspaceSettings.defaultPipelineDisplay,
+        defaultTimezone: workspaceSettings.defaultTimezone.trim(),
+        defaultCurrency: workspaceSettings.defaultCurrency.trim().toUpperCase(),
+        brandingLogo: workspaceSettings.brandingLogo.trim(),
+      });
+      setWorkspaceSettings(response.settings);
+      setInitialWorkspaceSettings(response.settings);
+      toast.success("Workspace settings saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save workspace settings");
+    } finally {
+      setSavingWorkspace(false);
+    }
+  };
 
   const handleCreateDepartment = async () => {
     const nextName = departmentName.trim();
@@ -154,47 +218,100 @@ export default function SettingsPage() {
                 Workspace Defaults
               </CardTitle>
               <CardDescription>
-                Core workspace settings are still placeholder-only, but departments are now managed centrally and reused across job creation.
+                Configure the core workspace values used across the ATS. These settings now persist for admins.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-2">
                 <Label>Workspace name</Label>
-                <Input value="HireFlow Workspace" disabled className="h-11 rounded-2xl opacity-80" />
+                <Input
+                  value={workspaceSettings.workspaceName}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) => handleWorkspaceChange("workspaceName", event.target.value)}
+                  className="h-11 rounded-2xl"
+                  placeholder="HireFlow Workspace"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Company name</Label>
-                <Input value="HireFlow Labs" disabled className="h-11 rounded-2xl opacity-80" />
+                <Input
+                  value={workspaceSettings.companyName}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) => handleWorkspaceChange("companyName", event.target.value)}
+                  className="h-11 rounded-2xl"
+                  placeholder="HireFlow Labs"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Default pipeline display</Label>
-                <Select defaultValue="default" disabled>
-                  <SelectTrigger className="h-11 rounded-2xl opacity-80">
+                <Select
+                  value={workspaceSettings.defaultPipelineDisplay}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onValueChange={(value) => handleWorkspaceChange("defaultPipelineDisplay", value)}
+                >
+                  <SelectTrigger className="h-11 rounded-2xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Applied → Screening → Interview → Offer → Hired</SelectItem>
+                    <SelectItem value="Applied -> Screening -> Interview -> Offer -> Hired">
+                      Applied → Screening → Interview → Offer → Hired
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Default timezone</Label>
-                <Select defaultValue="asia-kolkata" disabled>
-                  <SelectTrigger className="h-11 rounded-2xl opacity-80">
+                <Select
+                  value={workspaceSettings.defaultTimezone}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onValueChange={(value) => handleWorkspaceChange("defaultTimezone", value)}
+                >
+                  <SelectTrigger className="h-11 rounded-2xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="asia-kolkata">Asia/Kolkata</SelectItem>
+                    <SelectItem value="Asia/Kolkata">Asia/Kolkata</SelectItem>
+                    <SelectItem value="UTC">UTC</SelectItem>
+                    <SelectItem value="America/New_York">America/New_York</SelectItem>
+                    <SelectItem value="Europe/London">Europe/London</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Default currency</Label>
-                <Input value="USD" disabled className="h-11 rounded-2xl opacity-80" />
+                <Input
+                  value={workspaceSettings.defaultCurrency}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) => handleWorkspaceChange("defaultCurrency", event.target.value.toUpperCase())}
+                  className="h-11 rounded-2xl"
+                  placeholder="USD"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Branding / logo</Label>
-                <Input value="Workspace branding support coming soon" disabled className="h-11 rounded-2xl opacity-80" />
+                <Input
+                  value={workspaceSettings.brandingLogo}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) => handleWorkspaceChange("brandingLogo", event.target.value)}
+                  className="h-11 rounded-2xl"
+                  placeholder="Logo URL or branding note"
+                />
+              </div>
+              <div className="lg:col-span-2 flex flex-col gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">Save workspace configuration</p>
+                  <p className="text-sm text-muted-foreground">
+                    These defaults apply across the workspace and can be updated later from this admin-only page.
+                  </p>
+                </div>
+                <Button
+                  className="h-11 rounded-2xl"
+                  disabled={loadingWorkspace || savingWorkspace || !workspaceDirty}
+                  onClick={() => void handleSaveWorkspace()}
+                >
+                  {savingWorkspace ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save workspace
+                </Button>
               </div>
             </CardContent>
           </Card>

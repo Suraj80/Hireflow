@@ -1,5 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const currencyOptions = ["USD", "INR", "EUR", "GBP", "AED", "SGD", "AUD", "CAD"];
 
 type SalaryInputProps = {
   currency: string;
@@ -24,7 +27,18 @@ export function SalaryInput({
     <div className="grid gap-4 md:grid-cols-[120px_1fr_1fr]">
       <div className="space-y-2">
         <Label>Currency</Label>
-        <Input value={currency} onChange={(event) => onCurrencyChange(event.target.value)} maxLength={5} disabled={disabled} />
+        <Select value={currency} onValueChange={onCurrencyChange} disabled={disabled}>
+          <SelectTrigger className="h-10 rounded-xl">
+            <SelectValue placeholder="Currency" />
+          </SelectTrigger>
+          <SelectContent>
+            {currencyOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
         <Label>Salary Min</Label>

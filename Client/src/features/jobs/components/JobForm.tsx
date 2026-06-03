@@ -21,6 +21,7 @@ import { TagSelector } from "@/features/jobs/components/TagSelector";
 import { jobsApi } from "@/features/jobs/api";
 import { defaultJobFormValues, employmentTypeOptions, JobFormValues, jobFormSchema, toJobFormValues } from "@/features/jobs/schema";
 import { Job, JobDepartmentOption, UserSummary } from "@/features/jobs/types";
+import { settingsApi } from "@/features/settings/api";
 import { cn } from "@/lib/utils";
 
 const defaultTagSuggestions = ["urgent", "remote", "engineering", "product", "marketing"];
@@ -43,6 +44,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
   const [departmentOptions, setDepartmentOptions] = useState<JobDepartmentOption[]>([]);
   const [hiringManagerOptions, setHiringManagerOptions] = useState<UserSummary[]>([]);
   const [metaLoading, setMetaLoading] = useState(true);
+  const [workspaceCurrency, setWorkspaceCurrency] = useState(defaultJobFormValues.currency);
   const submitIntentRef = useRef<"draft" | "open">("draft");
   const autosaveTimerRef = useRef<number | null>(null);
   const storageKey = `hireflow-job-draft:${job?.id || "new"}`;
@@ -59,13 +61,16 @@ export function JobForm({ mode, job = null }: JobFormProps) {
     const loadMeta = async () => {
       try {
         setMetaLoading(true);
-        const response = await jobsApi.meta();
+        const [jobMetaResponse, workspaceResponse] = await Promise.all([
+          jobsApi.meta(),
+          settingsApi.getWorkspace().catch(() => null),
+        ]);
 
         if (!isMounted) {
           return;
         }
 
-        const nextDepartments = [...response.departments];
+        const nextDepartments = [...jobMetaResponse.departments];
         if (job?.department && !nextDepartments.some((department) => department.name === job.department)) {
           nextDepartments.push({
             id: `current-${job.department}`,
@@ -75,7 +80,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
           });
         }
 
-        const nextHiringManagers = [...response.hiringManagers];
+        const nextHiringManagers = [...jobMetaResponse.hiringManagers];
         if (
           job?.hiringManagerId &&
           job.hiringManager &&
@@ -95,6 +100,21 @@ export function JobForm({ mode, job = null }: JobFormProps) {
         setHiringManagerOptions(
           nextHiringManagers.sort((left, right) => left.name.localeCompare(right.name))
         );
+
+        const nextWorkspaceCurrency = workspaceResponse?.defaultCurrency || defaultJobFormValues.currency;
+        setWorkspaceCurrency(nextWorkspaceCurrency);
+
+        const currentCurrency = form.getValues("currency");
+        const shouldHydrateCurrency =
+          !job &&
+          (!form.getFieldState("currency").isDirty || currentCurrency === defaultJobFormValues.currency);
+
+        if (shouldHydrateCurrency && currentCurrency !== nextWorkspaceCurrency) {
+          form.setValue("currency", nextWorkspaceCurrency, {
+            shouldDirty: false,
+            shouldValidate: true,
+          });
+        }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Unable to load department and hiring manager options");
       } finally {
@@ -109,7 +129,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
     return () => {
       isMounted = false;
     };
-  }, [job?.department, job?.hiringManager, job?.hiringManagerId]);
+  }, [form, job]);
 
   useEffect(() => {
     if (job) {
@@ -397,6 +417,9 @@ export function JobForm({ mode, job = null }: JobFormProps) {
               onSalaryMinChange={(value) => form.setValue("salaryMin", value === "" ? null : Number(value), { shouldDirty: true, shouldValidate: true })}
               onSalaryMaxChange={(value) => form.setValue("salaryMax", value === "" ? null : Number(value), { shouldDirty: true, shouldValidate: true })}
             />
+            <p className="text-xs text-muted-foreground">
+              Currency defaults to the workspace setting{workspaceCurrency ? ` (${workspaceCurrency})` : ""} and can still be adjusted per job if needed.
+            </p>
             <div className="grid gap-4 md:grid-cols-3">
               <div />
               <div className="text-sm font-medium text-destructive">{form.formState.errors.salaryMin?.message}</div>
