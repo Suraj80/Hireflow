@@ -11,7 +11,6 @@ import {
   Phone,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +37,6 @@ import {
   formatRelative,
   formatShortDate,
   formatTimestamp,
-  getCandidateInitials,
   priorityLabels,
   sourceLabels,
   stageOrder,
@@ -225,11 +223,6 @@ export default function CandidateDetailPage() {
           <CardContent className="space-y-6 p-6">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="flex items-start gap-4">
-                <Avatar className="h-20 w-20 rounded-[28px]">
-                  <AvatarFallback className="rounded-[28px] bg-primary/10 text-2xl font-semibold text-primary">
-                    {getCandidateInitials(candidate.name)}
-                  </AvatarFallback>
-                </Avatar>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-2xl font-semibold">{candidate.name}</h2>

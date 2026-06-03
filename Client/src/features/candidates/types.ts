@@ -199,14 +199,12 @@ export type DuplicateCandidateResponse = {
 };
 
 export type ResumeUploadResponse = {
-  uploadUrl: string;
   fileUrl: string;
-  key: string;
-  method: "PUT";
-  headers: {
-    "Content-Type": string;
+  resumeMeta: {
+    filename: string;
+    size: number;
+    mimeType: string;
   };
-  expiresIn: number;
 };
 
 export type CandidateBulkActionPayload = {

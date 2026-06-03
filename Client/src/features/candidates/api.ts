@@ -1,4 +1,3 @@
-import axios from "axios";
 import { api } from "@/lib/api";
 import { CandidateFormValues, formatCandidatePayload, InterviewFormValues } from "@/features/candidates/schema";
 import {
@@ -105,19 +104,22 @@ export const candidatesApi = {
     return response.data;
   },
   requestResumeUpload: async (file: File) => {
-    const response = await api.post<ResumeUploadResponse>("/candidates/upload-url", {
-      filename: file.name,
-      contentType: file.type,
-      size: file.size,
+    const formData = new FormData();
+    formData.append("resume", file);
+    const response = await api.post<ResumeUploadResponse>("/candidates/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
     return response.data;
   },
   uploadResume: async (file: File, onProgress?: (progress: number) => void) => {
-    const signedUpload = await candidatesApi.requestResumeUpload(file);
-
-    await axios.put(signedUpload.uploadUrl, file, {
-      headers: signedUpload.headers,
-      withCredentials: false,
+    const formData = new FormData();
+    formData.append("resume", file);
+    const response = await api.post<ResumeUploadResponse>("/candidates/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
       onUploadProgress: (event) => {
         if (!onProgress || !event.total) {
           return;
@@ -128,12 +130,8 @@ export const candidatesApi = {
     });
 
     return {
-      resumeUrl: signedUpload.fileUrl,
-      resumeMeta: {
-        filename: file.name,
-        size: file.size,
-        mimeType: file.type,
-      },
+      resumeUrl: response.data.fileUrl,
+      resumeMeta: response.data.resumeMeta,
     };
   },
 };

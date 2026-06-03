@@ -103,39 +103,39 @@ export default function JobsPage() {
       ) : jobs.length === 0 ? (
         <EmptyState canManageJobs={canManageJobs} onCreate={() => navigate("/jobs/new")} />
       ) : (
-        <>
-          <JobTable
-            jobs={jobs}
-            canManageJobs={canManageJobs && !isDeleting}
-            onView={setSelectedJob}
-            onEdit={(job) => navigate(`/jobs/${job.id}/edit`)}
-            onDelete={(job) => void handleDelete(job)}
-          />
+        <JobTable
+          jobs={jobs}
+          canManageJobs={canManageJobs && !isDeleting}
+          onView={setSelectedJob}
+          onEdit={(job) => navigate(`/jobs/${job.id}/edit`)}
+          onDelete={(job) => void handleDelete(job)}
+        />
+      )}
 
-          <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Page {pagination.page} of {pagination.totalPages} | {pagination.total} total jobs
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                disabled={pagination.page <= 1}
-                onClick={() => setPage(pagination.page - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() => setPage(pagination.page + 1)}
-              >
-                Next
-              </Button>
-            </div>
+      {!loading && !error && jobs.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Page {pagination.page} of {pagination.totalPages} | {pagination.total} total jobs
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              disabled={pagination.page <= 1}
+              onClick={() => setPage(pagination.page - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              disabled={pagination.page >= pagination.totalPages}
+              onClick={() => setPage(pagination.page + 1)}
+            >
+              Next
+            </Button>
           </div>
-        </>
+        </div>
       )}
 
       <JobDetailsSheet

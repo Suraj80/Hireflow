@@ -1,5 +1,5 @@
 import { addMonths, format, setMonth } from "date-fns";
-import { CalendarRange, ChevronLeft, ChevronRight, List, Plus, Rows3, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Plus, Rows3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,16 +38,6 @@ export function InterviewToolbar({
     <Card className="rounded-[28px] border border-border/80 shadow-sm">
       <CardContent className="space-y-4 p-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CalendarRange className="h-4 w-4" />
-              Weekly interview scheduler
-            </div>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">Interviews</h1>
-            <p className="mt-1 text-muted-foreground">
-              Keep the calendar as the operating center, then flip into list mode for bulk management and reporting.
-            </p>
-          </div>
           <div className="flex flex-wrap gap-2">
             <Button
               variant={view === "calendar" ? "default" : "outline"}
@@ -104,16 +94,6 @@ export function InterviewToolbar({
               {formatWeekRange(weekStart)}
             </div>
           </div>
-          {canManage && (
-            <Button
-              variant="outline"
-              className="h-11 rounded-2xl"
-              onClick={() => navigate("/interviews/new")}
-            >
-              <Search className="mr-2 h-4 w-4" />
-              Quick add
-            </Button>
-          )}
         </div>
 
         <InterviewFilters filters={filters} meta={meta} onChange={onFiltersChange} />

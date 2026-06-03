@@ -16,12 +16,9 @@ import {
 import {
   Activity,
   AlertCircle,
-  BriefcaseBusiness,
   CalendarClock,
-  Clock3,
   Target,
   TrendingUp,
-  Users2,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +50,7 @@ function LoadingState() {
     <div className="space-y-4">
       <Skeleton className="h-28 rounded-[28px]" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
+        {Array.from({ length: 3 }).map((_, index) => (
           <Skeleton key={index} className="h-32 rounded-[28px]" />
         ))}
       </div>
@@ -138,18 +135,6 @@ export default function AnalyticsPage() {
 
     return [
       {
-        label: "Total Candidates",
-        value: formatNumber(overview.totalCandidates),
-        helper: `${formatNumber(overview.rejectedCandidates)} rejected across the funnel`,
-        icon: Users2,
-      },
-      {
-        label: "Active Jobs",
-        value: formatNumber(overview.activeJobs),
-        helper: `${formatNumber(overview.closedJobs)} closed out of ${formatNumber(overview.totalJobs)} total`,
-        icon: BriefcaseBusiness,
-      },
-      {
         label: "Total Interviews",
         value: formatNumber(overview.totalInterviews),
         helper: `${formatNumber(overview.upcomingInterviews)} scheduled in the next 7 days`,
@@ -167,14 +152,8 @@ export default function AnalyticsPage() {
         helper: "Hires divided by candidates who reached offer stage",
         icon: TrendingUp,
       },
-      {
-        label: "Upcoming Interviews",
-        value: formatNumber(interviews?.count || 0),
-        helper: "Interviews planned over the next week",
-        icon: Clock3,
-      },
     ];
-  }, [interviews?.count, overview]);
+  }, [overview]);
 
   return (
     <div className="space-y-6 animate-fade-in">

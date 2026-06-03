@@ -103,6 +103,13 @@ export default function InterviewsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight">Interviews</h1>
+        <p className="text-muted-foreground">
+          Keep the calendar as the operating center, then flip into list mode for bulk management and reporting.
+        </p>
+      </div>
+
       <InterviewToolbar
         canManage={canManage}
         view={view}

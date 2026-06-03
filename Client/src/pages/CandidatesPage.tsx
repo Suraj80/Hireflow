@@ -79,8 +79,6 @@ export default function CandidatesPage() {
     meta,
     selectedIds,
     setPage,
-    toggleSelected,
-    toggleSelectAll,
     clearSelection,
     fetchCandidates,
     moveStage,
@@ -402,45 +400,42 @@ export default function CandidatesPage() {
       ) : safeCandidates.length === 0 ? (
         <EmptyState canManageCandidates={canManageCandidates} onCreate={() => navigate("/candidates/new")} />
       ) : (
-        <>
-          <CandidateTable
-            candidates={safeCandidates}
-            selectedIds={safeSelectedIds}
-            onToggleSelected={toggleSelected}
-            onToggleAll={toggleSelectAll}
-            onView={(candidate) => navigate(`/candidates/${candidate.id}`)}
-            onEdit={(candidate) => navigate(`/candidates/${candidate.id}/edit`)}
-            onMoveStage={openStageDialog}
-            onScheduleInterview={openInterviewDialog}
-            onAddNote={openNoteDialog}
-            onReject={(candidate) => void handleReject(candidate)}
-            onArchive={(candidate) => void handleArchive(candidate)}
-          />
+        <CandidateTable
+          candidates={safeCandidates}
+          onView={(candidate) => navigate(`/candidates/${candidate.id}`)}
+          onEdit={(candidate) => navigate(`/candidates/${candidate.id}/edit`)}
+          onMoveStage={openStageDialog}
+          onScheduleInterview={openInterviewDialog}
+          onAddNote={openNoteDialog}
+          onReject={(candidate) => void handleReject(candidate)}
+          onArchive={(candidate) => void handleArchive(candidate)}
+        />
+      )}
 
-          <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Page {safePagination.page} of {safePagination.totalPages} | {safePagination.total} total candidates
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                disabled={safePagination.page <= 1}
-                onClick={() => setPage(safePagination.page - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                disabled={safePagination.page >= safePagination.totalPages}
-                onClick={() => setPage(safePagination.page + 1)}
-              >
-                Next
-              </Button>
-            </div>
+      {!loading && !error && safeCandidates.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Page {safePagination.page} of {safePagination.totalPages} | {safePagination.total} total candidates
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              disabled={safePagination.page <= 1}
+              onClick={() => setPage(safePagination.page - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              disabled={safePagination.page >= safePagination.totalPages}
+              onClick={() => setPage(safePagination.page + 1)}
+            >
+              Next
+            </Button>
           </div>
-        </>
+        </div>
       )}
 
       <Dialog open={Boolean(stageCandidate)} onOpenChange={(open) => !open && setStageCandidate(null)}>

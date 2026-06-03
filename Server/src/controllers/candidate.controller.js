@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const fs = require("fs");
 const Candidate = require("../models/Candidate");
 const CandidateNote = require("../models/CandidateNote");
 const Job = require("../models/Job");
@@ -260,101 +261,13 @@ const loadCandidateMeta = async () => {
   return buildCandidateMetaPayload({ jobs, departments, recruiters });
 };
 
-const encodeRfc3986 = (value) =>
-  encodeURIComponent(value).replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
-
-const buildCanonicalUri = (key) => `/${key.split("/").map(encodeRfc3986).join("/")}`;
-
-const buildS3ResumeObjectKey = (filename) => {
-  const prefix = (process.env.AWS_S3_RESUME_PREFIX || "hireflow/resumes").replace(/^\/+|\/+$/g, "");
-  const now = new Date();
-  const extension = filename.includes(".") ? filename.split(".").pop() : "";
-  const safeName = filename
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 90);
-  const normalizedName = safeName || "resume";
-  const randomToken = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  const datedPrefix = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  const fileSegment = extension
-    ? `${normalizedName.replace(new RegExp(`\\.${extension}$`), "")}.${extension}`
-    : normalizedName;
-
-  return `${prefix}/${datedPrefix}/${randomToken}-${fileSegment}`;
-};
-
-const getSigningKey = (secretAccessKey, dateStamp, region, service) => {
-  const kDate = require("crypto").createHmac("sha256", `AWS4${secretAccessKey}`).update(dateStamp).digest();
-  const kRegion = require("crypto").createHmac("sha256", kDate).update(region).digest();
-  const kService = require("crypto").createHmac("sha256", kRegion).update(service).digest();
-  return require("crypto").createHmac("sha256", kService).update("aws4_request").digest();
-};
-
-const createS3PresignedUpload = ({ filename, contentType }) => {
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-  const sessionToken = process.env.AWS_SESSION_TOKEN;
-  const region = process.env.AWS_REGION || process.env.AWS_S3_REGION;
-  const bucket = process.env.AWS_S3_BUCKET;
-  const expiresIn = Number(process.env.AWS_S3_PRESIGNED_TTL || 900);
-
-  if (!accessKeyId || !secretAccessKey || !region || !bucket) {
-    return null;
+const getPublicBaseUrl = (req) => {
+  const configuredBaseUrl = process.env.PUBLIC_SERVER_URL || process.env.PUBLIC_API_BASE_URL;
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/g, "");
   }
 
-  const key = buildS3ResumeObjectKey(filename);
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const dateStamp = amzDate.slice(0, 8);
-  const service = "s3";
-  const host = `${bucket}.s3.${region}.amazonaws.com`;
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const signedHeaders = "content-type;host";
-  const canonicalQueryEntries = {
-    "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
-    "X-Amz-Credential": `${accessKeyId}/${credentialScope}`,
-    "X-Amz-Date": amzDate,
-    "X-Amz-Expires": String(Math.max(60, Math.min(expiresIn, 3600))),
-    "X-Amz-SignedHeaders": signedHeaders,
-  };
-
-  if (sessionToken) {
-    canonicalQueryEntries["X-Amz-Security-Token"] = sessionToken;
-  }
-
-  const canonicalQueryString = Object.entries(canonicalQueryEntries)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([queryKey, value]) => `${encodeRfc3986(queryKey)}=${encodeRfc3986(value)}`)
-    .join("&");
-
-  const canonicalRequest = [
-    "PUT",
-    buildCanonicalUri(key),
-    canonicalQueryString,
-    `content-type:${contentType}`,
-    `host:${host}`,
-    "",
-    signedHeaders,
-    "UNSIGNED-PAYLOAD",
-  ].join("\n");
-
-  const hashedCanonicalRequest = require("crypto").createHash("sha256").update(canonicalRequest).digest("hex");
-  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, credentialScope, hashedCanonicalRequest].join("\n");
-  const signingKey = getSigningKey(secretAccessKey, dateStamp, region, service);
-  const signature = require("crypto").createHmac("sha256", signingKey).update(stringToSign).digest("hex");
-  const uploadUrl = `https://${host}${buildCanonicalUri(key)}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
-  const publicBaseUrl = (process.env.RESUME_UPLOAD_PUBLIC_BASE_URL || `https://${host}`).replace(/\/+$/g, "");
-
-  return {
-    key,
-    uploadUrl,
-    publicUrl: `${publicBaseUrl}/${key.split("/").map(encodeRfc3986).join("/")}`,
-    headers: {
-      "Content-Type": contentType,
-    },
-    method: "PUT",
-  };
+  return `${req.protocol}://${req.get("host")}`;
 };
 
 const normalizeCandidateResponse = async (
@@ -1216,28 +1129,28 @@ const checkDuplicateCandidate = async (req, res) => {
 };
 
 const requestResumeUploadUrl = async (req, res) => {
-  const parsedBody = resumeUploadRequestSchema.safeParse(req.body);
+  if (!req.file) {
+    return res.status(400).json({ message: "Resume file is required" });
+  }
+
+  const parsedBody = resumeUploadRequestSchema.safeParse({
+    filename: req.file.originalname,
+    contentType: req.file.mimetype,
+    size: req.file.size,
+  });
 
   if (!parsedBody.success) {
+    fs.unlink(req.file.path, () => undefined);
     return res.status(400).json(buildValidationError(parsedBody.error.issues));
   }
 
-  const signedUpload = createS3PresignedUpload(parsedBody.data);
-
-  if (!signedUpload) {
-    return res.status(501).json({
-      message:
-        "Resume upload signing is not configured. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, and AWS_S3_BUCKET to enable presigned S3 uploads.",
-    });
-  }
-
   return res.status(200).json({
-    uploadUrl: signedUpload.uploadUrl,
-    fileUrl: signedUpload.publicUrl,
-    key: signedUpload.key,
-    method: signedUpload.method,
-    headers: signedUpload.headers,
-    expiresIn: Number(process.env.AWS_S3_PRESIGNED_TTL || 900),
+    fileUrl: `${getPublicBaseUrl(req)}/uploads/resumes/${req.file.filename}`,
+    resumeMeta: {
+      filename: req.file.originalname,
+      size: req.file.size,
+      mimeType: req.file.mimetype,
+    },
   });
 };
 

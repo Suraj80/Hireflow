@@ -597,7 +597,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
         <Card className="rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Resume upload</CardTitle>
-            <CardDescription>Secure resume storage via S3 presigned upload. Accepted formats: PDF, DOC, DOCX up to 5MB.</CardDescription>
+            <CardDescription>Resume files are stored locally for now. Accepted formats: PDF, DOC, DOCX up to 5MB.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5">
