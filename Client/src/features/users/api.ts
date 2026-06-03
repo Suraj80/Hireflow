@@ -20,4 +20,16 @@ export const usersApi = {
     const response = await api.patch<{ message: string; user: UserListItem }>(`/users/${id}/role`, { role });
     return response.data;
   },
+  updateStatus: async (id: string, isActive: boolean) => {
+    const response = await api.patch<{ message: string; user: UserListItem }>(`/users/${id}/status`, { isActive });
+    return response.data;
+  },
+  updatePassword: async (id: string, password: string) => {
+    const response = await api.patch<{ message: string; user: UserListItem }>(`/users/${id}/password`, { password });
+    return response.data;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete<{ message: string }>(`/users/${id}`);
+    return response.data;
+  },
 };

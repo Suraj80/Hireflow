@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const RefreshToken = require("../models/RefreshToken");
 const { sanitizeUser } = require("../utils/auth");
 
 const ALLOWED_ROLES = ["admin", "recruiter", "viewer"];
@@ -7,7 +8,7 @@ const buildUserResponse = (user) => ({
   ...sanitizeUser(user),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
-  status: "active",
+  status: user.isActive === false ? "inactive" : "active",
 });
 
 const buildUserOption = (user) => ({
@@ -145,9 +146,104 @@ const updateRole = async (req, res) => {
   }
 };
 
+const revokeUserSessions = async (userId) => {
+  await RefreshToken.updateMany(
+    { userId, revokedAt: null },
+    { revokedAt: new Date() }
+  );
+};
+
+const updateStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isActive = req.body.isActive;
+
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json(buildValidationError("isActive must be a boolean", "isActive"));
+    }
+
+    if (req.user.id === id && isActive === false) {
+      return res.status(400).json({ message: "You cannot deactivate your own account" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.isActive = isActive;
+    await user.save();
+
+    if (!isActive) {
+      await revokeUserSessions(user._id);
+    }
+
+    return res.status(200).json({
+      message: `User ${isActive ? "activated" : "deactivated"} successfully`,
+      user: buildUserResponse(user),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const updatePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const password = String(req.body.password || "");
+
+    if (!password || password.length < 6) {
+      return res.status(400).json(buildValidationError("Password must be at least 6 characters", "password"));
+    }
+
+    const user = await User.findById(id).select("+password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.password = password;
+    await user.save();
+    await revokeUserSessions(user._id);
+
+    return res.status(200).json({
+      message: "User password updated successfully",
+      user: buildUserResponse(user),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (req.user.id === id) {
+      return res.status(400).json({ message: "You cannot delete your own account" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    await revokeUserSessions(user._id);
+    await User.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createUser,
+  deleteUser,
   listUsers,
   listUserOptions,
   updateRole,
+  updatePassword,
+  updateStatus,
 };

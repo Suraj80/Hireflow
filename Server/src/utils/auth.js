@@ -31,6 +31,7 @@ const sanitizeUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  isActive: user.isActive !== false,
   createdAt: user.createdAt,
   lastLoginAt: user.lastLoginAt || null,
 });

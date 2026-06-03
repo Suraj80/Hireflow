@@ -1,6 +1,16 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { AlertCircle, MoreHorizontal, ShieldCheck, UserPlus, Users2 } from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useState } from "react";
+import { AlertCircle, PencilLine, Trash2, UserPlus, Users2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,8 +27,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -103,6 +111,22 @@ export default function UsersPage() {
     role: "viewer" as UserRole,
   });
   const [changingRoleId, setChangingRoleId] = useState<string | null>(null);
+  const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [passwordDialogUser, setPasswordDialogUser] = useState<UserListItem | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<
+    | {
+        type: "status";
+        user: UserListItem;
+      }
+    | {
+        type: "delete";
+        user: UserListItem;
+      }
+    | null
+  >(null);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -124,19 +148,6 @@ export default function UsersPage() {
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
-
-  const stats = useMemo(() => {
-    const admins = users.filter((member) => member.role === "admin").length;
-    const recruiters = users.filter((member) => member.role === "recruiter").length;
-    const viewers = users.filter((member) => member.role === "viewer").length;
-
-    return [
-      { label: "Team members", value: users.length, hint: "Visible in this result set", icon: Users2 },
-      { label: "Admins", value: admins, hint: "Full workspace access", icon: ShieldCheck },
-      { label: "Recruiters", value: recruiters, hint: "Can manage jobs and candidates", icon: UserPlus },
-      { label: "Viewers", value: viewers, hint: "Read-only workspace access", icon: AlertCircle },
-    ];
-  }, [users]);
 
   const resetForm = () => {
     setCreateForm({
@@ -189,6 +200,62 @@ export default function UsersPage() {
     }
   };
 
+  const handleStatusChange = async (member: UserListItem, nextIsActive: boolean) => {
+    try {
+      setStatusChangingId(member.id);
+      const response = await usersApi.updateStatus(member.id, nextIsActive);
+      setUsers((current) => current.map((item) => (item.id === member.id ? response.user : item)));
+      toast.success(nextIsActive ? `${member.name} reactivated` : `${member.name} deactivated`);
+    } catch (updateError) {
+      toast.error(updateError instanceof Error ? updateError.message : "Unable to update user status");
+    } finally {
+      setStatusChangingId(null);
+      setConfirmAction(null);
+    }
+  };
+
+  const handleDeleteUser = async (member: UserListItem) => {
+    try {
+      setDeletingUserId(member.id);
+      await usersApi.delete(member.id);
+      setUsers((current) => current.filter((item) => item.id !== member.id));
+      toast.success(`${member.name} deleted`);
+    } catch (deleteError) {
+      toast.error(deleteError instanceof Error ? deleteError.message : "Unable to delete user");
+    } finally {
+      setDeletingUserId(null);
+      setConfirmAction(null);
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    if (!passwordDialogUser) {
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      setPasswordSubmitting(true);
+      const response = await usersApi.updatePassword(passwordDialogUser.id, newPassword);
+      setUsers((current) =>
+        current.map((item) => (item.id === passwordDialogUser.id ? response.user : item))
+      );
+      toast.success(`Password updated for ${passwordDialogUser.name}`);
+      setPasswordDialogUser(null);
+      setNewPassword("");
+    } catch (updateError) {
+      toast.error(updateError instanceof Error ? updateError.message : "Unable to update password");
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
+
+  const renderStatusActionLabel = (member: UserListItem) => (member.isActive ? "Deactivate user" : "Reactivate user");
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -202,23 +269,6 @@ export default function UsersPage() {
           <UserPlus className="mr-2 h-4 w-4" />
           Add new user
         </Button>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="rounded-[28px] border border-border/80 shadow-sm">
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                <stat.icon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-semibold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.hint}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
       <Card className="rounded-[28px] border border-border/80 shadow-sm">
@@ -280,14 +330,15 @@ export default function UsersPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead>Created</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[80px] text-right">Actions</TableHead>
+                    <TableHead className="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((member) => {
                     const isCurrentUser = member.id === user?.id;
+                    const actionsDisabled =
+                      changingRoleId === member.id || statusChangingId === member.id || deletingUserId === member.id;
                     return (
                       <TableRow key={member.id}>
                         <TableCell>
@@ -300,40 +351,77 @@ export default function UsersPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{member.email}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={roleBadgeClassName[member.role]}>
-                            {roleLabel[member.role]}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={roleBadgeClassName[member.role]}>
+                              {roleLabel[member.role]}
+                            </Badge>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg"
+                                  disabled={changingRoleId === member.id || isCurrentUser || actionsDisabled}
+                                  title="Change role"
+                                >
+                                  <PencilLine className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-40">
+                                {(["admin", "recruiter", "viewer"] as UserRole[]).map((option) => (
+                                  <DropdownMenuItem
+                                    key={option}
+                                    disabled={member.role === option}
+                                    onClick={() => void handleRoleChange(member, option)}
+                                  >
+                                    {roleLabel[option]}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{formatDate(member.createdAt)}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="capitalize">
                             {member.status || "active"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuLabel>Change role</DropdownMenuLabel>
-                              {(["admin", "recruiter", "viewer"] as UserRole[]).map((option) => (
-                                <DropdownMenuItem
-                                  key={option}
-                                  disabled={changingRoleId === member.id || (isCurrentUser && option !== "admin")}
-                                  onClick={() => void handleRoleChange(member, option)}
-                                >
-                                  Make {roleLabel[option]}
-                                </DropdownMenuItem>
-                              ))}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem disabled>
-                                Deactivate user
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-xl"
+                              disabled={isCurrentUser || statusChangingId === member.id}
+                              onClick={() => setConfirmAction({ type: "status", user: member })}
+                              title={renderStatusActionLabel(member)}
+                            >
+                              <AlertCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-xl"
+                              disabled={isCurrentUser || passwordSubmitting}
+                              onClick={() => {
+                                setPasswordDialogUser(member);
+                                setNewPassword("");
+                              }}
+                              title="Update password"
+                            >
+                              <PencilLine className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-xl text-destructive hover:text-destructive"
+                              disabled={isCurrentUser || deletingUserId === member.id}
+                              onClick={() => setConfirmAction({ type: "delete", user: member })}
+                              title="Delete user"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -346,6 +434,8 @@ export default function UsersPage() {
           <div className="grid gap-4 md:hidden">
             {users.map((member) => {
               const isCurrentUser = member.id === user?.id;
+              const actionsDisabled =
+                changingRoleId === member.id || statusChangingId === member.id || deletingUserId === member.id;
               return (
                 <Card key={member.id} className="rounded-[24px] border border-border/80 shadow-sm">
                   <CardContent className="space-y-4 p-5">
@@ -378,7 +468,7 @@ export default function UsersPage() {
                       <Select
                         value={member.role}
                         onValueChange={(value) => void handleRoleChange(member, value as UserRole)}
-                        disabled={changingRoleId === member.id || isCurrentUser}
+                        disabled={changingRoleId === member.id || isCurrentUser || actionsDisabled}
                       >
                         <SelectTrigger className="h-11 rounded-2xl">
                           <SelectValue />
@@ -391,8 +481,32 @@ export default function UsersPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button variant="outline" className="rounded-2xl justify-start" disabled>
-                        Deactivate user
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl justify-start"
+                        disabled={isCurrentUser || statusChangingId === member.id}
+                        onClick={() => setConfirmAction({ type: "status", user: member })}
+                      >
+                        {renderStatusActionLabel(member)}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl justify-start"
+                        disabled={isCurrentUser || passwordSubmitting}
+                        onClick={() => {
+                          setPasswordDialogUser(member);
+                          setNewPassword("");
+                        }}
+                      >
+                        Update password
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl justify-start text-destructive hover:text-destructive"
+                        disabled={isCurrentUser || deletingUserId === member.id}
+                        onClick={() => setConfirmAction({ type: "delete", user: member })}
+                      >
+                        Delete user
                       </Button>
                     </div>
                   </CardContent>
@@ -481,6 +595,100 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={Boolean(passwordDialogUser)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordDialogUser(null);
+            setNewPassword("");
+          }
+        }}
+      >
+        <DialogContent className="rounded-[28px] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update password</DialogTitle>
+            <DialogDescription>
+              {passwordDialogUser
+                ? `Set a new password for ${passwordDialogUser.name}. Their current sessions will be signed out.`
+                : "Set a new password for this user."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="user-new-password">New password</Label>
+            <Input
+              id="user-new-password"
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder="Minimum 6 characters"
+              className="h-11 rounded-2xl"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              className="rounded-2xl"
+              onClick={() => {
+                setPasswordDialogUser(null);
+                setNewPassword("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button className="rounded-2xl" disabled={passwordSubmitting} onClick={() => void handlePasswordUpdate()}>
+              Save password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(confirmAction)} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent className="rounded-[28px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.type === "delete"
+                ? "Delete user?"
+                : confirmAction?.user.isActive
+                  ? "Deactivate user?"
+                  : "Reactivate user?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.type === "delete"
+                ? `${confirmAction.user.name} will be removed from the workspace. This cannot be undone.`
+                : confirmAction?.user.isActive
+                  ? `${confirmAction.user.name} will lose access immediately and their current sessions will be signed out.`
+                  : `${confirmAction?.user.name} will be able to sign back in and use the workspace again.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-2xl"
+              onClick={(event) => {
+                event.preventDefault();
+
+                if (!confirmAction) {
+                  return;
+                }
+
+                if (confirmAction.type === "delete") {
+                  void handleDeleteUser(confirmAction.user);
+                  return;
+                }
+
+                void handleStatusChange(confirmAction.user, !confirmAction.user.isActive);
+              }}
+            >
+              {confirmAction?.type === "delete"
+                ? "Delete user"
+                : confirmAction?.user.isActive
+                  ? "Deactivate user"
+                  : "Reactivate user"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

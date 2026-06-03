@@ -76,6 +76,10 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "This account has been deactivated. Contact your administrator." });
+    }
+
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -132,6 +136,12 @@ const refresh = async (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
 
+    if (user.isActive === false) {
+      await RefreshToken.findByIdAndUpdate(existingToken._id, { revokedAt: new Date() });
+      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions());
+      return res.status(403).json({ message: "This account has been deactivated. Contact your administrator." });
+    }
+
     await RefreshToken.findByIdAndUpdate(existingToken._id, { revokedAt: new Date() });
     const accessToken = await issueSession(res, user, existingToken._id);
 
@@ -166,6 +176,10 @@ const me = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "This account has been deactivated. Contact your administrator." });
+    }
+
     return res.status(200).json(sanitizeUser(user));
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -177,6 +191,10 @@ const updateMe = async (req, res) => {
     const user = await User.findById(req.user.id).select("+password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "This account has been deactivated. Contact your administrator." });
     }
 
     const nextName = typeof req.body.name === "string" ? req.body.name.trim() : user.name;
