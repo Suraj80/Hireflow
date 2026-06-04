@@ -15,6 +15,7 @@ const {
   getCandidatesMeta,
   getCandidates,
   requestResumeUploadUrl,
+  rescoreCandidate,
   updateCandidate,
   updateCandidateNote,
   updateCandidateStage,
@@ -91,6 +92,7 @@ router.get("/:id", protect, getCandidateById);
 router.post("/", protect, requireRole("recruiter", "admin"), createCandidate);
 router.patch("/:id", protect, requireRole("recruiter", "admin"), updateCandidate);
 router.put("/:id", protect, requireRole("recruiter", "admin"), updateCandidate);
+router.post("/:id/rescore", protect, requireRole("recruiter", "admin"), rescoreCandidate);
 router.patch("/:id/stage", protect, requireRole("recruiter", "admin"), updateCandidateStage);
 router.patch("/:id/assign", protect, requireRole("recruiter", "admin"), assignCandidate);
 router.post("/:id/note", protect, requireRole("recruiter", "admin"), addCandidateNote);

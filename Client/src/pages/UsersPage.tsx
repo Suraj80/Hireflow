@@ -284,6 +284,7 @@ export default function UsersPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search users by name or email"
+              autoComplete="off"
               className="h-11 rounded-2xl"
             />
             <Select value={role} onValueChange={(value) => setRole(value as UserRole | "all")}>
@@ -541,6 +542,7 @@ export default function UsersPage() {
                 value={createForm.name}
                 onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
                 placeholder="Taylor Brooks"
+                autoComplete="off"
                 className="h-11 rounded-2xl"
               />
             </div>
@@ -552,6 +554,7 @@ export default function UsersPage() {
                 value={createForm.email}
                 onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))}
                 placeholder="taylor@hireflow.com"
+                autoComplete="off"
                 className="h-11 rounded-2xl"
               />
             </div>
@@ -563,6 +566,7 @@ export default function UsersPage() {
                 value={createForm.password}
                 onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))}
                 placeholder="Minimum 6 characters"
+                autoComplete="new-password"
                 className="h-11 rounded-2xl"
               />
             </div>
@@ -622,6 +626,7 @@ export default function UsersPage() {
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               placeholder="Minimum 6 characters"
+              autoComplete="new-password"
               className="h-11 rounded-2xl"
             />
           </div>

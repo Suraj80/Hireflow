@@ -6,6 +6,13 @@ export type CandidateInterviewMode = "Virtual" | "Onsite" | "Phone";
 export type CandidateInterviewStatus = "Scheduled" | "Completed" | "Cancelled";
 export type CandidateSort = "newest" | "oldest" | "highest-ai" | "stage" | "name";
 export type UserRole = "admin" | "recruiter" | "viewer";
+export type CandidateAIStatus =
+  | "not-started"
+  | "queued"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "unavailable";
 
 export type UserSummary = {
   id: string;
@@ -127,6 +134,9 @@ export type Candidate = {
   rating: number | null;
   aiScore: number | null;
   aiReasoning: string;
+  aiStatus: CandidateAIStatus;
+  aiError: string;
+  aiScoredAt: string | null;
   permissions: CandidatePermissions;
   statusIndicator: CandidateStatusIndicator;
   notesCount: number;

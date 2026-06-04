@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  BrainCircuit,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -9,6 +10,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  RotateCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +45,7 @@ import {
   statusToneClass,
 } from "@/features/candidates/helpers";
 import { candidateInterviewModeOptions, candidateInterviewStatusOptions } from "@/features/candidates/schema";
+import { candidatesApi } from "@/features/candidates/api";
 import { defaultCandidateMeta, useCandidatesStore } from "@/features/candidates/store";
 import { Candidate, CandidateInterviewMode, CandidateInterviewStatus, CandidateStage } from "@/features/candidates/types";
 import { TagSelector } from "@/features/jobs/components/TagSelector";
@@ -204,6 +207,19 @@ export default function CandidateDetailPage() {
     }
   };
 
+  const handleRescore = async () => {
+    try {
+      setWorking(true);
+      await candidatesApi.rescore(candidate.id);
+      await fetchCandidateById(candidate.id);
+      toast.success("AI scoring queued");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to queue AI scoring");
+    } finally {
+      setWorking(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3">
@@ -227,7 +243,7 @@ export default function CandidateDetailPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-2xl font-semibold">{candidate.name}</h2>
                     <StageBadge stage={candidate.stage} />
-                    <AIScoreBadge score={candidate.aiScore} />
+                    <AIScoreBadge score={candidate.aiScore} status={candidate.aiStatus} />
                     <Badge variant="outline" className={`rounded-full border ${statusToneClass[candidate.statusIndicator.tone]}`}>
                       {candidate.statusIndicator.label}
                     </Badge>
@@ -302,6 +318,12 @@ export default function CandidateDetailPage() {
                 {candidate.permissions.canArchive && (
                   <Button className="rounded-2xl" variant="outline" onClick={() => void handleArchive()}>
                     Archive
+                  </Button>
+                )}
+                {candidate.permissions.canEdit && candidate.resumeUrl && (
+                  <Button className="rounded-2xl" variant="outline" disabled={working} onClick={() => void handleRescore()}>
+                    <RotateCw className="mr-2 h-4 w-4" />
+                    Re-score
                   </Button>
                 )}
               </div>
@@ -490,6 +512,23 @@ export default function CandidateDetailPage() {
                   <CardTitle>Application info</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="rounded-[22px] border border-border/80 p-4">
+                    <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                      <BrainCircuit className="h-4 w-4" />
+                      AI resume match
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <AIScoreBadge score={candidate.aiScore} status={candidate.aiStatus} />
+                      {candidate.aiScoredAt && (
+                        <span className="text-xs text-muted-foreground">
+                          Updated {formatTimestamp(candidate.aiScoredAt)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {candidate.aiReasoning || "Upload a resume to enable AI scoring for this candidate."}
+                    </p>
+                  </div>
                   <div className="rounded-[22px] border border-border/80 p-4">
                     <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                       <BriefcaseBusiness className="h-4 w-4" />

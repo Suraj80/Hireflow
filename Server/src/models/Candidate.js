@@ -60,6 +60,15 @@ const resumeMetaSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const aiScoringStatusOptions = [
+  "not-started",
+  "queued",
+  "processing",
+  "completed",
+  "failed",
+  "unavailable",
+];
+
 const stageHistorySchema = new mongoose.Schema(
   {
     stage: {
@@ -304,6 +313,30 @@ const candidateSchema = new mongoose.Schema(
       default: null,
     },
     aiReasoning: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    aiStatus: {
+      type: String,
+      enum: aiScoringStatusOptions,
+      default: "not-started",
+    },
+    aiError: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    aiScoredAt: {
+      type: Date,
+      default: null,
+    },
+    aiInputHash: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    aiModel: {
       type: String,
       trim: true,
       default: "",

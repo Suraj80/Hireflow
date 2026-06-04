@@ -64,7 +64,7 @@ export function CandidateTable({
                   <StageBadge stage={candidate.stage} />
                 </TableCell>
                 <TableCell>
-                  <AIScoreBadge score={candidate.aiScore} />
+                  <AIScoreBadge score={candidate.aiScore} status={candidate.aiStatus} />
                 </TableCell>
                 <TableCell>{candidate.recruiterAssigned?.name || "Unassigned"}</TableCell>
                 <TableCell>
@@ -124,7 +124,7 @@ export function CandidateTable({
 
               <div className="flex flex-wrap gap-2">
                 <StageBadge stage={candidate.stage} />
-                <AIScoreBadge score={candidate.aiScore} />
+                <AIScoreBadge score={candidate.aiScore} status={candidate.aiStatus} />
                 <Badge variant="outline" className={`rounded-full border ${statusToneClass[candidate.statusIndicator.tone]}`}>
                   {candidate.statusIndicator.label}
                 </Badge>

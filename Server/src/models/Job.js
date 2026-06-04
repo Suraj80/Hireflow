@@ -24,6 +24,30 @@ const requirementSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const aiEmbeddingSchema = new mongoose.Schema(
+  {
+    values: {
+      type: [Number],
+      default: [],
+    },
+    model: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    textHash: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    updatedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
 const jobSchema = new mongoose.Schema(
   {
     title: {
@@ -133,6 +157,15 @@ const jobSchema = new mongoose.Schema(
     archived: {
       type: Boolean,
       default: false,
+    },
+    aiEmbedding: {
+      type: aiEmbeddingSchema,
+      default: () => ({
+        values: [],
+        model: "",
+        textHash: "",
+        updatedAt: null,
+      }),
     },
   },
   {

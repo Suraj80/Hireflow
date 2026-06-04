@@ -86,6 +86,10 @@ export const candidatesApi = {
     });
     return response.data;
   },
+  rescore: async (id: string) => {
+    const response = await api.post<Candidate>(`/candidates/${id}/rescore`);
+    return response.data;
+  },
   archive: async (id: string) => {
     const response = await api.delete<{ message: string }>(`/candidates/${id}`);
     return response.data;

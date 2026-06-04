@@ -21,6 +21,7 @@ const {
   stageOptions,
   statusOptions,
 } = require("../validation/candidate.validation");
+const { queueCandidateResumeScoring } = require("../services/resumeScoring.service");
 
 const buildValidationError = (issues) => ({
   message: "Validation failed",
@@ -351,6 +352,9 @@ const normalizeCandidateResponse = async (
     rating: candidate.rating,
     aiScore: candidate.aiScore,
     aiReasoning: candidate.aiReasoning,
+    aiStatus: candidate.aiStatus || (candidate.resumeUrl ? "queued" : "not-started"),
+    aiError: candidate.aiError || "",
+    aiScoredAt: candidate.aiScoredAt || null,
     permissions: deriveCandidatePermissions(candidate, viewerUser),
     statusIndicator: deriveStatusIndicator(candidate),
     notesCount: candidate.notesCount,
@@ -411,21 +415,58 @@ const ensureAssignableRecruiter = async (recruiterId) => {
   }).select("name email role");
 };
 
-const syncAIPreview = (payload) => {
-  if (payload.resumeUrl && payload.resumeMeta?.filename) {
-    if (typeof payload.aiScore !== "number") {
-      payload.aiScore = 72;
-    }
-
-    if (!payload.aiReasoning) {
-      payload.aiReasoning =
-        "Resume uploaded. Automated similarity scoring is queued; this preview score is based on currently captured profile signals.";
-    }
-  } else if (!payload.resumeUrl) {
-    payload.aiScore = null;
-    payload.aiReasoning = "";
+const deriveAIStateForPayload = (payload) => {
+  if (!payload.resumeUrl) {
+    return {
+      aiScore: null,
+      aiReasoning: "",
+      aiStatus: "not-started",
+      aiError: "",
+      aiScoredAt: null,
+      aiInputHash: "",
+      aiModel: "",
+    };
   }
+
+  if (!process.env.OPENAI_API_KEY) {
+    return {
+      aiScore: null,
+      aiReasoning: "AI scoring is unavailable until OPENAI_API_KEY is configured on the server.",
+      aiStatus: "unavailable",
+      aiError: "AI scoring is unavailable until OPENAI_API_KEY is configured on the server.",
+      aiScoredAt: null,
+      aiInputHash: "",
+      aiModel: "",
+    };
+  }
+
+  return {
+    aiScore: null,
+    aiReasoning: "Resume uploaded. AI scoring has been queued and will complete shortly.",
+    aiStatus: "queued",
+    aiError: "",
+    aiScoredAt: null,
+    aiInputHash: "",
+    aiModel: "",
+  };
 };
+
+const aiScoringFields = new Set([
+  "resumeUrl",
+  "resumeMeta",
+  "jobId",
+  "skills",
+  "experience",
+  "education",
+  "certifications",
+  "languages",
+  "currentRole",
+  "currentCompany",
+  "coverLetter",
+  "location",
+  "workAuthorization",
+  "noticePeriod",
+]);
 
 const getCandidates = async (req, res) => {
   const parsedQuery = candidatesQuerySchema.safeParse(req.query);
@@ -526,10 +567,9 @@ const createCandidate = async (req, res) => {
       archived: false,
     }).select("_id name createdAt stage");
 
-    syncAIPreview(payload);
-
     const candidate = await Candidate.create({
       ...payload,
+      ...deriveAIStateForPayload(payload),
       department: payload.department || job.department,
       email: payload.email.toLowerCase(),
       status: deriveStatusFromStage(payload.stage, false),
@@ -557,6 +597,10 @@ const createCandidate = async (req, res) => {
         },
       ],
     });
+
+    if (candidate.resumeUrl) {
+      await queueCandidateResumeScoring(candidate._id.toString());
+    }
 
     const savedCandidate = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
@@ -641,13 +685,25 @@ const updateCandidate = async (req, res) => {
       });
     }
 
-    Object.assign(candidate, parsedBody.data, {
+    const shouldRefreshAIScore = Object.keys(parsedBody.data).some((key) => aiScoringFields.has(key));
+    const assignmentPayload = {
+      ...parsedBody.data,
       updatedBy: req.user.id,
       status: deriveStatusFromStage(nextStage, parsedBody.data.archived ?? candidate.archived),
       email: nextEmail,
-    });
+    };
 
-    syncAIPreview(candidate);
+    if (shouldRefreshAIScore) {
+      Object.assign(
+        assignmentPayload,
+        deriveAIStateForPayload({
+          resumeUrl:
+            typeof parsedBody.data.resumeUrl === "string" ? parsedBody.data.resumeUrl : candidate.resumeUrl,
+        })
+      );
+    }
+
+    Object.assign(candidate, assignmentPayload);
 
     if (nextStage !== previousStage) {
       candidate.stageHistory.unshift({
@@ -675,6 +731,10 @@ const updateCandidate = async (req, res) => {
     }
 
     await candidate.save();
+
+    if (shouldRefreshAIScore && candidate.resumeUrl) {
+      await queueCandidateResumeScoring(candidate._id.toString());
+    }
 
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
@@ -1154,6 +1214,38 @@ const requestResumeUploadUrl = async (req, res) => {
   });
 };
 
+const rescoreCandidate = async (req, res) => {
+  try {
+    const candidate = await Candidate.findById(req.params.id);
+    if (!candidate) {
+      return res.status(404).json({ message: "Candidate not found" });
+    }
+
+    if (!ensureManageAccess(candidate, req, res)) {
+      return;
+    }
+
+    if (!candidate.resumeUrl) {
+      return res.status(400).json({ message: "Upload a resume before requesting AI scoring" });
+    }
+
+    await queueCandidateResumeScoring(candidate._id.toString());
+
+    const refreshedCandidate = await Candidate.findById(candidate._id)
+      .populate("jobId", "title department location")
+      .populate("recruiterAssigned", "name email role")
+      .populate("createdBy", "name email role")
+      .populate("updatedBy", "name email role")
+      .populate("stageHistory.changedBy", "name email role");
+
+    return res.status(202).json(
+      await normalizeCandidateResponse(refreshedCandidate, { includeNotes: true, viewerUser: req.user })
+    );
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   addCandidateNote,
   addCandidateInterview,
@@ -1167,6 +1259,7 @@ module.exports = {
   getCandidatesMeta,
   getCandidates,
   requestResumeUploadUrl,
+  rescoreCandidate,
   updateCandidate,
   updateCandidateNote,
   updateCandidateStage,

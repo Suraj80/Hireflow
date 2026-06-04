@@ -238,7 +238,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
       form.setValue("resumeMeta", uploadedResume.resumeMeta, { shouldDirty: true, shouldValidate: true });
       form.setValue(
         "aiReasoning",
-        "Resume uploaded. AI parsing and similarity scoring will run after you save this candidate.",
+        "Resume uploaded. AI scoring will run after you save this candidate.",
         { shouldDirty: true }
       );
       form.setValue("aiScore", null, { shouldDirty: true });
@@ -945,7 +945,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
         <Card className="rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>AI scoring</CardTitle>
-            <CardDescription>Resume uploads trigger downstream parsing and scoring. Until then, AI analysis stays pending.</CardDescription>
+            <CardDescription>Resume uploads trigger real similarity scoring after save. The final score is generated on the server.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert className="rounded-2xl border-sky-500/20 bg-sky-500/5">
@@ -955,8 +955,8 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
               </AlertTitle>
               <AlertDescription>
                 {watchedResumeUrl
-                  ? "The next save will persist a preview reasoning message and queue the candidate for async similarity scoring."
-                  : "Upload a resume to unlock parsing, similarity matching, and AI score preview."}
+                  ? "The next save will queue async resume scoring against the selected job."
+                  : "Upload a resume to unlock parsing, similarity matching, and AI scoring."}
               </AlertDescription>
             </Alert>
 
@@ -966,7 +966,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
                 name="aiScore"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>AI score preview</FormLabel>
+                    <FormLabel>AI score</FormLabel>
                     <FormControl>
                       <Input value={field.value ?? ""} readOnly className="h-11 rounded-2xl bg-muted/20" placeholder="Pending" />
                     </FormControl>
@@ -979,7 +979,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
                 name="aiReasoning"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>AI reasoning preview</FormLabel>
+                    <FormLabel>AI reasoning</FormLabel>
                     <FormControl>
                       <Textarea {...field} readOnly className="min-h-24 rounded-2xl bg-muted/20" placeholder="Pending AI analysis." />
                     </FormControl>
