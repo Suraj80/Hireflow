@@ -38,6 +38,32 @@ const workspaceSettingSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    notifications: {
+      email: {
+        type: Boolean,
+        default: true,
+      },
+      inApp: {
+        type: Boolean,
+        default: true,
+      },
+      newApplications: {
+        type: Boolean,
+        default: true,
+      },
+      interviewReminders: {
+        type: Boolean,
+        default: true,
+      },
+      stageChanges: {
+        type: Boolean,
+        default: true,
+      },
+      dailyDigest: {
+        type: Boolean,
+        default: false,
+      },
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

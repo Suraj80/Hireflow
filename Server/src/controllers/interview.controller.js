@@ -108,6 +108,7 @@ const derivePermissions = (interview, user) => ({
   canEdit: canManageInterview(interview, user),
   canReschedule: canManageInterview(interview, user),
   canCancel: canManageInterview(interview, user),
+  canDelete: canManageInterview(interview, user),
   canComplete: canManageInterview(interview, user),
   canSendReminder: canManageInterview(interview, user),
   canSubmitFeedback: canSubmitFeedback(interview, user),

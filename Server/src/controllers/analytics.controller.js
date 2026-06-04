@@ -78,12 +78,26 @@ const safePercent = (value) => (Number.isFinite(value) ? Number(value.toFixed(1)
 
 const getAnalyticsOverview = async (req, res) => {
   try {
-    const candidateMatch = buildCandidateMatch(req.query);
-    const jobMatch = buildJobMatch(req.query);
-    const interviewMatch = buildInterviewMatch(req.query);
-    const upcomingInterviewMatch = buildInterviewMatch(req.query, true);
+    const candidateMatch = { archived: false };
+    if (req.query.jobId && mongoose.Types.ObjectId.isValid(req.query.jobId)) {
+      candidateMatch.jobId = buildObjectId(req.query.jobId);
+    }
 
-    const [candidateSummary, jobSummary, totalInterviews, upcomingInterviews] = await Promise.all([
+    const jobMatch = buildJobMatch(req.query);
+    const upcomingInterviewMatch = buildInterviewMatch(req.query, true);
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const [
+      candidateSummary,
+      jobSummary,
+      totalInterviews,
+      upcomingInterviews,
+      candidatesThisMonth,
+      offerTrendSummary,
+    ] = await Promise.all([
       Candidate.aggregate([
         { $match: candidateMatch },
         {
@@ -146,8 +160,124 @@ const getAnalyticsOverview = async (req, res) => {
           },
         },
       ]),
-      Interview.countDocuments(interviewMatch),
+      Interview.countDocuments(buildInterviewMatch(req.query)),
       Interview.countDocuments(upcomingInterviewMatch),
+      Candidate.countDocuments({
+        ...candidateMatch,
+        createdAt: { $gte: currentMonthStart, $lt: nextMonthStart },
+      }),
+      Candidate.aggregate([
+        { $match: candidateMatch },
+        {
+          $project: {
+            currentMonthOfferReached: {
+              $gt: [
+                {
+                  $size: {
+                    $filter: {
+                      input: "$stageHistory",
+                      as: "entry",
+                      cond: {
+                        $and: [
+                          { $eq: ["$$entry.stage", "Offer"] },
+                          { $gte: ["$$entry.changedAt", currentMonthStart] },
+                          { $lt: ["$$entry.changedAt", nextMonthStart] },
+                        ],
+                      },
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+            previousMonthOfferReached: {
+              $gt: [
+                {
+                  $size: {
+                    $filter: {
+                      input: "$stageHistory",
+                      as: "entry",
+                      cond: {
+                        $and: [
+                          { $eq: ["$$entry.stage", "Offer"] },
+                          { $gte: ["$$entry.changedAt", previousMonthStart] },
+                          { $lt: ["$$entry.changedAt", currentMonthStart] },
+                        ],
+                      },
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+            currentMonthHired: {
+              $gt: [
+                {
+                  $size: {
+                    $filter: {
+                      input: "$stageHistory",
+                      as: "entry",
+                      cond: {
+                        $and: [
+                          { $eq: ["$$entry.stage", "Hired"] },
+                          { $gte: ["$$entry.changedAt", currentMonthStart] },
+                          { $lt: ["$$entry.changedAt", nextMonthStart] },
+                        ],
+                      },
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+            previousMonthHired: {
+              $gt: [
+                {
+                  $size: {
+                    $filter: {
+                      input: "$stageHistory",
+                      as: "entry",
+                      cond: {
+                        $and: [
+                          { $eq: ["$$entry.stage", "Hired"] },
+                          { $gte: ["$$entry.changedAt", previousMonthStart] },
+                          { $lt: ["$$entry.changedAt", currentMonthStart] },
+                        ],
+                      },
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            currentMonthOfferPool: {
+              $sum: {
+                $cond: ["$currentMonthOfferReached", 1, 0],
+              },
+            },
+            currentMonthHires: {
+              $sum: {
+                $cond: ["$currentMonthHired", 1, 0],
+              },
+            },
+            previousMonthOfferPool: {
+              $sum: {
+                $cond: ["$previousMonthOfferReached", 1, 0],
+              },
+            },
+            previousMonthHires: {
+              $sum: {
+                $cond: ["$previousMonthHired", 1, 0],
+              },
+            },
+          },
+        },
+      ]),
     ]);
 
     const candidateMetrics = candidateSummary[0] || {
@@ -167,9 +297,24 @@ const getAnalyticsOverview = async (req, res) => {
       candidateMetrics.offerPool > 0
         ? safePercent((candidateMetrics.hiredCandidates / candidateMetrics.offerPool) * 100)
         : 0;
+    const trendMetrics = offerTrendSummary[0] || {
+      currentMonthOfferPool: 0,
+      currentMonthHires: 0,
+      previousMonthOfferPool: 0,
+      previousMonthHires: 0,
+    };
+    const currentMonthAcceptanceRate =
+      trendMetrics.currentMonthOfferPool > 0
+        ? safePercent((trendMetrics.currentMonthHires / trendMetrics.currentMonthOfferPool) * 100)
+        : 0;
+    const previousMonthAcceptanceRate =
+      trendMetrics.previousMonthOfferPool > 0
+        ? safePercent((trendMetrics.previousMonthHires / trendMetrics.previousMonthOfferPool) * 100)
+        : 0;
 
     return res.status(200).json({
       totalCandidates: candidateMetrics.totalCandidates,
+      candidatesThisMonth,
       totalJobs: jobMetrics.totalJobs,
       activeJobs: jobMetrics.activeJobs,
       closedJobs: jobMetrics.closedJobs,
@@ -178,6 +323,7 @@ const getAnalyticsOverview = async (req, res) => {
       hiredCandidates: candidateMetrics.hiredCandidates,
       rejectedCandidates: candidateMetrics.rejectedCandidates,
       offerAcceptanceRate,
+      offerAcceptanceRateTrend: safePercent(currentMonthAcceptanceRate - previousMonthAcceptanceRate),
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });

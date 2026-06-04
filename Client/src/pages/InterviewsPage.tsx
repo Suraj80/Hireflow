@@ -48,6 +48,7 @@ export default function InterviewsPage() {
     updateInterview,
     rescheduleInterview,
     updateStatus,
+    deleteInterview,
     addFeedback,
   } = useInterviewsStore();
 
@@ -96,6 +97,20 @@ export default function InterviewsPage() {
       setRefreshKey((value) => value + 1);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to send reminder");
+    }
+  };
+
+  const handleDelete = async (interview: Interview) => {
+    if (!window.confirm(`Delete the ${interview.round} interview for ${interview.candidate?.name}?`)) {
+      return;
+    }
+
+    try {
+      await deleteInterview(interview.id);
+      toast.success("Interview deleted");
+      setRefreshKey((value) => value + 1);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete interview");
     }
   };
 
@@ -196,6 +211,7 @@ export default function InterviewsPage() {
             onView={(id) => void openDrawer(id)}
             onReschedule={(interview) => void handleReschedulePrompt(interview)}
             onCancel={(interview) => void handleCancel(interview)}
+            onDelete={(interview) => void handleDelete(interview)}
             onReminder={(interview) => void handleReminder(interview)}
           />
         </div>
@@ -217,6 +233,7 @@ export default function InterviewsPage() {
           onEdit={(interview) => void openDrawer(interview.id)}
           onReschedule={(interview) => void handleReschedulePrompt(interview)}
           onCancel={(interview) => void handleCancel(interview)}
+          onDelete={(interview) => void handleDelete(interview)}
           onAddFeedback={(id) => void openDrawer(id)}
           onMarkCompleted={async (interview) => {
             await updateStatus(interview.id, { status: "Completed", reason: "Marked completed from list view" });
@@ -248,6 +265,10 @@ export default function InterviewsPage() {
           const next = await updateStatus(id, payload);
           setRefreshKey((value) => value + 1);
           return next;
+        }}
+        onDelete={async (id) => {
+          await deleteInterview(id);
+          setRefreshKey((value) => value + 1);
         }}
         onAddFeedback={async (id, values) => {
           const next = await addFeedback(id, values);

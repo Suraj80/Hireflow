@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarClock, CheckCircle2, PencilLine, RotateCcw, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, PencilLine, RotateCcw, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ type InterviewDrawerProps = {
   onUpdate: (id: string, values: InterviewFormValues) => Promise<Interview>;
   onReschedule: (id: string, payload: { scheduledAt: string; duration?: number; reason?: string }) => Promise<Interview>;
   onUpdateStatus: (id: string, payload: { status: Interview["status"]; reason?: string; sendNotification?: boolean }) => Promise<Interview>;
+  onDelete: (id: string) => Promise<void>;
   onAddFeedback: (id: string, values: InterviewFeedbackValues) => Promise<Interview>;
 };
 
@@ -34,6 +35,7 @@ export function InterviewDrawer({
   onUpdate,
   onReschedule,
   onUpdateStatus,
+  onDelete,
   onAddFeedback,
 }: InterviewDrawerProps) {
   const [editing, setEditing] = useState(false);
@@ -95,8 +97,28 @@ export function InterviewDrawer({
                       }
                     }}
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <XCircle className="mr-2 h-4 w-4" />
                     Cancel
+                  </Button>
+                )}
+                {interview.permissions.canDelete && (
+                  <Button
+                    variant="outline"
+                    className="rounded-2xl text-destructive hover:text-destructive"
+                    onClick={async () => {
+                      if (!window.confirm(`Delete the ${interview.round} interview for ${interview.candidate?.name}?`)) {
+                        return;
+                      }
+                      try {
+                        await onDelete(interview.id);
+                        toast.success("Interview deleted");
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : "Unable to delete interview");
+                      }
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
                   </Button>
                 )}
                 {interview.permissions.canComplete && (

@@ -1,4 +1,4 @@
-import { BellRing, CalendarClock, Clock3, Eye, PencilLine, XCircle } from "lucide-react";
+import { BellRing, CalendarClock, Clock3, Eye, PencilLine, Trash2, XCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,11 @@ type UpcomingSidebarProps = {
   onView: (id: string) => void;
   onReschedule: (interview: Interview) => void;
   onCancel: (interview: Interview) => void;
+  onDelete: (interview: Interview) => void;
   onReminder: (interview: Interview) => void;
 };
 
-export function UpcomingSidebar({ items, onView, onReschedule, onCancel, onReminder }: UpcomingSidebarProps) {
+export function UpcomingSidebar({ items, onView, onReschedule, onCancel, onDelete, onReminder }: UpcomingSidebarProps) {
   return (
     <Card className="border border-border">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -69,6 +70,17 @@ export function UpcomingSidebar({ items, onView, onReschedule, onCancel, onRemin
                 <Button variant="outline" size="sm" className="rounded-xl" onClick={() => onCancel(item)}>
                   <XCircle className="mr-1.5 h-3.5 w-3.5" />
                   Cancel
+                </Button>
+              )}
+              {item.permissions.canDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-destructive hover:text-destructive"
+                  onClick={() => onDelete(item)}
+                >
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Delete
                 </Button>
               )}
               {item.permissions.canSendReminder && (

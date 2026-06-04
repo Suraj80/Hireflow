@@ -1,5 +1,6 @@
 export type AnalyticsOverview = {
   totalCandidates: number;
+  candidatesThisMonth: number;
   totalJobs: number;
   activeJobs: number;
   closedJobs: number;
@@ -8,6 +9,7 @@ export type AnalyticsOverview = {
   hiredCandidates: number;
   rejectedCandidates: number;
   offerAcceptanceRate: number;
+  offerAcceptanceRateTrend: number;
 };
 
 export type PipelineAnalyticsItem = {

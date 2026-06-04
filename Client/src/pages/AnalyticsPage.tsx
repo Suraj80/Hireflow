@@ -16,9 +16,10 @@ import {
 import {
   Activity,
   AlertCircle,
+  BriefcaseBusiness,
   CalendarClock,
-  Target,
   TrendingUp,
+  Users2,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -86,25 +87,54 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const dateRange = useMemo(() => {
+    if (datePreset === "all") {
+      return {};
+    }
+
+    const now = new Date();
+    const from = new Date(now);
+
+    if (datePreset === "30d") {
+      from.setDate(now.getDate() - 30);
+    } else if (datePreset === "90d") {
+      from.setDate(now.getDate() - 90);
+    }
+
+    return {
+      from: from.toISOString().slice(0, 10),
+      to: now.toISOString().slice(0, 10),
+    };
+  }, [datePreset]);
+
   const queryParams = useMemo(() => {
-    const params: { jobId?: string } = {};
+    const params: { jobId?: string; from?: string; to?: string } = {};
 
     if (jobId !== "all") {
       params.jobId = jobId;
     }
 
+    if (dateRange.from) {
+      params.from = dateRange.from;
+    }
+
+    if (dateRange.to) {
+      params.to = dateRange.to;
+    }
+
     return params;
-  }, [jobId]);
+  }, [dateRange.from, dateRange.to, jobId]);
 
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
+      const overviewParams = jobId !== "all" ? { jobId } : {};
       const [meta, overviewResponse, pipelineResponse, sourcesResponse, timeToHireResponse, interviewsResponse] =
         await Promise.all([
           candidatesApi.meta(),
-          analyticsApi.overview(queryParams),
+          analyticsApi.overview(overviewParams),
           analyticsApi.pipeline(queryParams),
           analyticsApi.sources(queryParams),
           analyticsApi.timeToHire(queryParams),
@@ -122,7 +152,7 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [queryParams]);
+  }, [jobId, queryParams]);
 
   useEffect(() => {
     void loadAnalytics();
@@ -135,21 +165,21 @@ export default function AnalyticsPage() {
 
     return [
       {
-        label: "Total Interviews",
-        value: formatNumber(overview.totalInterviews),
-        helper: `${formatNumber(overview.upcomingInterviews)} scheduled in the next 7 days`,
-        icon: CalendarClock,
+        label: "Active Jobs vs Closed",
+        value: formatNumber(overview.activeJobs),
+        helper: `${formatNumber(overview.closedJobs)} closed jobs`,
+        icon: BriefcaseBusiness,
       },
       {
-        label: "Hired Candidates",
-        value: formatNumber(overview.hiredCandidates),
-        helper: "Candidates successfully moved to hired",
-        icon: Target,
+        label: "Total Applicants",
+        value: formatNumber(overview.totalCandidates),
+        helper: `${formatNumber(overview.candidatesThisMonth)} added this month`,
+        icon: Users2,
       },
       {
         label: "Offer Acceptance Rate",
         value: formatPercent(overview.offerAcceptanceRate),
-        helper: "Hires divided by candidates who reached offer stage",
+        helper: `${overview.offerAcceptanceRateTrend >= 0 ? "+" : ""}${formatPercent(overview.offerAcceptanceRateTrend)} vs previous month`,
         icon: TrendingUp,
       },
     ];
@@ -184,8 +214,8 @@ export default function AnalyticsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All time</SelectItem>
-              <SelectItem value="30d">Date filter soon</SelectItem>
-              <SelectItem value="90d">Quarter placeholder</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -229,9 +259,9 @@ export default function AnalyticsPage() {
           <div className="grid gap-6 xl:grid-cols-3">
             <Card className="rounded-[28px] border border-border/80 shadow-sm xl:col-span-2">
               <CardHeader className="pb-2">
-                <CardTitle>Pipeline Health</CardTitle>
+                <CardTitle>Pipeline Funnel</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Candidate counts by current stage, using the latest pipeline state from MongoDB.
+                  Candidate counts by stage {jobId !== "all" ? "for the selected job" : "across all jobs"}.
                 </p>
               </CardHeader>
               <CardContent>

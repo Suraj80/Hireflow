@@ -1,4 +1,4 @@
-import { ArrowUpDown, CheckCircle2, Eye, MessageSquareMore, PencilLine, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, Eye, MessageSquareMore, PencilLine, RotateCcw, Trash2, XCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ type InterviewListViewProps = {
   onEdit: (interview: Interview) => void;
   onReschedule: (interview: Interview) => void;
   onCancel: (interview: Interview) => void;
+  onDelete: (interview: Interview) => void;
   onAddFeedback: (id: string) => void;
   onMarkCompleted: (interview: Interview) => void;
   onSortChange: (value: "scheduledAt-asc" | "scheduledAt-desc" | "candidate" | "status" | "round") => void;
@@ -34,6 +35,7 @@ export function InterviewListView({
   onEdit,
   onReschedule,
   onCancel,
+  onDelete,
   onAddFeedback,
   onMarkCompleted,
   onSortChange,
@@ -120,6 +122,16 @@ export function InterviewListView({
                     )}
                     {item.permissions.canCancel && (
                       <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => onCancel(item)}>
+                        <XCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {item.permissions.canDelete && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 rounded-xl text-destructive hover:text-destructive"
+                        onClick={() => onDelete(item)}
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     )}

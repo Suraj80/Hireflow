@@ -23,6 +23,34 @@ import {
   Save,
 } from "lucide-react";
 
+const defaultNotificationSettings: WorkspaceSettings["notifications"] = {
+  email: true,
+  inApp: true,
+  newApplications: true,
+  interviewReminders: true,
+  stageChanges: true,
+  dailyDigest: false,
+};
+
+const defaultWorkspaceSettings: WorkspaceSettings = {
+  workspaceName: "",
+  companyName: "",
+  defaultPipelineDisplay: "Applied -> Screening -> Interview -> Offer -> Hired",
+  defaultTimezone: "Asia/Kolkata",
+  defaultCurrency: "USD",
+  brandingLogo: "",
+  notifications: defaultNotificationSettings,
+};
+
+const normalizeWorkspaceSettings = (settings: Partial<WorkspaceSettings> | null | undefined): WorkspaceSettings => ({
+  ...defaultWorkspaceSettings,
+  ...settings,
+  notifications: {
+    ...defaultNotificationSettings,
+    ...(settings?.notifications || {}),
+  },
+});
+
 function ComingSoonCard({
   title,
   description,
@@ -51,14 +79,7 @@ function ComingSoonCard({
 }
 
 export default function SettingsPage() {
-  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>({
-    workspaceName: "",
-    companyName: "",
-    defaultPipelineDisplay: "Applied -> Screening -> Interview -> Offer -> Hired",
-    defaultTimezone: "Asia/Kolkata",
-    defaultCurrency: "USD",
-    brandingLogo: "",
-  });
+  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(defaultWorkspaceSettings);
   const [initialWorkspaceSettings, setInitialWorkspaceSettings] = useState<WorkspaceSettings | null>(null);
   const [loadingWorkspace, setLoadingWorkspace] = useState(true);
   const [savingWorkspace, setSavingWorkspace] = useState(false);
@@ -72,8 +93,9 @@ export default function SettingsPage() {
     try {
       setLoadingWorkspace(true);
       const response = await settingsApi.getWorkspace();
-      setWorkspaceSettings(response);
-      setInitialWorkspaceSettings(response);
+      const normalized = normalizeWorkspaceSettings(response);
+      setWorkspaceSettings(normalized);
+      setInitialWorkspaceSettings(normalized);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to load workspace settings");
     } finally {
@@ -111,6 +133,19 @@ export default function SettingsPage() {
     return JSON.stringify(workspaceSettings) !== JSON.stringify(initialWorkspaceSettings);
   }, [initialWorkspaceSettings, workspaceSettings]);
 
+  const notificationRows: Array<{
+    key: keyof WorkspaceSettings["notifications"];
+    label: string;
+    description: string;
+  }> = [
+    { key: "email", label: "Email notifications", description: "Receive email updates for important hiring activity" },
+    { key: "inApp", label: "In-app notifications", description: "Show notification badges and inbox alerts in HireFlow" },
+    { key: "newApplications", label: "New application alerts", description: "Notify recruiters when a candidate applies" },
+    { key: "interviewReminders", label: "Interview reminder alerts", description: "Send reminders for scheduled interviews" },
+    { key: "stageChanges", label: "Stage change alerts", description: "Track stage movement across the hiring pipeline" },
+    { key: "dailyDigest", label: "Daily summary digest", description: "Future digest with a daily hiring summary" },
+  ];
+
   const handleWorkspaceChange = <K extends keyof WorkspaceSettings>(key: K, value: WorkspaceSettings[K]) => {
     setWorkspaceSettings((current) => ({
       ...current,
@@ -128,9 +163,11 @@ export default function SettingsPage() {
         defaultTimezone: workspaceSettings.defaultTimezone.trim(),
         defaultCurrency: workspaceSettings.defaultCurrency.trim().toUpperCase(),
         brandingLogo: workspaceSettings.brandingLogo.trim(),
+        notifications: workspaceSettings.notifications,
       });
-      setWorkspaceSettings(response.settings);
-      setInitialWorkspaceSettings(response.settings);
+      const normalized = normalizeWorkspaceSettings(response.settings);
+      setWorkspaceSettings(normalized);
+      setInitialWorkspaceSettings(normalized);
       toast.success("Workspace settings saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to save workspace settings");
@@ -407,26 +444,47 @@ export default function SettingsPage() {
                 Notifications
               </CardTitle>
               <CardDescription>
-                Notification preferences are presented here for structure and future backend wiring.
+                Save workspace notification preferences now. Delivery logic can be connected later without changing the UI.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {[
-                ["Email notifications", "Receive email updates for important hiring activity"],
-                ["In-app notifications", "Show notification badges and inbox alerts in HireFlow"],
-                ["New application alerts", "Notify recruiters when a candidate applies"],
-                ["Interview reminder alerts", "Send reminders for scheduled interviews"],
-                ["Stage change alerts", "Track stage movement across the hiring pipeline"],
-                ["Daily summary digest", "Future digest with a daily hiring summary"],
-              ].map(([label, description]) => (
+              {notificationRows.map(({ key, label, description }) => (
                 <div key={label} className="flex items-center justify-between gap-4 rounded-[22px] border border-border/80 bg-muted/20 px-4 py-3">
                   <div>
                     <p className="font-medium">{label}</p>
                     <p className="text-sm text-muted-foreground">{description}</p>
                   </div>
-                  <Switch disabled />
+                  <Switch
+                    checked={workspaceSettings.notifications[key]}
+                    disabled={loadingWorkspace || savingWorkspace}
+                    onCheckedChange={(checked) =>
+                      setWorkspaceSettings((current) => ({
+                        ...current,
+                        notifications: {
+                          ...current.notifications,
+                          [key]: checked,
+                        },
+                      }))
+                    }
+                  />
                 </div>
               ))}
+              <div className="flex flex-col gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">Save notification preferences</p>
+                  <p className="text-sm text-muted-foreground">
+                    These settings persist now and can control real notification delivery later.
+                  </p>
+                </div>
+                <Button
+                  className="h-11 rounded-2xl"
+                  disabled={loadingWorkspace || savingWorkspace || !workspaceDirty}
+                  onClick={() => void handleSaveWorkspace()}
+                >
+                  {savingWorkspace ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save notifications
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

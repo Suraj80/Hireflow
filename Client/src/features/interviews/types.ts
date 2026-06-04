@@ -61,6 +61,7 @@ export type InterviewPermissions = {
   canEdit: boolean;
   canReschedule: boolean;
   canCancel: boolean;
+  canDelete: boolean;
   canComplete: boolean;
   canSendReminder: boolean;
   canSubmitFeedback: boolean;

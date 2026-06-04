@@ -8,6 +8,14 @@ const DEFAULT_WORKSPACE_SETTINGS = {
   defaultTimezone: "Asia/Kolkata",
   defaultCurrency: "USD",
   brandingLogo: "",
+  notifications: {
+    email: true,
+    inApp: true,
+    newApplications: true,
+    interviewReminders: true,
+    stageChanges: true,
+    dailyDigest: false,
+  },
 };
 
 const workspaceSettingsSchema = z.object({
@@ -17,6 +25,14 @@ const workspaceSettingsSchema = z.object({
   defaultTimezone: z.string().trim().min(2).max(120),
   defaultCurrency: z.string().trim().min(3).max(5).transform((value) => value.toUpperCase()),
   brandingLogo: z.string().trim().max(255).optional().default(""),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    inApp: z.boolean().default(true),
+    newApplications: z.boolean().default(true),
+    interviewReminders: z.boolean().default(true),
+    stageChanges: z.boolean().default(true),
+    dailyDigest: z.boolean().default(false),
+  }),
 });
 
 const buildValidationError = (issues) => ({
@@ -34,6 +50,14 @@ const normalizeSettingsResponse = (settings) => ({
   defaultTimezone: settings.defaultTimezone,
   defaultCurrency: settings.defaultCurrency,
   brandingLogo: settings.brandingLogo || "",
+  notifications: {
+    email: settings.notifications?.email ?? true,
+    inApp: settings.notifications?.inApp ?? true,
+    newApplications: settings.notifications?.newApplications ?? true,
+    interviewReminders: settings.notifications?.interviewReminders ?? true,
+    stageChanges: settings.notifications?.stageChanges ?? true,
+    dailyDigest: settings.notifications?.dailyDigest ?? false,
+  },
   updatedAt: settings.updatedAt || null,
 });
 
