@@ -20,7 +20,6 @@ export default function InterviewsPage() {
   const {
     view,
     weekStart,
-    filters,
     meta,
     items,
     calendarItems,
@@ -34,7 +33,6 @@ export default function InterviewsPage() {
     selectedInterview,
     detailLoading,
     setView,
-    setFilters,
     setPage,
     setWeekStart,
     shiftWeek,
@@ -56,11 +54,11 @@ export default function InterviewsPage() {
 
   useEffect(() => {
     void fetchCalendar();
-  }, [fetchCalendar, weekStart, filters.search, filters.team, filters.interviewer, filters.status, refreshKey]);
+  }, [fetchCalendar, weekStart, refreshKey]);
 
   useEffect(() => {
     void fetchList();
-  }, [fetchList, filters, pagination.page, pagination.limit, refreshKey]);
+  }, [fetchList, pagination.page, pagination.limit, refreshKey]);
 
   const handleReschedulePrompt = async (interview: Interview) => {
     const next = window.prompt("New interview time in ISO format", interview.scheduledAt);
@@ -129,12 +127,9 @@ export default function InterviewsPage() {
         canManage={canManage}
         view={view}
         weekStart={weekStart}
-        filters={filters}
-        meta={meta}
         onViewChange={setView}
         onWeekChange={shiftWeek}
         onWeekStartChange={setWeekStart}
-        onFiltersChange={setFilters}
       />
 
       {canManage && selectedIds.length > 0 && (
@@ -240,7 +235,7 @@ export default function InterviewsPage() {
             toast.success("Interview marked completed");
             setRefreshKey((value) => value + 1);
           }}
-          onSortChange={(sort) => setFilters({ sort })}
+          onSortChange={() => undefined}
           onPageChange={setPage}
         />
       )}

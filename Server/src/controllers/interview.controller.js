@@ -2,6 +2,7 @@ const Candidate = require("../models/Candidate");
 const Interview = require("../models/Interview");
 const Job = require("../models/Job");
 const User = require("../models/User");
+const { createAuditLog } = require("../services/audit.service");
 const {
   feedbackStatusOptions,
   interviewCalendarQuerySchema,
@@ -123,6 +124,20 @@ const appendAudit = (interview, actorId, action, note = "", meta = null) => {
     meta,
   });
 };
+
+const recordInterviewAudit = async (req, interview, action, description, meta = null) =>
+  createAuditLog({
+    req,
+    action,
+    category: "interviews",
+    entity: {
+      type: "interview",
+      id: interview._id || interview.id,
+      label: interview.round || "Interview",
+    },
+    description,
+    meta,
+  });
 
 const appendNotification = (interview, actorId, type, message = "") => {
   interview.notifications.unshift({
@@ -550,6 +565,14 @@ const createInterview = async (req, res) => {
 
     await interview.save();
 
+    await recordInterviewAudit(req, interview, "interview-scheduled", `Scheduled ${payload.round} interview`, {
+      candidateId: payload.candidateId,
+      jobId: payload.jobId,
+      scheduledAt: payload.scheduledAt,
+      duration: payload.duration,
+      status: payload.status,
+    });
+
     const candidate = await Candidate.findById(payload.candidateId);
     if (candidate && candidate.stage !== "Interview") {
       candidate.stage = "Interview";
@@ -673,6 +696,14 @@ const updateInterview = async (req, res) => {
 
     await interview.save();
 
+    await recordInterviewAudit(req, interview, "interview-updated", `Updated ${interview.round} interview`, {
+      candidateId: nextValues.candidateId,
+      jobId: nextValues.jobId,
+      scheduledAt: nextValues.scheduledAt,
+      duration: nextValues.duration,
+      status: nextValues.status,
+    });
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(200).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -736,6 +767,12 @@ const rescheduleInterview = async (req, res) => {
 
     await interview.save();
 
+    await recordInterviewAudit(req, interview, "interview-rescheduled", `Rescheduled ${interview.round} interview`, {
+      scheduledAt: interview.scheduledAt,
+      duration: interview.duration,
+      reason: parsedBody.data.reason,
+    });
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(200).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -782,6 +819,11 @@ const updateInterviewStatus = async (req, res) => {
     }
 
     await interview.save();
+
+    await recordInterviewAudit(req, interview, "status-updated", `Updated interview status to ${parsedBody.data.status}`, {
+      status: parsedBody.data.status,
+      reason: parsedBody.data.reason,
+    });
 
     const hydrated = await ensureInterviewShape(interview);
     return res.status(200).json(mapInterview(hydrated, req.user));
@@ -835,6 +877,18 @@ const addInterviewFeedback = async (req, res) => {
     interview.updatedBy = req.user.id;
     await interview.save();
 
+    await recordInterviewAudit(
+      req,
+      interview,
+      "feedback-submitted",
+      `${existingIndex >= 0 ? "Updated" : "Submitted"} interview feedback for ${interview.round}`,
+      {
+        rating: parsedBody.data.rating,
+        recommendation: parsedBody.data.recommendation,
+        updated: existingIndex >= 0,
+      }
+    );
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(201).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -859,6 +913,10 @@ const deleteInterview = async (req, res) => {
     interview.updatedBy = req.user.id;
     appendAudit(interview, req.user.id, "deleted", "Interview removed from active views");
     await interview.save();
+
+    await recordInterviewAudit(req, interview, "deleted", `Deleted ${interview.round} interview`, {
+      status: interview.status,
+    });
 
     return res.status(200).json({ message: "Interview deleted" });
   } catch (error) {

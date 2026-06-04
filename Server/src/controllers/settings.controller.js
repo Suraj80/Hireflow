@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const WorkspaceSetting = require("../models/WorkspaceSetting");
+const { createAuditLog } = require("../services/audit.service");
 
 const DEFAULT_WORKSPACE_SETTINGS = {
   workspaceName: "HireFlow Workspace",
@@ -95,6 +96,24 @@ const updateSettings = async (req, res) => {
     });
 
     await settings.save();
+
+    await createAuditLog({
+      req,
+      action: "settings-updated",
+      category: "settings",
+      entity: {
+        type: "settings",
+        id: settings._id,
+        label: settings.workspaceName,
+      },
+      description: `Updated workspace settings for ${settings.workspaceName}`,
+      meta: {
+        companyName: settings.companyName,
+        timezone: settings.defaultTimezone,
+        currency: settings.defaultCurrency,
+        notifications: settings.notifications,
+      },
+    });
 
     return res.status(200).json({
       message: "Workspace settings updated successfully",

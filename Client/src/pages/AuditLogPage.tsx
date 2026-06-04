@@ -1,81 +1,214 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Shield, UserPlus, Settings, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { auditApi } from "@/features/audit/api";
+import { AuditFilters, AuditLogItem, AuditPagination } from "@/features/audit/types";
 
-const logs = [
-  { id: 1, user: "John Doe", action: "Created job posting", target: "Senior Frontend Dev", time: "5 min ago", type: "create", icon: UserPlus },
-  { id: 2, user: "Jane Smith", action: "Updated settings", target: "Email notifications", time: "1h ago", type: "update", icon: Settings },
-  { id: 3, user: "John Doe", action: "Deleted candidate", target: "Test User", time: "2h ago", type: "delete", icon: Trash2 },
-  { id: 4, user: "Jane Smith", action: "Changed role", target: "Mike Johnson → Admin", time: "3h ago", type: "security", icon: Shield },
-  { id: 5, user: "John Doe", action: "Created job posting", target: "Product Designer", time: "5h ago", type: "create", icon: UserPlus },
-  { id: 6, user: "Jane Smith", action: "Updated settings", target: "API keys", time: "1d ago", type: "update", icon: Settings },
-];
-
-const typeColors: Record<string, string> = {
-  create: "bg-success/10 text-success",
-  update: "bg-info/10 text-info",
-  delete: "bg-destructive/10 text-destructive",
-  security: "bg-warning/10 text-warning",
+const defaultPagination: AuditPagination = {
+  page: 1,
+  limit: 25,
+  total: 0,
+  totalPages: 1,
 };
 
+const defaultFilters: AuditFilters = {
+  actions: [],
+  entityTypes: [],
+  categories: [],
+  actors: [],
+};
+
+const categoryTone: Record<string, string> = {
+  security: "bg-amber-500/10 text-amber-700 border-amber-500/20",
+  users: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  jobs: "bg-violet-500/10 text-violet-700 border-violet-500/20",
+  candidates: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
+  interviews: "bg-sky-500/10 text-sky-700 border-sky-500/20",
+  settings: "bg-slate-500/10 text-slate-700 border-slate-500/20",
+};
+
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+
+function LoadingState() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-32 rounded-[28px]" />
+      <Skeleton className="h-[520px] rounded-[28px]" />
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+      <Card className="rounded-[28px] border border-dashed border-border/80 bg-card/70">
+      <CardContent className="px-6 py-16 text-center">
+        <p className="text-lg font-semibold">No audit activity has been recorded yet</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          New changes across the workspace will appear here automatically.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AuditLogPage() {
-  const [search, setSearch] = useState("");
+  const [items, setItems] = useState<AuditLogItem[]>([]);
+  const [filters, setFilters] = useState<AuditFilters>(defaultFilters);
+  const [pagination, setPagination] = useState<AuditPagination>(defaultPagination);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAuditLogs = useCallback(
+    async (nextPage = pagination.page) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await auditApi.list({
+          page: nextPage,
+          limit: pagination.limit,
+          search: "",
+          action: "all",
+          category: "all",
+          entityType: "all",
+          actorId: "",
+        });
+
+        setItems(response.items);
+        setFilters(response.filters);
+        setPagination(response.pagination);
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Unable to load audit log");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [pagination.limit, pagination.page]
+  );
+
+  useEffect(() => {
+    void loadAuditLogs(1);
+  }, [loadAuditLogs]);
+
+  if (loading && items.length === 0 && !error) {
+    return <LoadingState />;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Audit Log</h1>
-        <p className="text-muted-foreground">Track all system activity</p>
+        <h1 className="text-3xl font-bold tracking-tight">Audit Log</h1>
+        <p className="mt-1 text-muted-foreground">
+          Review who changed what across jobs, candidates, interviews, users, and workspace settings.
+        </p>
       </div>
-      <Card className="border border-border">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search logs..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+
+      <div className="flex justify-end">
+        <Button className="h-11 rounded-2xl" variant="outline" onClick={() => void loadAuditLogs(1)}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+
+      {error ? (
+        <Alert variant="destructive" className="rounded-[28px]">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Unable to load audit log</AlertTitle>
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <span>{error}</span>
+            <Button variant="outline" className="rounded-2xl" onClick={() => void loadAuditLogs()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : items.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          <Card className="rounded-[28px] border border-border/80 shadow-sm">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Actor</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Target</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{item.actor.name || "System"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.actor.email || item.request.ip || "Unknown origin"}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{item.description}</p>
+                          <p className="text-xs text-muted-foreground">{item.action}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {item.entity.label || item.entity.type}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={categoryTone[item.category] || "rounded-full"}>
+                          {item.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDateTime(item.createdAt)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-col gap-3 rounded-[24px] border border-border/80 bg-card/70 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-muted-foreground">
+              Page {pagination.page} of {pagination.totalPages} | {pagination.total} total events
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                disabled={pagination.page <= 1 || loading}
+                onClick={() => void loadAuditLogs(pagination.page - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                disabled={pagination.page >= pagination.totalPages || loading}
+                onClick={() => void loadAuditLogs(pagination.page + 1)}
+              >
+                Next
+              </Button>
             </div>
-            <Select defaultValue="all">
-              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="create">Create</SelectItem>
-                <SelectItem value="update">Update</SelectItem>
-                <SelectItem value="delete">Delete</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Target</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Time</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="font-medium text-sm">{log.user}</TableCell>
-                  <TableCell className="text-sm">{log.action}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{log.target}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={typeColors[log.type]}>{log.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{log.time}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   );
 }

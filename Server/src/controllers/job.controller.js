@@ -4,6 +4,7 @@ const Department = require("../models/Department");
 const Job = require("../models/Job");
 const User = require("../models/User");
 const { getMergedDepartments } = require("./department.controller");
+const { createAuditLog } = require("../services/audit.service");
 const {
   jobCreateSchema,
   jobsQuerySchema,
@@ -295,6 +296,23 @@ const createJob = async (req, res) => {
       .populate("updatedBy", "name email role")
       .populate("hiringManagerId", "name email role");
 
+    await createAuditLog({
+      req,
+      action: "created",
+      category: "jobs",
+      entity: {
+        type: "job",
+        id: job._id,
+        label: job.title,
+      },
+      description: `Created job ${job.title}`,
+      meta: {
+        department: job.department,
+        status: job.status,
+        visibility: job.visibility,
+      },
+    });
+
     return res.status(201).json(normalizeJobResponse(populatedJob, 0));
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -361,6 +379,23 @@ const updateJob = async (req, res) => {
     });
     await job.save();
 
+    await createAuditLog({
+      req,
+      action: "updated",
+      category: "jobs",
+      entity: {
+        type: "job",
+        id: job._id,
+        label: job.title,
+      },
+      description: `Updated job ${job.title}`,
+      meta: {
+        department: job.department,
+        status: job.status,
+        visibility: job.visibility,
+      },
+    });
+
     const populatedJob = await Job.findById(job._id)
       .populate("createdBy", "name email role")
       .populate("updatedBy", "name email role")
@@ -390,6 +425,21 @@ const deleteJob = async (req, res) => {
     job.status = "closed";
     job.updatedBy = req.user.id;
     await job.save();
+
+    await createAuditLog({
+      req,
+      action: "archived",
+      category: "jobs",
+      entity: {
+        type: "job",
+        id: job._id,
+        label: job.title,
+      },
+      description: `Archived job ${job.title}`,
+      meta: {
+        status: job.status,
+      },
+    });
 
     return res.status(200).json({ message: "Job archived successfully" });
   } catch (error) {

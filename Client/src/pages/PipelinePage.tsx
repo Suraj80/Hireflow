@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { AlertCircle, GripVertical, Mail, Phone, Search, Users2 } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { AlertCircle, Brain, GripVertical, Mail, Phone, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -8,8 +8,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StageBadge } from "@/features/candidates/components/StageBadge";
 import {
@@ -22,7 +20,7 @@ import {
   stageToneClass,
 } from "@/features/candidates/helpers";
 import { candidatesApi } from "@/features/candidates/api";
-import { Candidate, CandidateFilters, CandidateMeta, CandidateStage } from "@/features/candidates/types";
+import { Candidate, CandidateFilters, CandidateStage } from "@/features/candidates/types";
 
 const stageDescriptions: Record<CandidateStage, string> = {
   Applied: "Fresh inbound applicants waiting for first review.",
@@ -61,7 +59,7 @@ function LoadingState() {
   );
 }
 
-function EmptyState({ onReset }: { onReset: () => void }) {
+function EmptyState() {
   return (
     <Card className="rounded-[28px] border border-dashed border-border/80 bg-card/70">
       <CardContent className="flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -69,10 +67,7 @@ function EmptyState({ onReset }: { onReset: () => void }) {
           <Users2 className="h-8 w-8 text-primary" />
         </div>
         <h2 className="mt-5 text-xl font-semibold">No candidates match this pipeline view</h2>
-        <p className="mt-2 max-w-md text-sm text-muted-foreground">Try broadening the search or switching jobs to bring more candidates into view.</p>
-        <Button className="mt-6 h-11 rounded-2xl" variant="outline" onClick={onReset}>
-          Reset filters
-        </Button>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground">New candidates will appear here as they move into the pipeline.</p>
       </CardContent>
     </Card>
   );
@@ -109,13 +104,11 @@ async function fetchAllCandidates(filters: CandidateFilters) {
 export default function PipelinePage() {
   const { user } = useAuth();
   const { jobId } = useParams();
-  const navigate = useNavigate();
   const canMoveCandidates = user?.role === "admin" || user?.role === "recruiter";
   const [filters, setFilters] = useState<CandidateFilters>({
     ...defaultFilters,
     job: jobId || "all",
   });
-  const [meta, setMeta] = useState<CandidateMeta | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,11 +127,7 @@ export default function PipelinePage() {
     setError(null);
 
     try {
-      const [metaResponse, candidatesResponse] = await Promise.all([
-        candidatesApi.meta(),
-        fetchAllCandidates(filters),
-      ]);
-      setMeta(metaResponse);
+      const candidatesResponse = await fetchAllCandidates(filters);
       setCandidates(candidatesResponse.items);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load pipeline candidates");
@@ -152,11 +141,6 @@ export default function PipelinePage() {
   }, [loadPipeline]);
 
   const groupedCandidates = useMemo(() => groupCandidatesByStage(candidates), [candidates]);
-
-  const handleJobChange = (value: string) => {
-    setFilters((current) => ({ ...current, job: value }));
-    navigate(value === "all" ? "/pipeline" : `/pipeline/${value}`);
-  };
 
   const handleMoveCandidate = async (candidateId: string, nextStage: CandidateStage) => {
     const currentCandidate = candidates.find((candidate) => candidate.id === candidateId);
@@ -194,14 +178,6 @@ export default function PipelinePage() {
     }
   };
 
-  const resetFilters = () => {
-    const nextFilters = {
-      ...defaultFilters,
-      job: jobId || "all",
-    };
-    setFilters(nextFilters);
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -215,50 +191,6 @@ export default function PipelinePage() {
           {canMoveCandidates ? "Drag and drop enabled" : "View only"}
         </Badge>
       </div>
-      <Card className="rounded-[28px] border border-border/80 shadow-sm">
-        <CardContent className="grid gap-3 p-5 md:grid-cols-[minmax(0,1fr)_260px_180px_auto]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={filters.search}
-              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder="Search candidate name or email"
-              className="h-11 rounded-2xl pl-9"
-            />
-          </div>
-          <Select value={filters.job} onValueChange={handleJobChange}>
-            <SelectTrigger className="h-11 rounded-2xl">
-              <SelectValue placeholder="Filter by job" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All jobs</SelectItem>
-              {(meta?.jobs || []).map((job) => (
-                <SelectItem key={job.id} value={job.id}>
-                  {job.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={filters.aiScoreMin ?? ""}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                aiScoreMin: event.target.value === "" ? null : Number(event.target.value),
-              }))
-            }
-            placeholder="Min AI score"
-            className="h-11 rounded-2xl"
-          />
-          <Button variant="outline" className="h-11 rounded-2xl" onClick={() => void loadPipeline()}>
-            Refresh
-          </Button>
-        </CardContent>
-      </Card>
-
       {loading ? (
         <LoadingState />
       ) : error ? (
@@ -273,7 +205,7 @@ export default function PipelinePage() {
           </AlertDescription>
         </Alert>
       ) : candidates.length === 0 ? (
-        <EmptyState onReset={resetFilters} />
+        <EmptyState />
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-4">
           {stageOrder.map((stage) => {

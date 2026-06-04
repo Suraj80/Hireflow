@@ -11,6 +11,7 @@ const {
   signRefreshToken,
   verifyRefreshToken,
 } = require("../utils/auth");
+const { createAuditLog } = require("../services/audit.service");
 
 const issueSession = async (res, user, rotatedFrom = null) => {
   const tokenId = generateTokenId();
@@ -53,6 +54,22 @@ const register = async (req, res) => {
     });
     const accessToken = await issueSession(res, user);
 
+    await createAuditLog({
+      req,
+      actor: user,
+      action: "created",
+      category: "security",
+      entity: {
+        type: "auth",
+        id: user._id,
+        label: user.email,
+      },
+      description: `Bootstrapped initial administrator ${user.email}`,
+      meta: {
+        role: user.role,
+      },
+    });
+
     return res.status(201).json({
       message: "Initial administrator created successfully",
       accessToken,
@@ -89,6 +106,22 @@ const login = async (req, res) => {
     await user.save();
 
     const accessToken = await issueSession(res, user);
+
+    await createAuditLog({
+      req,
+      actor: user,
+      action: "login",
+      category: "security",
+      entity: {
+        type: "auth",
+        id: user._id,
+        label: user.email,
+      },
+      description: `Signed in as ${user.email}`,
+      meta: {
+        lastLoginAt: user.lastLoginAt,
+      },
+    });
 
     return res.status(200).json({
       message: "Login successful",
@@ -154,12 +187,35 @@ const refresh = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const token = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+    const actor = req.user
+      ? {
+          id: req.user.id,
+          name: req.user.name,
+          email: req.user.email,
+          role: req.user.role,
+        }
+      : null;
 
     if (token) {
       await RefreshToken.findOneAndUpdate(
         { tokenHash: hashToken(token), revokedAt: null },
         { revokedAt: new Date() }
       );
+    }
+
+    if (actor) {
+      await createAuditLog({
+        req,
+        actor,
+        action: "logout",
+        category: "security",
+        entity: {
+          type: "auth",
+          id: actor.id,
+          label: actor.email,
+        },
+        description: `Signed out ${actor.email}`,
+      });
     }
 
     res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions());
@@ -225,6 +281,22 @@ const updateMe = async (req, res) => {
     }
 
     await user.save();
+
+    await createAuditLog({
+      req,
+      actor: user,
+      action: "profile-updated",
+      category: "security",
+      entity: {
+        type: "user",
+        id: user._id,
+        label: user.email,
+      },
+      description: `Updated profile for ${user.email}`,
+      meta: {
+        passwordChanged: Boolean(newPassword),
+      },
+    });
 
     return res.status(200).json({
       message: "Profile updated successfully",

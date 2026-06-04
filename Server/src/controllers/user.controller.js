@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const RefreshToken = require("../models/RefreshToken");
 const { sanitizeUser } = require("../utils/auth");
+const { createAuditLog } = require("../services/audit.service");
 
 const ALLOWED_ROLES = ["admin", "recruiter", "viewer"];
 
@@ -110,6 +111,22 @@ const createUser = async (req, res) => {
       role,
     });
 
+    await createAuditLog({
+      req,
+      action: "created",
+      category: "users",
+      entity: {
+        type: "user",
+        id: user._id,
+        label: user.email,
+      },
+      description: `Created user ${user.email} with ${user.role} access`,
+      meta: {
+        name: user.name,
+        role: user.role,
+      },
+    });
+
     return res.status(201).json({
       message: "User created successfully",
       user: buildUserResponse(user),
@@ -132,10 +149,31 @@ const updateRole = async (req, res) => {
       return res.status(400).json({ message: "You cannot remove your own admin access" });
     }
 
+    const previousUser = await User.findById(id);
+    if (!previousUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const user = await User.findByIdAndUpdate(id, { role }, { new: true });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    await createAuditLog({
+      req,
+      action: "role-updated",
+      category: "users",
+      entity: {
+        type: "user",
+        id: user._id,
+        label: user.email,
+      },
+      description: `Changed role for ${user.email} from ${previousUser.role} to ${role}`,
+      meta: {
+        previousRole: previousUser.role,
+        nextRole: role,
+      },
+    });
 
     return res.status(200).json({
       message: "User role updated successfully",
@@ -178,6 +216,21 @@ const updateStatus = async (req, res) => {
       await revokeUserSessions(user._id);
     }
 
+    await createAuditLog({
+      req,
+      action: "status-updated",
+      category: "users",
+      entity: {
+        type: "user",
+        id: user._id,
+        label: user.email,
+      },
+      description: `${isActive ? "Activated" : "Deactivated"} user ${user.email}`,
+      meta: {
+        isActive,
+      },
+    });
+
     return res.status(200).json({
       message: `User ${isActive ? "activated" : "deactivated"} successfully`,
       user: buildUserResponse(user),
@@ -205,6 +258,21 @@ const updatePassword = async (req, res) => {
     await user.save();
     await revokeUserSessions(user._id);
 
+    await createAuditLog({
+      req,
+      action: "password-updated",
+      category: "security",
+      entity: {
+        type: "user",
+        id: user._id,
+        label: user.email,
+      },
+      description: `Reset password for ${user.email}`,
+      meta: {
+        sessionsRevoked: true,
+      },
+    });
+
     return res.status(200).json({
       message: "User password updated successfully",
       user: buildUserResponse(user),
@@ -229,6 +297,22 @@ const deleteUser = async (req, res) => {
 
     await revokeUserSessions(user._id);
     await User.findByIdAndDelete(id);
+
+    await createAuditLog({
+      req,
+      action: "deleted",
+      category: "users",
+      entity: {
+        type: "user",
+        id,
+        label: user.email,
+      },
+      description: `Deleted user ${user.email}`,
+      meta: {
+        name: user.name,
+        role: user.role,
+      },
+    });
 
     return res.status(200).json({
       message: "User deleted successfully",

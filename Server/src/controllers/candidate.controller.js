@@ -21,6 +21,7 @@ const {
   stageOptions,
   statusOptions,
 } = require("../validation/candidate.validation");
+const { createAuditLog } = require("../services/audit.service");
 const { queueCandidateResumeScoring } = require("../services/resumeScoring.service");
 
 const buildValidationError = (issues) => ({
@@ -205,6 +206,20 @@ const appendActivity = (candidate, entry) => {
     meta: entry.meta || null,
   });
 };
+
+const recordCandidateAudit = async (req, candidate, action, description, meta = null) =>
+  createAuditLog({
+    req,
+    action,
+    category: "candidates",
+    entity: {
+      type: "candidate",
+      id: candidate._id || candidate.id,
+      label: candidate.name,
+    },
+    description,
+    meta,
+  });
 
 const normalizeUser = (user) => {
   if (!user) {
@@ -602,6 +617,19 @@ const createCandidate = async (req, res) => {
       await queueCandidateResumeScoring(candidate._id.toString());
     }
 
+    await recordCandidateAudit(
+      req,
+      candidate,
+      "created",
+      `Created candidate ${candidate.name} for ${job.title}`,
+      {
+        stage: candidate.stage,
+        source: candidate.source,
+        jobId: candidate.jobId,
+        jobTitle: job.title,
+      }
+    );
+
     const savedCandidate = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
       .populate("recruiterAssigned", "name email role")
@@ -736,6 +764,12 @@ const updateCandidate = async (req, res) => {
       await queueCandidateResumeScoring(candidate._id.toString());
     }
 
+    await recordCandidateAudit(req, candidate, "updated", `Updated candidate ${candidate.name}`, {
+      stage: candidate.stage,
+      recruiterAssigned: candidate.recruiterAssigned,
+      aiRescored: shouldRefreshAIScore && Boolean(candidate.resumeUrl),
+    });
+
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
       .populate("recruiterAssigned", "name email role")
@@ -789,6 +823,18 @@ const updateCandidateStage = async (req, res) => {
 
     await candidate.save();
 
+    await recordCandidateAudit(
+      req,
+      candidate,
+      "stage-moved",
+      `Moved candidate ${candidate.name} from ${previousStage} to ${parsedBody.data.stage}`,
+      {
+        previousStage,
+        nextStage: parsedBody.data.stage,
+        reason: parsedBody.data.reason,
+      }
+    );
+
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
       .populate("recruiterAssigned", "name email role")
@@ -839,6 +885,16 @@ const assignCandidate = async (req, res) => {
       meta: { recruiterAssigned: candidate.recruiterAssigned },
     });
     await candidate.save();
+
+    await recordCandidateAudit(
+      req,
+      candidate,
+      "assigned",
+      `${candidate.recruiterAssigned ? "Assigned" : "Unassigned"} recruiter for ${candidate.name}`,
+      {
+        recruiterAssigned: candidate.recruiterAssigned,
+      }
+    );
 
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
@@ -894,6 +950,11 @@ const addCandidateNote = async (req, res) => {
 
     const populatedNote = await CandidateNote.findById(note._id).populate("authorId", "name email role");
 
+    await recordCandidateAudit(req, candidate, "note-added", `Added note to ${candidate.name}`, {
+      pinned: parsedBody.data.pinned,
+      noteId: note._id,
+    });
+
     return res.status(201).json(mapNote(populatedNote));
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -936,6 +997,13 @@ const addCandidateInterview = async (req, res) => {
       },
     });
     await candidate.save();
+
+    await recordCandidateAudit(req, candidate, "interview-scheduled", `Scheduled interview for ${candidate.name}`, {
+      date: parsedBody.data.date,
+      mode: parsedBody.data.mode,
+      status: parsedBody.data.status,
+      interviewers: parsedBody.data.interviewers,
+    });
 
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
@@ -992,6 +1060,10 @@ const updateCandidateNote = async (req, res) => {
     await candidate.save();
 
     const populatedNote = await CandidateNote.findById(note._id).populate("authorId", "name email role");
+    await recordCandidateAudit(req, candidate, "note-updated", `Updated note on ${candidate.name}`, {
+      pinned: parsedBody.data.pinned,
+      noteId: note._id,
+    });
     return res.status(200).json(mapNote(populatedNote));
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -1026,6 +1098,10 @@ const deleteCandidateNote = async (req, res) => {
     });
     await candidate.save();
 
+    await recordCandidateAudit(req, candidate, "note-deleted", `Deleted note from ${candidate.name}`, {
+      noteId: note._id,
+    });
+
     return res.status(200).json({ message: "Note deleted" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -1054,6 +1130,10 @@ const deleteCandidate = async (req, res) => {
       actorName: req.user.name || req.user.role,
     });
     await candidate.save();
+
+    await recordCandidateAudit(req, candidate, "archived", `Archived candidate ${candidate.name}`, {
+      status: candidate.status,
+    });
 
     return res.status(200).json({ message: "Candidate archived successfully" });
   } catch (error) {
@@ -1087,6 +1167,7 @@ const bulkActionCandidates = async (req, res) => {
 
     for (const candidate of manageableCandidates) {
       candidate.updatedBy = req.user.id;
+      let auditEntry = null;
 
       if (action === "move-stage") {
         candidate.stage = stage;
@@ -1104,6 +1185,15 @@ const bulkActionCandidates = async (req, res) => {
           actorId: req.user.id,
           actorName: req.user.name || req.user.role,
         });
+        auditEntry = {
+          action: "stage-moved",
+          description: `Moved candidate ${candidate.name} to ${stage} in bulk`,
+          meta: {
+            nextStage: stage,
+            reason,
+            bulkAction: true,
+          },
+        };
       }
 
       if (action === "archive") {
@@ -1116,6 +1206,14 @@ const bulkActionCandidates = async (req, res) => {
           actorId: req.user.id,
           actorName: req.user.name || req.user.role,
         });
+        auditEntry = {
+          action: "archived",
+          description: `Archived candidate ${candidate.name} in bulk`,
+          meta: {
+            reason,
+            bulkAction: true,
+          },
+        };
       }
 
       if (action === "reject") {
@@ -1134,6 +1232,15 @@ const bulkActionCandidates = async (req, res) => {
           actorId: req.user.id,
           actorName: req.user.name || req.user.role,
         });
+        auditEntry = {
+          action: "stage-moved",
+          description: `Rejected candidate ${candidate.name} in bulk`,
+          meta: {
+            nextStage: "Rejected",
+            reason,
+            bulkAction: true,
+          },
+        };
       }
 
       if (action === "assign-recruiter") {
@@ -1145,9 +1252,22 @@ const bulkActionCandidates = async (req, res) => {
           actorId: req.user.id,
           actorName: req.user.name || req.user.role,
         });
+        auditEntry = {
+          action: "assigned",
+          description: `${recruiterAssigned ? "Assigned" : "Unassigned"} recruiter for ${candidate.name} in bulk`,
+          meta: {
+            recruiterAssigned,
+            reason,
+            bulkAction: true,
+          },
+        };
       }
 
       await candidate.save();
+
+      if (auditEntry) {
+        await recordCandidateAudit(req, candidate, auditEntry.action, auditEntry.description, auditEntry.meta);
+      }
     }
 
     return res.status(200).json({

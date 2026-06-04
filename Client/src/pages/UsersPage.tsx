@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, PencilLine, Trash2, UserPlus, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -14,7 +14,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -37,13 +37,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/components/AuthProvider";
 import { usersApi } from "@/features/users/api";
 import { UserListItem, UserRole } from "@/features/users/types";
-
-const roleOptions: Array<{ label: string; value: UserRole | "all" }> = [
-  { label: "All roles", value: "all" },
-  { label: "Admin", value: "admin" },
-  { label: "Recruiter", value: "recruiter" },
-  { label: "Viewer", value: "viewer" },
-];
 
 const roleLabel: Record<UserRole, string> = {
   admin: "Admin",
@@ -97,9 +90,6 @@ function formatDate(value: string) {
 export default function UsersPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<UserListItem[]>([]);
-  const [search, setSearch] = useState("");
-  const [role, setRole] = useState<UserRole | "all">("all");
-  const deferredSearch = useDeferredValue(search);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -134,8 +124,8 @@ export default function UsersPage() {
 
     try {
       const response = await usersApi.list({
-        search: deferredSearch.trim(),
-        role,
+        search: "",
+        role: "all",
       });
       setUsers(response.items);
     } catch (loadError) {
@@ -143,7 +133,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [deferredSearch, role]);
+  }, []);
 
   useEffect(() => {
     void loadUsers();
@@ -270,41 +260,6 @@ export default function UsersPage() {
           Add new user
         </Button>
       </div>
-
-      <Card className="rounded-[28px] border border-border/80 shadow-sm">
-        <CardHeader className="gap-4">
-          <div>
-            <CardTitle>User Directory</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Search by name or email, then refine by role to keep access reviews quick.
-            </p>
-          </div>
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]">
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search users by name or email"
-              autoComplete="off"
-              className="h-11 rounded-2xl"
-            />
-            <Select value={role} onValueChange={(value) => setRole(value as UserRole | "all")}>
-              <SelectTrigger className="h-11 rounded-2xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {roleOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" className="h-11 rounded-2xl" onClick={() => void loadUsers()}>
-              Refresh
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
 
       {loading ? (
         <LoadingState />

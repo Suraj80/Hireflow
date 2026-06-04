@@ -4,32 +4,25 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InterviewFilters } from "@/features/interviews/components/InterviewFilters";
 import { formatWeekRange, getWeekStart } from "@/features/interviews/helpers";
-import { InterviewFilters as InterviewFiltersType, InterviewMeta, InterviewView } from "@/features/interviews/types";
+import { InterviewView } from "@/features/interviews/types";
 
 type InterviewToolbarProps = {
   canManage: boolean;
   view: InterviewView;
   weekStart: Date;
-  filters: InterviewFiltersType;
-  meta: InterviewMeta;
   onViewChange: (view: InterviewView) => void;
   onWeekChange: (direction: -1 | 1) => void;
   onWeekStartChange: (date: Date) => void;
-  onFiltersChange: (value: Partial<InterviewFiltersType>) => void;
 };
 
 export function InterviewToolbar({
   canManage,
   view,
   weekStart,
-  filters,
-  meta,
   onViewChange,
   onWeekChange,
   onWeekStartChange,
-  onFiltersChange,
 }: InterviewToolbarProps) {
   const navigate = useNavigate();
   const months = Array.from({ length: 12 }, (_, index) => setMonth(new Date(weekStart), index));
@@ -95,8 +88,6 @@ export function InterviewToolbar({
             </div>
           </div>
         </div>
-
-        <InterviewFilters filters={filters} meta={meta} onChange={onFiltersChange} />
       </CardContent>
     </Card>
   );
