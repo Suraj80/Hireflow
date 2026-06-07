@@ -116,10 +116,18 @@ export default function PipelinePage() {
   const [updatingCandidateId, setUpdatingCandidateId] = useState<string | null>(null);
 
   useEffect(() => {
-    setFilters((current) => ({
-      ...current,
-      job: jobId || "all",
-    }));
+    const nextJobFilter = jobId || "all";
+
+    setFilters((current) => {
+      if (current.job === nextJobFilter) {
+        return current;
+      }
+
+      return {
+        ...current,
+        job: nextJobFilter,
+      };
+    });
   }, [jobId]);
 
   const loadPipeline = useCallback(async () => {

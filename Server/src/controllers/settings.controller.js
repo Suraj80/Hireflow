@@ -1,6 +1,11 @@
 const { z } = require("zod");
 const WorkspaceSetting = require("../models/WorkspaceSetting");
+const User = require("../models/User");
 const { createAuditLog } = require("../services/audit.service");
+const {
+  buildEmailIntegrationStatus,
+  sendTransactionalEmail,
+} = require("../services/email.service");
 
 const DEFAULT_WORKSPACE_SETTINGS = {
   workspaceName: "HireFlow Workspace",
@@ -42,6 +47,10 @@ const buildValidationError = (issues) => ({
     field: issue.path.join("."),
     message: issue.message,
   })),
+});
+
+const testEmailSchema = z.object({
+  email: z.string().trim().email().optional(),
 });
 
 const normalizeSettingsResponse = (settings) => ({
@@ -124,7 +133,93 @@ const updateSettings = async (req, res) => {
   }
 };
 
+const getEmailIntegrationSettings = async (_req, res) => {
+  try {
+    return res.status(200).json(buildEmailIntegrationStatus());
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const sendTestEmail = async (req, res) => {
+  const parsedBody = testEmailSchema.safeParse(req.body || {});
+
+  if (!parsedBody.success) {
+    return res.status(400).json(buildValidationError(parsedBody.error.issues));
+  }
+
+  try {
+    const actor = await User.findById(req.user.id).select("name email role");
+    if (!actor) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const emailStatus = buildEmailIntegrationStatus();
+    if (!emailStatus.ready) {
+      return res.status(400).json({ message: "Brevo email delivery is not configured on the server" });
+    }
+
+    const recipientEmail = parsedBody.data.email || actor.email;
+    const recipientName = actor.name || "HireFlow Admin";
+    const sentAt = new Date().toLocaleString();
+
+    const response = await sendTransactionalEmail({
+      to: [{ email: recipientEmail, name: recipientName }],
+      subject: "HireFlow Brevo test email",
+      htmlContent: `
+        <html>
+          <body>
+            <p>Hi ${recipientName},</p>
+            <p>This is a test email from HireFlow using Brevo transactional delivery.</p>
+            <p><strong>Sent at:</strong> ${sentAt}</p>
+            <p><strong>Sandbox mode:</strong> ${emailStatus.sandboxMode ? "enabled" : "disabled"}</p>
+            <p>If you received this, the email integration is working.</p>
+          </body>
+        </html>
+      `,
+      textContent: [
+        `Hi ${recipientName},`,
+        "This is a test email from HireFlow using Brevo transactional delivery.",
+        `Sent at: ${sentAt}`,
+        `Sandbox mode: ${emailStatus.sandboxMode ? "enabled" : "disabled"}`,
+        "If you received this, the email integration is working.",
+      ].join("\n"),
+      tags: ["settings-test-email"],
+    });
+
+    await createAuditLog({
+      req,
+      action: "settings-test-email-sent",
+      category: "settings",
+      entity: {
+        type: "integration",
+        id: "brevo-email",
+        label: "Brevo Email",
+      },
+      description: `Sent Brevo test email to ${recipientEmail}`,
+      meta: {
+        recipientEmail,
+        sandboxMode: emailStatus.sandboxMode,
+        messageId: response?.messageId || "",
+      },
+    });
+
+    return res.status(200).json({
+      message: emailStatus.sandboxMode
+        ? "Brevo test request accepted in sandbox mode"
+        : "Brevo test email sent successfully",
+      messageId: response?.messageId || "",
+      sandboxMode: emailStatus.sandboxMode,
+      recipientEmail,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
+  getEmailIntegrationSettings,
   getSettings,
+  sendTestEmail,
   updateSettings,
 };

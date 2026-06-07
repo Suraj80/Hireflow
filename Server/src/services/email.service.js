@@ -34,6 +34,17 @@ const getEmailConfig = () => ({
   sandboxMode: String(process.env.BREVO_SANDBOX_MODE || "").trim().toLowerCase() === "true",
 });
 
+const buildEmailIntegrationStatus = (config = getEmailConfig()) => ({
+  provider: "brevo",
+  configured: Boolean(config.apiKey && config.senderEmail),
+  ready: Boolean(config.apiKey && config.senderEmail),
+  sandboxMode: config.sandboxMode,
+  senderEmail: config.senderEmail || "",
+  senderName: config.senderName || "HireFlow",
+  replyToEmail: config.replyToEmail || "",
+  hasApiKey: Boolean(config.apiKey),
+});
+
 const isEmailConfigured = () => {
   const config = getEmailConfig();
   return Boolean(config.apiKey && config.senderEmail);
@@ -467,6 +478,8 @@ const sendInterviewReminderEmails = async ({
 };
 
 module.exports = {
+  buildEmailIntegrationStatus,
+  getEmailConfig,
   isEmailConfigured,
   sendCandidateStageChangeEmail,
   sendInterviewInviteEmails,

@@ -15,3 +15,14 @@ export type WorkspaceSettings = {
   };
   updatedAt?: string | null;
 };
+
+export type EmailIntegrationStatus = {
+  provider: "brevo";
+  configured: boolean;
+  ready: boolean;
+  sandboxMode: boolean;
+  senderEmail: string;
+  senderName: string;
+  replyToEmail: string;
+  hasApiKey: boolean;
+};

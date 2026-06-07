@@ -8,7 +8,7 @@
     "start": "node server.js",
     "seed:admin": "node scripts/seed-admin.js",
     "cleanup:user-avatars": "node scripts/remove-user-avatars.js",
-    "test": "echo \"No tests configured\""
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",

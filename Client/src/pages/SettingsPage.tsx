@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { departmentsApi } from "@/features/departments/api";
 import { DepartmentItem } from "@/features/departments/types";
 import { settingsApi } from "@/features/settings/api";
-import { WorkspaceSettings } from "@/features/settings/types";
+import { EmailIntegrationStatus, WorkspaceSettings } from "@/features/settings/types";
 import {
   BellRing,
   BriefcaseBusiness,
@@ -21,6 +21,7 @@ import {
   Plus,
   PlugZap,
   Save,
+  Send,
 } from "lucide-react";
 
 const defaultNotificationSettings: WorkspaceSettings["notifications"] = {
@@ -40,6 +41,19 @@ const defaultWorkspaceSettings: WorkspaceSettings = {
   defaultCurrency: "USD",
   brandingLogo: "",
   notifications: defaultNotificationSettings,
+};
+
+const currencyOptions = ["USD", "EUR", "GBP", "INR", "AED", "CAD", "AUD", "SGD"];
+
+const defaultEmailIntegration: EmailIntegrationStatus = {
+  provider: "brevo",
+  configured: false,
+  ready: false,
+  sandboxMode: false,
+  senderEmail: "",
+  senderName: "HireFlow",
+  replyToEmail: "",
+  hasApiKey: false,
 };
 
 const normalizeWorkspaceSettings = (settings: Partial<WorkspaceSettings> | null | undefined): WorkspaceSettings => ({
@@ -88,6 +102,10 @@ export default function SettingsPage() {
   const [departmentName, setDepartmentName] = useState("");
   const [creatingDepartment, setCreatingDepartment] = useState(false);
   const [workingDepartmentId, setWorkingDepartmentId] = useState<string | null>(null);
+  const [emailIntegration, setEmailIntegration] = useState<EmailIntegrationStatus>(defaultEmailIntegration);
+  const [loadingEmailIntegration, setLoadingEmailIntegration] = useState(true);
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
+  const [testEmailRecipient, setTestEmailRecipient] = useState("");
 
   const loadWorkspaceSettings = async () => {
     try {
@@ -115,9 +133,22 @@ export default function SettingsPage() {
     }
   };
 
+  const loadEmailIntegration = async () => {
+    try {
+      setLoadingEmailIntegration(true);
+      const response = await settingsApi.getEmailIntegration();
+      setEmailIntegration(response);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to load email integration status");
+    } finally {
+      setLoadingEmailIntegration(false);
+    }
+  };
+
   useEffect(() => {
     void loadWorkspaceSettings();
     void loadDepartments();
+    void loadEmailIntegration();
   }, []);
 
   const activeDepartments = useMemo(
@@ -219,6 +250,22 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSendTestEmail = async () => {
+    try {
+      setSendingTestEmail(true);
+      const response = await settingsApi.sendTestEmail(testEmailRecipient.trim() || undefined);
+      toast.success(response.message);
+      if (response.recipientEmail) {
+        setTestEmailRecipient(response.recipientEmail);
+      }
+      await loadEmailIntegration();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to send test email");
+    } finally {
+      setSendingTestEmail(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -316,13 +363,22 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Default currency</Label>
-                <Input
+                <Select
                   value={workspaceSettings.defaultCurrency}
                   disabled={loadingWorkspace || savingWorkspace}
-                  onChange={(event) => handleWorkspaceChange("defaultCurrency", event.target.value.toUpperCase())}
-                  className="h-11 rounded-2xl"
-                  placeholder="USD"
-                />
+                  onValueChange={(value) => handleWorkspaceChange("defaultCurrency", value)}
+                >
+                  <SelectTrigger className="h-11 rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencyOptions.map((currency) => (
+                      <SelectItem key={currency} value={currency}>
+                        {currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Branding / logo</Label>
@@ -584,7 +640,6 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="grid gap-4 lg:grid-cols-2">
               {[
-                ["Email provider", "Brevo delivery uses server-side environment credentials when configured"],
                 ["S3 resume storage", "Resume storage configuration placeholder"],
                 ["OpenAI scoring", "Resume scoring provider status placeholder"],
                 ["Calendar integration", "Calendar sync support planned for future"],
@@ -599,6 +654,80 @@ export default function SettingsPage() {
                   <p className="mt-2 text-sm text-muted-foreground">{description}</p>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[28px] border border-border/80 shadow-sm">
+            <CardHeader>
+              <CardTitle>Email delivery</CardTitle>
+              <CardDescription>
+                Monitor Brevo readiness and send a live test email from the server-side integration.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium">Provider status</p>
+                    <Badge variant={emailIntegration.ready ? "secondary" : "outline"} className="rounded-full px-3 py-1">
+                      {loadingEmailIntegration
+                        ? "Loading"
+                        : emailIntegration.ready
+                          ? emailIntegration.sandboxMode
+                            ? "Sandbox ready"
+                            : "Ready"
+                          : "Not ready"}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {loadingEmailIntegration
+                      ? "Checking Brevo configuration..."
+                      : emailIntegration.ready
+                        ? "Brevo credentials are configured on the server."
+                        : "Brevo credentials or sender details are missing."}
+                  </p>
+                </div>
+                <div className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                  <p className="font-medium">Sender details</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {emailIntegration.senderName || "HireFlow"} {emailIntegration.senderEmail ? `| ${emailIntegration.senderEmail}` : "| Sender not configured"}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Reply-to: {emailIntegration.replyToEmail || "Not set"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="space-y-2">
+                  <Label>Test email recipient</Label>
+                  <Input
+                    value={testEmailRecipient}
+                    onChange={(event) => setTestEmailRecipient(event.target.value)}
+                    className="h-11 rounded-2xl"
+                    placeholder="Leave blank to send to your admin email"
+                  />
+                </div>
+                <Button
+                  className="h-11 rounded-2xl self-end"
+                  disabled={loadingEmailIntegration || sendingTestEmail || !emailIntegration.configured}
+                  onClick={() => void handleSendTestEmail()}
+                >
+                  {sendingTestEmail ? (
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 h-4 w-4" />
+                  )}
+                  Send test email
+                </Button>
+              </div>
+
+              <div className="rounded-[22px] border border-border/80 bg-muted/20 p-4 text-sm text-muted-foreground">
+                <p>
+                  API key: {emailIntegration.hasApiKey ? "Configured" : "Missing"} | Sandbox mode:{" "}
+                  {emailIntegration.sandboxMode ? "Enabled" : "Disabled"}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
