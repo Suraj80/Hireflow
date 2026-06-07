@@ -4,6 +4,10 @@ const Job = require("../models/Job");
 const User = require("../models/User");
 const { createAuditLog } = require("../services/audit.service");
 const {
+  notifyCandidateStageChange,
+  notifyInterviewEvent,
+} = require("../services/notification.service");
+const {
   feedbackStatusOptions,
   interviewCalendarQuerySchema,
   interviewCreateSchema,
@@ -575,6 +579,7 @@ const createInterview = async (req, res) => {
 
     const candidate = await Candidate.findById(payload.candidateId);
     if (candidate && candidate.stage !== "Interview") {
+      const previousStage = candidate.stage;
       candidate.stage = "Interview";
       candidate.updatedBy = req.user.id;
       candidate.stageHistory.unshift({
@@ -596,7 +601,25 @@ const createInterview = async (req, res) => {
         },
       });
       await candidate.save();
+
+      await notifyCandidateStageChange({
+        candidate,
+        previousStage,
+        nextStage: "Interview",
+        actorId: req.user.id,
+        reason: "Interview scheduled",
+      });
     }
+
+    await notifyInterviewEvent({
+      interview,
+      candidate: dependencyState.candidate,
+      job: dependencyState.job,
+      actorId: req.user.id,
+      type: "interview-scheduled",
+      title: "Interview scheduled",
+      message: `${dependencyState.candidate.name} has a ${payload.round} interview scheduled for ${new Date(payload.scheduledAt).toLocaleString()}.`,
+    });
 
     const hydrated = await ensureInterviewShape(interview);
     return res.status(201).json(mapInterview(hydrated, req.user));
@@ -704,6 +727,16 @@ const updateInterview = async (req, res) => {
       status: nextValues.status,
     });
 
+    await notifyInterviewEvent({
+      interview,
+      candidate: dependencyState.candidate,
+      job: dependencyState.job,
+      actorId: req.user.id,
+      type: "interview-updated",
+      title: "Interview details updated",
+      message: `${dependencyState.candidate.name}'s ${interview.round} interview details were updated.`,
+    });
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(200).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -773,6 +806,26 @@ const rescheduleInterview = async (req, res) => {
       reason: parsedBody.data.reason,
     });
 
+    if (parsedBody.data.sendNotification) {
+      const [candidate, job] = await Promise.all([
+        Candidate.findById(interview.candidateId).select("name"),
+        Job.findById(interview.jobId).select("title"),
+      ]);
+
+      await notifyInterviewEvent({
+        interview,
+        candidate,
+        job,
+        actorId: req.user.id,
+        type: "interview-rescheduled",
+        title: "Interview rescheduled",
+        message: `${candidate?.name || "Candidate"}'s ${interview.round} interview was rescheduled.`,
+        meta: {
+          reason: parsedBody.data.reason,
+        },
+      });
+    }
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(200).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -824,6 +877,28 @@ const updateInterviewStatus = async (req, res) => {
       status: parsedBody.data.status,
       reason: parsedBody.data.reason,
     });
+
+    if (parsedBody.data.sendNotification) {
+      const [candidate, job] = await Promise.all([
+        Candidate.findById(interview.candidateId).select("name"),
+        Job.findById(interview.jobId).select("title"),
+      ]);
+
+      await notifyInterviewEvent({
+        interview,
+        candidate,
+        job,
+        actorId: req.user.id,
+        type: parsedBody.data.status === "Cancelled" ? "interview-cancelled" : "interview-status",
+        title:
+          parsedBody.data.status === "Cancelled"
+            ? "Interview cancelled"
+            : `Interview marked ${parsedBody.data.status}`,
+        message:
+          parsedBody.data.reason ||
+          `${candidate?.name || "Candidate"}'s ${interview.round} interview is now ${parsedBody.data.status.toLowerCase()}.`,
+      });
+    }
 
     const hydrated = await ensureInterviewShape(interview);
     return res.status(200).json(mapInterview(hydrated, req.user));
@@ -889,6 +964,25 @@ const addInterviewFeedback = async (req, res) => {
       }
     );
 
+    const [candidate, job] = await Promise.all([
+      Candidate.findById(interview.candidateId).select("name"),
+      Job.findById(interview.jobId).select("title"),
+    ]);
+
+    await notifyInterviewEvent({
+      interview,
+      candidate,
+      job,
+      actorId: req.user.id,
+      type: existingIndex >= 0 ? "feedback-updated" : "feedback-submitted",
+      title: existingIndex >= 0 ? "Interview feedback updated" : "Interview feedback submitted",
+      message: `${candidate?.name || "Candidate"}'s ${interview.round} interview feedback was ${existingIndex >= 0 ? "updated" : "submitted"}.`,
+      meta: {
+        recommendation: parsedBody.data.recommendation,
+        rating: parsedBody.data.rating,
+      },
+    });
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(201).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -916,6 +1010,21 @@ const deleteInterview = async (req, res) => {
 
     await recordInterviewAudit(req, interview, "deleted", `Deleted ${interview.round} interview`, {
       status: interview.status,
+    });
+
+    const [candidate, job] = await Promise.all([
+      Candidate.findById(interview.candidateId).select("name"),
+      Job.findById(interview.jobId).select("title"),
+    ]);
+
+    await notifyInterviewEvent({
+      interview,
+      candidate,
+      job,
+      actorId: req.user.id,
+      type: "interview-deleted",
+      title: "Interview deleted",
+      message: `${candidate?.name || "Candidate"}'s ${interview.round} interview was removed from active schedules.`,
     });
 
     return res.status(200).json({ message: "Interview deleted" });

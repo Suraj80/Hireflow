@@ -24,6 +24,10 @@ const {
   statusOptions,
 } = require("../validation/candidate.validation");
 const { createAuditLog } = require("../services/audit.service");
+const {
+  notifyCandidateStageChange,
+  notifyNewApplication,
+} = require("../services/notification.service");
 const { queueCandidateResumeScoring } = require("../services/resumeScoring.service");
 
 const buildValidationError = (issues) => ({
@@ -875,6 +879,16 @@ const updateCandidateStage = async (req, res) => {
       }
     );
 
+    if (nextStage !== previousStage) {
+      await notifyCandidateStageChange({
+        candidate,
+        previousStage,
+        nextStage,
+        actorId: req.user.id,
+        reason: "Updated from candidate form",
+      });
+    }
+
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
       .populate("recruiterAssigned", "name email role")
@@ -935,6 +949,16 @@ const assignCandidate = async (req, res) => {
         recruiterAssigned: candidate.recruiterAssigned,
       }
     );
+
+    if (parsedBody.data.stage !== previousStage) {
+      await notifyCandidateStageChange({
+        candidate,
+        previousStage,
+        nextStage: parsedBody.data.stage,
+        actorId: req.user.id,
+        reason: parsedBody.data.reason,
+      });
+    }
 
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
@@ -1210,6 +1234,7 @@ const bulkActionCandidates = async (req, res) => {
       let auditEntry = null;
 
       if (action === "move-stage") {
+        const previousStage = candidate.stage;
         candidate.stage = stage;
         candidate.status = deriveStatusFromStage(stage, candidate.archived);
         candidate.stageHistory.unshift({
@@ -1229,6 +1254,7 @@ const bulkActionCandidates = async (req, res) => {
           action: "stage-moved",
           description: `Moved candidate ${candidate.name} to ${stage} in bulk`,
           meta: {
+            previousStage,
             nextStage: stage,
             reason,
             bulkAction: true,
@@ -1257,6 +1283,7 @@ const bulkActionCandidates = async (req, res) => {
       }
 
       if (action === "reject") {
+        const previousStage = candidate.stage;
         candidate.stage = "Rejected";
         candidate.status = "Rejected";
         candidate.stageHistory.unshift({
@@ -1276,6 +1303,7 @@ const bulkActionCandidates = async (req, res) => {
           action: "stage-moved",
           description: `Rejected candidate ${candidate.name} in bulk`,
           meta: {
+            previousStage,
             nextStage: "Rejected",
             reason,
             bulkAction: true,
@@ -1307,6 +1335,17 @@ const bulkActionCandidates = async (req, res) => {
 
       if (auditEntry) {
         await recordCandidateAudit(req, candidate, auditEntry.action, auditEntry.description, auditEntry.meta);
+      }
+
+      if (auditEntry?.action === "stage-moved") {
+        await notifyCandidateStageChange({
+          candidate,
+          previousStage: auditEntry.meta?.previousStage || "Applied",
+          nextStage: auditEntry.meta?.nextStage || candidate.stage,
+          actorId: req.user.id,
+          reason,
+          bulkAction: true,
+        });
       }
     }
 
@@ -1490,6 +1529,11 @@ const applyToJobPublic = async (req, res) => {
         jobId: job._id,
         jobTitle: job.title,
       },
+    });
+
+    await notifyNewApplication({
+      candidate,
+      job,
     });
 
     return res.status(201).json({

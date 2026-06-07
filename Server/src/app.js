@@ -13,6 +13,7 @@ const settingsRoutes = require("./routes/settings.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const auditRoutes = require("./routes/audit.routes");
+const notificationRoutes = require("./routes/notification.routes");
 
 const app = express();
 
@@ -45,5 +46,6 @@ app.use("/api/interviews", interviewRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/audit-logs", auditRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 module.exports = app;
