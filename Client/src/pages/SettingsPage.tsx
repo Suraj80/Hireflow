@@ -444,7 +444,7 @@ export default function SettingsPage() {
                 Notifications
               </CardTitle>
               <CardDescription>
-                Save workspace notification preferences now. Delivery logic can be connected later without changing the UI.
+                Configure which in-app and email notifications should be delivered across the workspace.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -473,7 +473,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="font-medium">Save notification preferences</p>
                   <p className="text-sm text-muted-foreground">
-                    These settings persist now and can control real notification delivery later.
+                    These settings now control the real notification and email delivery rules used by the workspace.
                   </p>
                 </div>
                 <Button
@@ -584,7 +584,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="grid gap-4 lg:grid-cols-2">
               {[
-                ["Email provider", "Nodemailer / Resend status placeholder"],
+                ["Email provider", "Brevo delivery uses server-side environment credentials when configured"],
                 ["S3 resume storage", "Resume storage configuration placeholder"],
                 ["OpenAI scoring", "Resume scoring provider status placeholder"],
                 ["Calendar integration", "Calendar sync support planned for future"],

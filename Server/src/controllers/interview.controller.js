@@ -4,6 +4,11 @@ const Job = require("../models/Job");
 const User = require("../models/User");
 const { createAuditLog } = require("../services/audit.service");
 const {
+  sendCandidateStageChangeEmail,
+  sendInterviewInviteEmails,
+  sendInterviewReminderEmails,
+} = require("../services/email.service");
+const {
   notifyCandidateStageChange,
   notifyInterviewEvent,
 } = require("../services/notification.service");
@@ -66,6 +71,16 @@ const normalizeJob = (job) => {
     department: job.department,
     location: job.location,
   };
+};
+
+const loadInterviewEmailContext = async (interview) => {
+  const [candidate, job, panelUsers] = await Promise.all([
+    Candidate.findById(interview.candidateId).select("name email stage statusToken recruiterAssigned createdBy"),
+    Job.findById(interview.jobId).select("title department location"),
+    User.find({ _id: { $in: interview.interviewers || [] } }).select("name email role"),
+  ]);
+
+  return { candidate, job, panelUsers };
 };
 
 const computeFeedbackStatus = (interview) => {
@@ -609,6 +624,14 @@ const createInterview = async (req, res) => {
         actorId: req.user.id,
         reason: "Interview scheduled",
       });
+
+      await sendCandidateStageChangeEmail({
+        candidate,
+        job: dependencyState.job,
+        previousStage,
+        nextStage: "Interview",
+        reason: "Interview scheduled",
+      });
     }
 
     await notifyInterviewEvent({
@@ -620,6 +643,15 @@ const createInterview = async (req, res) => {
       title: "Interview scheduled",
       message: `${dependencyState.candidate.name} has a ${payload.round} interview scheduled for ${new Date(payload.scheduledAt).toLocaleString()}.`,
     });
+
+    if (payload.sendInvite) {
+      await sendInterviewInviteEmails({
+        interview,
+        candidate: dependencyState.candidate,
+        job: dependencyState.job,
+        panelUsers: dependencyState.users,
+      });
+    }
 
     const hydrated = await ensureInterviewShape(interview);
     return res.status(201).json(mapInterview(hydrated, req.user));
@@ -737,6 +769,15 @@ const updateInterview = async (req, res) => {
       message: `${dependencyState.candidate.name}'s ${interview.round} interview details were updated.`,
     });
 
+    if (nextValues.sendInvite) {
+      await sendInterviewInviteEmails({
+        interview,
+        candidate: dependencyState.candidate,
+        job: dependencyState.job,
+        panelUsers: dependencyState.users,
+      });
+    }
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(200).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -807,10 +848,7 @@ const rescheduleInterview = async (req, res) => {
     });
 
     if (parsedBody.data.sendNotification) {
-      const [candidate, job] = await Promise.all([
-        Candidate.findById(interview.candidateId).select("name"),
-        Job.findById(interview.jobId).select("title"),
-      ]);
+      const { candidate, job, panelUsers } = await loadInterviewEmailContext(interview);
 
       await notifyInterviewEvent({
         interview,
@@ -823,6 +861,15 @@ const rescheduleInterview = async (req, res) => {
         meta: {
           reason: parsedBody.data.reason,
         },
+      });
+
+      await sendInterviewReminderEmails({
+        interview,
+        candidate,
+        job,
+        panelUsers,
+        kind: "rescheduled",
+        reason: parsedBody.data.reason,
       });
     }
 
@@ -851,6 +898,7 @@ const updateInterviewStatus = async (req, res) => {
       return res.status(403).json({ message: "Forbidden" });
     }
 
+    const previousStatus = interview.status;
     interview.status = parsedBody.data.status;
     interview.updatedBy = req.user.id;
 
@@ -879,10 +927,7 @@ const updateInterviewStatus = async (req, res) => {
     });
 
     if (parsedBody.data.sendNotification) {
-      const [candidate, job] = await Promise.all([
-        Candidate.findById(interview.candidateId).select("name"),
-        Job.findById(interview.jobId).select("title"),
-      ]);
+      const { candidate, job, panelUsers } = await loadInterviewEmailContext(interview);
 
       await notifyInterviewEvent({
         interview,
@@ -897,6 +942,22 @@ const updateInterviewStatus = async (req, res) => {
         message:
           parsedBody.data.reason ||
           `${candidate?.name || "Candidate"}'s ${interview.round} interview is now ${parsedBody.data.status.toLowerCase()}.`,
+      });
+
+      const reminderKind =
+        previousStatus === parsedBody.data.status
+          ? "reminder"
+          : parsedBody.data.status === "Cancelled"
+            ? "cancelled"
+            : "reminder";
+
+      await sendInterviewReminderEmails({
+        interview,
+        candidate,
+        job,
+        panelUsers,
+        kind: reminderKind,
+        reason: parsedBody.data.reason,
       });
     }
 

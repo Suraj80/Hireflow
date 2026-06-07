@@ -24,6 +24,7 @@ const {
   statusOptions,
 } = require("../validation/candidate.validation");
 const { createAuditLog } = require("../services/audit.service");
+const { sendCandidateStageChangeEmail } = require("../services/email.service");
 const {
   notifyCandidateStageChange,
   notifyNewApplication,
@@ -814,6 +815,25 @@ const updateCandidate = async (req, res) => {
       aiRescored: shouldRefreshAIScore && Boolean(candidate.resumeUrl),
     });
 
+    if (nextStage !== previousStage) {
+      await notifyCandidateStageChange({
+        candidate,
+        previousStage,
+        nextStage,
+        actorId: req.user.id,
+        reason: "Updated from candidate form",
+      });
+
+      const job = await Job.findById(candidate.jobId).select("title department location");
+      await sendCandidateStageChangeEmail({
+        candidate,
+        job,
+        previousStage,
+        nextStage,
+        reason: "Updated from candidate form",
+      });
+    }
+
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
       .populate("recruiterAssigned", "name email role")
@@ -848,6 +868,7 @@ const updateCandidateStage = async (req, res) => {
 
     const previousStage = candidate.stage;
     candidate.stage = parsedBody.data.stage;
+    const nextStage = parsedBody.data.stage;
     candidate.status = deriveStatusFromStage(parsedBody.data.stage, candidate.archived);
     candidate.updatedBy = req.user.id;
     candidate.stageHistory.unshift({
@@ -885,7 +906,16 @@ const updateCandidateStage = async (req, res) => {
         previousStage,
         nextStage,
         actorId: req.user.id,
-        reason: "Updated from candidate form",
+        reason: parsedBody.data.reason,
+      });
+
+      const job = await Job.findById(candidate.jobId).select("title department location");
+      await sendCandidateStageChangeEmail({
+        candidate,
+        job,
+        previousStage,
+        nextStage,
+        reason: parsedBody.data.reason,
       });
     }
 
@@ -949,16 +979,6 @@ const assignCandidate = async (req, res) => {
         recruiterAssigned: candidate.recruiterAssigned,
       }
     );
-
-    if (parsedBody.data.stage !== previousStage) {
-      await notifyCandidateStageChange({
-        candidate,
-        previousStage,
-        nextStage: parsedBody.data.stage,
-        actorId: req.user.id,
-        reason: parsedBody.data.reason,
-      });
-    }
 
     const populated = await Candidate.findById(candidate._id)
       .populate("jobId", "title department location")
@@ -1345,6 +1365,15 @@ const bulkActionCandidates = async (req, res) => {
           actorId: req.user.id,
           reason,
           bulkAction: true,
+        });
+
+        const job = await Job.findById(candidate.jobId).select("title department location");
+        await sendCandidateStageChangeEmail({
+          candidate,
+          job,
+          previousStage: auditEntry.meta?.previousStage || "Applied",
+          nextStage: auditEntry.meta?.nextStage || candidate.stage,
+          reason,
         });
       }
     }

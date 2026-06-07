@@ -4,6 +4,7 @@ const Job = require("../models/Job");
 const WorkspaceSetting = require("../models/WorkspaceSetting");
 const { Offer, offerStatusOptions } = require("../models/Offer");
 const { createAuditLog } = require("../services/audit.service");
+const { sendCandidateStageChangeEmail } = require("../services/email.service");
 const {
   notifyCandidateStageChange,
   notifyOfferEvent,
@@ -215,6 +216,15 @@ const syncCandidateStage = async ({ candidate, nextStage, actorId, actorName, re
     previousStage,
     nextStage,
     actorId,
+    reason,
+  });
+
+  const job = await Job.findById(candidate.jobId).select("title department location");
+  await sendCandidateStageChangeEmail({
+    candidate,
+    job,
+    previousStage,
+    nextStage,
     reason,
   });
 
