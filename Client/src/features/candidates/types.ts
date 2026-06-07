@@ -217,6 +217,35 @@ export type ResumeUploadResponse = {
   };
 };
 
+export type PublicCandidateApplicationPayload = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  linkedin: string;
+  coverLetter: string;
+  resume: File;
+};
+
+export type PublicCandidateApplicationResponse = {
+  message: string;
+  candidateId: string;
+  statusToken: string;
+  statusUrl: string;
+  candidateName: string;
+  jobTitle: string;
+};
+
+export type PublicCandidateStatusResponse = {
+  name: string;
+  stage: CandidateStage;
+  status: CandidateStatus;
+  createdAt: string;
+  updatedAt: string;
+  statusToken: string;
+  job: CandidateJobSummary | null;
+};
+
 export type CandidateBulkActionPayload = {
   action: "move-stage" | "archive" | "reject" | "assign-recruiter";
   candidateIds: string[];

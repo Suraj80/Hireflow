@@ -5,6 +5,7 @@ const path = require("path");
 const {
   addCandidateNote,
   addCandidateInterview,
+  applyToJobPublic,
   assignCandidate,
   bulkActionCandidates,
   checkDuplicateCandidate,
@@ -12,6 +13,7 @@ const {
   deleteCandidate,
   deleteCandidateNote,
   getCandidateById,
+  getCandidateStatusByToken,
   getCandidatesMeta,
   getCandidates,
   requestResumeUploadUrl,
@@ -68,6 +70,24 @@ const uploadResume = multer({
 router.get("/", protect, getCandidates);
 router.get("/meta", protect, getCandidatesMeta);
 router.get("/duplicate-check", protect, checkDuplicateCandidate);
+router.get("/status/:token", getCandidateStatusByToken);
+router.post(
+  "/public/apply/:jobId",
+  (req, res, next) => {
+    uploadResume.single("resume")(req, res, (error) => {
+      if (!error) {
+        return next();
+      }
+
+      if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ message: "Resume must be smaller than 5MB" });
+      }
+
+      return res.status(400).json({ message: error.message || "Unable to upload resume" });
+    });
+  },
+  applyToJobPublic
+);
 router.post(
   "/upload",
   protect,

@@ -188,6 +188,15 @@ const candidateBulkActionSchema = z.object({
   }
 });
 
+const publicCandidateApplicationSchema = z.object({
+  firstName: z.string().trim().min(2, "First name is required").max(80),
+  lastName: z.string().trim().min(1, "Last name is required").max(80),
+  email: z.string().trim().email("Enter a valid email address"),
+  phone: z.string().trim().max(30).optional().default(""),
+  linkedin: optionalUrl,
+  coverLetter: z.string().trim().max(4000).optional().default(""),
+});
+
 const resumeUploadRequestSchema = z.object({
   filename: z.string().trim().min(1).max(180),
   contentType: z
@@ -211,6 +220,7 @@ module.exports = {
   candidateCreateSchema,
   candidateInterviewSchema,
   candidateNoteSchema,
+  publicCandidateApplicationSchema,
   candidateStageSchema,
   candidateUpdateSchema,
   candidatesQuerySchema,

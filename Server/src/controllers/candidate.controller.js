@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 const fs = require("fs");
 const Candidate = require("../models/Candidate");
 const CandidateNote = require("../models/CandidateNote");
@@ -10,6 +11,7 @@ const {
   candidateCreateSchema,
   candidateInterviewSchema,
   candidateNoteSchema,
+  publicCandidateApplicationSchema,
   candidateStageSchema,
   candidateUpdateSchema,
   candidatesQuerySchema,
@@ -31,6 +33,8 @@ const buildValidationError = (issues) => ({
     message: issue.message,
   })),
 });
+
+const generateStatusToken = () => crypto.randomBytes(18).toString("hex");
 
 const deriveStatusFromStage = (stage, archived = false) => {
   if (archived) {
@@ -549,6 +553,42 @@ const getCandidateById = async (req, res) => {
     return res
       .status(200)
       .json(await normalizeCandidateResponse(candidate, { includeNotes: true, viewerUser: req.user }));
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const getCandidateStatusByToken = async (req, res) => {
+  try {
+    const token = String(req.params.token || "").trim();
+
+    if (!token) {
+      return res.status(400).json({ message: "Status token is required" });
+    }
+
+    const candidate = await Candidate.findOne({ statusToken: token, archived: false })
+      .populate("jobId", "title department")
+      .select("name stage status createdAt updatedAt statusToken jobId");
+
+    if (!candidate) {
+      return res.status(404).json({ message: "Application status not found" });
+    }
+
+    return res.status(200).json({
+      name: candidate.name,
+      stage: candidate.stage,
+      status: candidate.status,
+      createdAt: candidate.createdAt,
+      updatedAt: candidate.updatedAt,
+      statusToken: candidate.statusToken,
+      job: candidate.jobId
+        ? {
+            id: candidate.jobId._id || candidate.jobId.id,
+            title: candidate.jobId.title,
+            department: candidate.jobId.department,
+          }
+        : null,
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -1334,6 +1374,138 @@ const requestResumeUploadUrl = async (req, res) => {
   });
 };
 
+const applyToJobPublic = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "Resume file is required" });
+  }
+
+  const parsedBody = publicCandidateApplicationSchema.safeParse(req.body);
+
+  if (!parsedBody.success) {
+    fs.unlink(req.file.path, () => undefined);
+    return res.status(400).json(buildValidationError(parsedBody.error.issues));
+  }
+
+  const parsedResume = resumeUploadRequestSchema.safeParse({
+    filename: req.file.originalname,
+    contentType: req.file.mimetype,
+    size: req.file.size,
+  });
+
+  if (!parsedResume.success) {
+    fs.unlink(req.file.path, () => undefined);
+    return res.status(400).json(buildValidationError(parsedResume.error.issues));
+  }
+
+  try {
+    const job = await Job.findById(req.params.jobId).populate("createdBy", "name email role");
+
+    if (!job || job.archived || job.status !== "open" || job.visibility !== "public") {
+      fs.unlink(req.file.path, () => undefined);
+      return res.status(404).json({ message: "This job is not accepting public applications" });
+    }
+
+    const payload = parsedBody.data;
+    const email = payload.email.trim().toLowerCase();
+    const fullName = `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim();
+
+    const duplicate = await Candidate.findOne({
+      email,
+      jobId: job._id,
+      archived: false,
+    }).select("_id name stage statusToken");
+
+    if (duplicate) {
+      fs.unlink(req.file.path, () => undefined);
+      return res.status(409).json({
+        message: "An application with this email already exists for this role",
+        statusToken: duplicate.statusToken,
+      });
+    }
+
+    const statusToken = generateStatusToken();
+    const resumeUrl = `${getPublicBaseUrl(req)}/uploads/resumes/${req.file.filename}`;
+    const aiState = deriveAIStateForPayload({ resumeUrl });
+
+    const candidate = await Candidate.create({
+      name: fullName,
+      email,
+      phone: payload.phone,
+      linkedin: payload.linkedin,
+      jobId: job._id,
+      department: job.department,
+      source: "portal",
+      resumeUrl,
+      resumeMeta: {
+        filename: req.file.originalname,
+        size: req.file.size,
+        mimeType: req.file.mimetype,
+      },
+      coverLetter: payload.coverLetter,
+      stage: "Applied",
+      status: "Active",
+      statusToken,
+      createdBy: job.createdBy?._id || job.createdBy || null,
+      updatedBy: job.createdBy?._id || job.createdBy || null,
+      stageHistory: [
+        {
+          stage: "Applied",
+          changedBy: job.createdBy?._id || job.createdBy,
+          changedAt: new Date(),
+          reason: "Candidate applied through public job page",
+        },
+      ],
+      activityLog: [
+        {
+          type: "created",
+          title: "Candidate applied",
+          description: `${fullName} applied to ${job.title} through the public job page.`,
+          actorId: job.createdBy?._id || job.createdBy,
+          actorName: "Public application",
+          createdAt: new Date(),
+          meta: {
+            source: "portal",
+          },
+        },
+      ],
+      ...aiState,
+    });
+
+    if (candidate.resumeUrl) {
+      await queueCandidateResumeScoring(candidate._id.toString());
+    }
+
+    await createAuditLog({
+      req,
+      action: "created",
+      category: "candidates",
+      entity: {
+        type: "candidate",
+        id: candidate._id,
+        label: candidate.name,
+      },
+      description: `Public application received for ${job.title}`,
+      meta: {
+        email: candidate.email,
+        jobId: job._id,
+        jobTitle: job.title,
+      },
+    });
+
+    return res.status(201).json({
+      message: "Application submitted successfully",
+      candidateId: candidate._id,
+      statusToken,
+      statusUrl: `/status/${statusToken}`,
+      candidateName: candidate.name,
+      jobTitle: job.title,
+    });
+  } catch (error) {
+    fs.unlink(req.file.path, () => undefined);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 const rescoreCandidate = async (req, res) => {
   try {
     const candidate = await Candidate.findById(req.params.id);
@@ -1369,6 +1541,7 @@ const rescoreCandidate = async (req, res) => {
 module.exports = {
   addCandidateNote,
   addCandidateInterview,
+  applyToJobPublic,
   assignCandidate,
   bulkActionCandidates,
   checkDuplicateCandidate,
@@ -1376,6 +1549,7 @@ module.exports = {
   deleteCandidate,
   deleteCandidateNote,
   getCandidateById,
+  getCandidateStatusByToken,
   getCandidatesMeta,
   getCandidates,
   requestResumeUploadUrl,

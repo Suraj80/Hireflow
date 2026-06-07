@@ -11,6 +11,9 @@ import {
   CandidatePagination,
   CandidatesListResponse,
   DuplicateCandidateResponse,
+  PublicCandidateApplicationPayload,
+  PublicCandidateApplicationResponse,
+  PublicCandidateStatusResponse,
   ResumeUploadResponse,
 } from "@/features/candidates/types";
 
@@ -137,5 +140,31 @@ export const candidatesApi = {
       resumeUrl: response.data.fileUrl,
       resumeMeta: response.data.resumeMeta,
     };
+  },
+  applyPublic: async (jobId: string, payload: PublicCandidateApplicationPayload) => {
+    const formData = new FormData();
+    formData.append("firstName", payload.firstName);
+    formData.append("lastName", payload.lastName);
+    formData.append("email", payload.email);
+    formData.append("phone", payload.phone);
+    formData.append("linkedin", payload.linkedin);
+    formData.append("coverLetter", payload.coverLetter);
+    formData.append("resume", payload.resume);
+
+    const response = await api.post<PublicCandidateApplicationResponse>(
+      `/candidates/public/apply/${jobId}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data;
+  },
+  getPublicStatus: async (token: string) => {
+    const response = await api.get<PublicCandidateStatusResponse>(`/candidates/status/${token}`);
+    return response.data;
   },
 };
