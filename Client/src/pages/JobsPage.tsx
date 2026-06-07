@@ -112,6 +112,12 @@ export default function JobsPage() {
         />
       )}
 
+      <JobDetailsSheet
+        job={selectedJob}
+        open={Boolean(selectedJob)}
+        onOpenChange={(open) => !open && setSelectedJob(null)}
+      />
+
       {!loading && !error && jobs.length > 0 && (
         <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
@@ -137,12 +143,6 @@ export default function JobsPage() {
           </div>
         </div>
       )}
-
-      <JobDetailsSheet
-        job={selectedJob}
-        open={Boolean(selectedJob)}
-        onOpenChange={(open) => !open && setSelectedJob(null)}
-      />
     </div>
   );
 }

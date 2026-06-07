@@ -303,6 +303,11 @@ export default function CandidateDetailPage() {
                     Schedule interview
                   </Button>
                 )}
+                {candidate.permissions.canEdit && (
+                  <Button className="rounded-2xl" variant="outline" onClick={() => navigate(`/offers/new?candidateId=${candidate.id}`)}>
+                    Create offer
+                  </Button>
+                )}
                 {candidate.permissions.canAssignRecruiter && (
                   <Button
                     className="rounded-2xl"

@@ -202,8 +202,55 @@ const notifyInterviewEvent = async ({
   });
 };
 
+const notifyOfferEvent = async ({
+  offer,
+  candidate,
+  job,
+  actorId,
+  type,
+  title,
+  message,
+  meta = null,
+}) => {
+  const settings = await getWorkspaceNotificationSettings();
+  if (!settings.inApp) {
+    return [];
+  }
+
+  const adminRecruiterIds = await getAdminAndRecruiterIds();
+
+  return createNotifications({
+    recipientIds: [
+      ...adminRecruiterIds,
+      toIdString(candidate?.recruiterAssigned),
+      toIdString(candidate?.createdBy),
+      toIdString(offer.createdBy),
+      toIdString(offer.updatedBy),
+    ],
+    type,
+    title,
+    message,
+    actorId,
+    entityType: "offer",
+    entityId: offer._id,
+    entityLabel: `${candidate?.name || "Candidate"} - ${offer.title}`,
+    meta: {
+      offerId: offer._id,
+      candidateId: candidate?._id || offer.candidateId,
+      candidateName: candidate?.name || "",
+      jobId: job?._id || offer.jobId,
+      jobTitle: job?.title || "",
+      status: offer.status,
+      version: offer.version,
+      expiresAt: offer.expiresAt,
+      ...(meta || {}),
+    },
+  });
+};
+
 module.exports = {
   notifyCandidateStageChange,
   notifyInterviewEvent,
   notifyNewApplication,
+  notifyOfferEvent,
 };

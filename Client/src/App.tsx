@@ -15,9 +15,12 @@ import JobsPage from "./pages/JobsPage";
 import CreateJobPage from "./pages/CreateJobPage";
 import CandidatesPage from "./pages/CandidatesPage";
 import CreateCandidatePage from "./pages/CreateCandidatePage";
+import CreateOfferPage from "./pages/CreateOfferPage";
 import CandidateDetailPage from "./pages/CandidateDetailPage";
 import PipelinePage from "./pages/PipelinePage";
 import InterviewsPage from "./pages/InterviewsPage";
+import OffersPage from "./pages/OffersPage";
+import PublicOfferPage from "./pages/PublicOfferPage";
 import ScheduleInterviewPage from "./pages/ScheduleInterviewPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import AuditLogPage from "./pages/AuditLogPage";
@@ -46,6 +49,7 @@ const App = () => (
               <Route path="/register" element={<Navigate to="/login" replace />} />
               <Route path="/apply/:jobId" element={<JobApplicationPage />} />
               <Route path="/status/:token" element={<CandidateStatusPage />} />
+              <Route path="/offers/:token" element={<PublicOfferPage />} />
 
               <Route element={<ProtectedRoute />}>
                 <Route element={<DashboardLayout />}>
@@ -60,6 +64,9 @@ const App = () => (
 
                   <Route element={<ProtectedRoute allowedRoles={["recruiter", "admin"]} />}>
                     <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/offers" element={<OffersPage />} />
+                    <Route path="/offers/new" element={<CreateOfferPage />} />
+                    <Route path="/offers/:offerId/edit" element={<CreateOfferPage />} />
                     <Route path="/interviews/new" element={<ScheduleInterviewPage />} />
                     <Route path="/jobs/new" element={<CreateJobPage />} />
                     <Route path="/jobs/:jobId/edit" element={<CreateJobPage />} />

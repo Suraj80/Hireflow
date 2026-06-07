@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NotificationItem } from "@/features/notifications/types";
-import { Bell, Calendar, CheckCircle2, Clock3, RefreshCw, UserPlus, X } from "lucide-react";
+import { Bell, Calendar, CheckCircle2, CircleDollarSign, Clock3, RefreshCw, UserPlus, X } from "lucide-react";
 
 const getNotificationIcon = (type: string) => {
   if (type.includes("application")) {
@@ -11,6 +11,10 @@ const getNotificationIcon = (type: string) => {
 
   if (type.includes("interview")) {
     return Calendar;
+  }
+
+  if (type.includes("offer")) {
+    return CircleDollarSign;
   }
 
   if (type.includes("feedback") || type.includes("stage")) {

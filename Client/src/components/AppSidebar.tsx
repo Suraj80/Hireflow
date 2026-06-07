@@ -4,6 +4,7 @@ import {
   Users,
   GitBranch,
   CalendarDays,
+  CircleDollarSign,
   BarChart3,
   Settings,
   FileText,
@@ -31,6 +32,7 @@ const mainItems = [
   { title: "Candidates", url: "/candidates", icon: Users },
   { title: "Pipeline", url: "/pipeline", icon: GitBranch },
   { title: "Interviews", url: "/interviews", icon: CalendarDays },
+  { title: "Offers", url: "/offers", icon: CircleDollarSign },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ];
 
@@ -47,7 +49,10 @@ export function AppSidebar() {
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
   const visibleMainItems = mainItems.filter(
-    (item) => item.title !== "Analytics" || user?.role === "admin" || user?.role === "recruiter"
+    (item) =>
+      (item.title !== "Analytics" && item.title !== "Offers") ||
+      user?.role === "admin" ||
+      user?.role === "recruiter"
   );
 
   return (

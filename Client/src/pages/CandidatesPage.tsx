@@ -412,32 +412,6 @@ export default function CandidatesPage() {
         />
       )}
 
-      {!loading && !error && safeCandidates.length > 0 && (
-        <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Page {safePagination.page} of {safePagination.totalPages} | {safePagination.total} total candidates
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              disabled={safePagination.page <= 1}
-              onClick={() => setPage(safePagination.page - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              disabled={safePagination.page >= safePagination.totalPages}
-              onClick={() => setPage(safePagination.page + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
-
       <Dialog open={Boolean(stageCandidate)} onOpenChange={(open) => !open && setStageCandidate(null)}>
         <DialogContent className="rounded-[28px]">
           <DialogHeader>
@@ -566,6 +540,32 @@ export default function CandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {!loading && !error && safeCandidates.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Page {safePagination.page} of {safePagination.totalPages} | {safePagination.total} total candidates
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              disabled={safePagination.page <= 1}
+              onClick={() => setPage(safePagination.page - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              disabled={safePagination.page >= safePagination.totalPages}
+              onClick={() => setPage(safePagination.page + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
