@@ -3,7 +3,16 @@ import { Code2, MapPin, Phone, Video, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { buildRescheduleTimestamp, buildTimeSlots, buildWeekDays, formatInterviewTime, getInterviewLayout, statusAccentMap } from "@/features/interviews/helpers";
+import { WorkspaceSettings } from "@/features/settings/types";
+import {
+  buildRescheduleTimestamp,
+  buildTimeSlots,
+  buildWeekDays,
+  formatInterviewTime,
+  getCalendarHourRowHeight,
+  getInterviewLayout,
+  statusAccentMap,
+} from "@/features/interviews/helpers";
 import { Interview } from "@/features/interviews/types";
 
 const typeIcons = {
@@ -17,15 +26,25 @@ const typeIcons = {
 type InterviewCalendarViewProps = {
   weekStart: Date;
   items: Interview[];
+  officeHours: WorkspaceSettings["officeHours"];
+  officeWeek: WorkspaceSettings["officeWeek"];
   onOpen: (id: string) => void;
   onReschedule: (id: string, payload: { scheduledAt: string; duration?: number; reason?: string }) => Promise<void>;
 };
 
-export function InterviewCalendarView({ weekStart, items, onOpen, onReschedule }: InterviewCalendarViewProps) {
+export function InterviewCalendarView({
+  weekStart,
+  items,
+  officeHours,
+  officeWeek,
+  onOpen,
+  onReschedule,
+}: InterviewCalendarViewProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ id: string; originY: number; duration: number } | null>(null);
-  const days = useMemo(() => buildWeekDays(weekStart), [weekStart]);
-  const slots = useMemo(() => buildTimeSlots(), []);
+  const days = useMemo(() => buildWeekDays(weekStart, officeWeek), [officeWeek, weekStart]);
+  const slots = useMemo(() => buildTimeSlots(officeHours), [officeHours]);
+  const hourRowHeight = useMemo(() => getCalendarHourRowHeight(), []);
 
   useEffect(() => {
     if (!resizing) {
@@ -34,7 +53,7 @@ export function InterviewCalendarView({ weekStart, items, onOpen, onReschedule }
 
     const handleMove = async (event: MouseEvent) => {
       const delta = event.clientY - resizing.originY;
-      const steps = Math.max(0, Math.round(delta / 22));
+      const steps = Math.max(0, Math.round(delta / 44));
       const nextDuration = Math.max(15, resizing.duration + steps * 15);
       setResizing((current) => (current ? { ...current, duration: nextDuration } : current));
     };
@@ -64,14 +83,24 @@ export function InterviewCalendarView({ weekStart, items, onOpen, onReschedule }
     <Card className="lg:col-span-2 border border-border">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">This Week</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Showing {officeHours.start} to {officeHours.end}
+        </p>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <div className="grid min-w-[980px] grid-cols-[84px_repeat(5,minmax(0,1fr))]">
+          <div
+            className="grid min-w-[980px]"
+            style={{ gridTemplateColumns: `84px repeat(${days.length}, minmax(0, 1fr))` }}
+          >
             <div className="border-r border-border">
               <div className="h-12" />
               {slots.map((slot) => (
-                <div key={slot.label} className="h-11 border-b border-border/40 pr-3 pt-1 text-right text-xs text-muted-foreground">
+                <div
+                  key={slot.label}
+                  className="border-b border-border/40 pr-3 pt-1 text-right text-xs text-muted-foreground"
+                  style={{ height: hourRowHeight }}
+                >
                   {slot.label}
                 </div>
               ))}
@@ -87,7 +116,8 @@ export function InterviewCalendarView({ weekStart, items, onOpen, onReschedule }
                 {slots.map((slot) => (
                   <div
                     key={`${day.toISOString()}-${slot.label}`}
-                    className="h-11 border-b border-border/30"
+                    className="border-b border-border/30"
+                    style={{ height: hourRowHeight }}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={async () => {
                       const interview = items.find((item) => item.id === draggingId);
@@ -104,9 +134,9 @@ export function InterviewCalendarView({ weekStart, items, onOpen, onReschedule }
                 ))}
 
                 {items
-                  .filter((item) => getInterviewLayout(item, weekStart).dayIndex === dayIndex)
+                  .filter((item) => getInterviewLayout(item, weekStart, officeWeek, officeHours).dayIndex === dayIndex)
                   .map((item) => {
-                    const layout = getInterviewLayout(item, weekStart);
+                    const layout = getInterviewLayout(item, weekStart, officeWeek, officeHours);
                     const Icon = typeIcons[item.type];
                     const visualHeight = resizing?.id === item.id ? Math.max(44, (resizing.duration / 30) * 44) : layout.height;
                     return (

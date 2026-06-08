@@ -4,6 +4,13 @@ export type WorkspaceSettings = {
   defaultPipelineDisplay: string;
   defaultTimezone: string;
   defaultCurrency: string;
+  officeHours: {
+    start: string;
+    end: string;
+  };
+  officeWeek: Array<
+    "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday"
+  >;
   brandingLogo: string;
   notifications: {
     email: boolean;

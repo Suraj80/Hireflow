@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { WorkspaceSettings } from "@/features/settings/types";
 import { formatWeekRange, getWeekStart } from "@/features/interviews/helpers";
 import { InterviewView } from "@/features/interviews/types";
 
@@ -11,6 +12,7 @@ type InterviewToolbarProps = {
   canManage: boolean;
   view: InterviewView;
   weekStart: Date;
+  officeWeek: WorkspaceSettings["officeWeek"];
   onViewChange: (view: InterviewView) => void;
   onWeekChange: (direction: -1 | 1) => void;
   onWeekStartChange: (date: Date) => void;
@@ -20,6 +22,7 @@ export function InterviewToolbar({
   canManage,
   view,
   weekStart,
+  officeWeek,
   onViewChange,
   onWeekChange,
   onWeekStartChange,
@@ -59,7 +62,7 @@ export function InterviewToolbar({
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="h-11 rounded-2xl" onClick={() => onWeekStartChange(getWeekStart())}>
+            <Button variant="outline" className="h-11 rounded-2xl" onClick={() => onWeekStartChange(getWeekStart(new Date(), officeWeek))}>
               Today
             </Button>
             <Button variant="outline" size="icon" className="h-11 w-11 rounded-2xl" onClick={() => onWeekChange(-1)}>
@@ -70,7 +73,9 @@ export function InterviewToolbar({
             </Button>
             <Select
               value={String(weekStart.getMonth())}
-              onValueChange={(value) => onWeekStartChange(getWeekStart(setMonth(addMonths(weekStart, 0), Number(value))))}
+              onValueChange={(value) =>
+                onWeekStartChange(getWeekStart(setMonth(addMonths(weekStart, 0), Number(value)), officeWeek))
+              }
             >
               <SelectTrigger className="h-11 w-[170px] rounded-2xl">
                 <SelectValue />
@@ -84,7 +89,7 @@ export function InterviewToolbar({
               </SelectContent>
             </Select>
             <div className="flex h-11 items-center rounded-2xl border border-border px-4 text-sm text-muted-foreground">
-              {formatWeekRange(weekStart)}
+              {formatWeekRange(weekStart, officeWeek)}
             </div>
           </div>
         </div>

@@ -39,11 +39,25 @@ const defaultWorkspaceSettings: WorkspaceSettings = {
   defaultPipelineDisplay: "Applied -> Screening -> Interview -> Offer -> Hired",
   defaultTimezone: "Asia/Kolkata",
   defaultCurrency: "USD",
+  officeHours: {
+    start: "09:00",
+    end: "18:00",
+  },
+  officeWeek: ["monday", "tuesday", "wednesday", "thursday", "friday"],
   brandingLogo: "",
   notifications: defaultNotificationSettings,
 };
 
 const currencyOptions = ["USD", "EUR", "GBP", "INR", "AED", "CAD", "AUD", "SGD"];
+const officeDayOptions: Array<{ value: WorkspaceSettings["officeWeek"][number]; label: string }> = [
+  { value: "sunday", label: "Sun" },
+  { value: "monday", label: "Mon" },
+  { value: "tuesday", label: "Tue" },
+  { value: "wednesday", label: "Wed" },
+  { value: "thursday", label: "Thu" },
+  { value: "friday", label: "Fri" },
+  { value: "saturday", label: "Sat" },
+];
 
 const defaultEmailIntegration: EmailIntegrationStatus = {
   provider: "brevo",
@@ -184,6 +198,19 @@ export default function SettingsPage() {
     }));
   };
 
+  const handleOfficeWeekToggle = (day: WorkspaceSettings["officeWeek"][number], checked: boolean) => {
+    setWorkspaceSettings((current) => {
+      const nextDays = checked
+        ? Array.from(new Set([...current.officeWeek, day]))
+        : current.officeWeek.filter((entry) => entry !== day);
+
+      return {
+        ...current,
+        officeWeek: nextDays.length > 0 ? nextDays : current.officeWeek,
+      };
+    });
+  };
+
   const handleSaveWorkspace = async () => {
     try {
       setSavingWorkspace(true);
@@ -193,6 +220,8 @@ export default function SettingsPage() {
         defaultPipelineDisplay: workspaceSettings.defaultPipelineDisplay,
         defaultTimezone: workspaceSettings.defaultTimezone.trim(),
         defaultCurrency: workspaceSettings.defaultCurrency.trim().toUpperCase(),
+        officeHours: workspaceSettings.officeHours,
+        officeWeek: workspaceSettings.officeWeek,
         brandingLogo: workspaceSettings.brandingLogo.trim(),
         notifications: workspaceSettings.notifications,
       });
@@ -389,6 +418,65 @@ export default function SettingsPage() {
                   className="h-11 rounded-2xl"
                   placeholder="Logo URL or branding note"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Office hours start</Label>
+                <Input
+                  type="time"
+                  value={workspaceSettings.officeHours.start}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) =>
+                    setWorkspaceSettings((current) => ({
+                      ...current,
+                      officeHours: {
+                        ...current.officeHours,
+                        start: event.target.value,
+                      },
+                    }))
+                  }
+                  className="h-11 rounded-2xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Office hours end</Label>
+                <Input
+                  type="time"
+                  value={workspaceSettings.officeHours.end}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) =>
+                    setWorkspaceSettings((current) => ({
+                      ...current,
+                      officeHours: {
+                        ...current.officeHours,
+                        end: event.target.value,
+                      },
+                    }))
+                  }
+                  className="h-11 rounded-2xl"
+                />
+              </div>
+              <div className="space-y-3 lg:col-span-2">
+                <div className="space-y-1">
+                  <Label>Office week</Label>
+                  <p className="text-sm text-muted-foreground">
+                    The interview calendar will use these days as the visible working week.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                  {officeDayOptions.map((day) => (
+                    <label
+                      key={day.value}
+                      className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background px-3 py-2 text-sm shadow-sm"
+                    >
+                      <Switch
+                        checked={workspaceSettings.officeWeek.includes(day.value)}
+                        disabled={loadingWorkspace || savingWorkspace}
+                        onCheckedChange={(checked) => handleOfficeWeekToggle(day.value, checked)}
+                      />
+                      <span>{day.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="lg:col-span-2 flex flex-col gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>

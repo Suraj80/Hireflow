@@ -3,14 +3,38 @@ import {
   addMinutes,
   endOfWeek,
   format,
+  getDay,
   isSameDay,
   parseISO,
-  startOfDay,
   startOfWeek,
 } from "date-fns";
+import { WorkspaceSettings } from "@/features/settings/types";
 import { Interview, InterviewStatus } from "@/features/interviews/types";
 
 export const INTERVIEW_VIEW_STORAGE_KEY = "hireflow:interviews:view";
+export const defaultOfficeWeek: WorkspaceSettings["officeWeek"] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+];
+export const defaultOfficeHours: WorkspaceSettings["officeHours"] = {
+  start: "09:00",
+  end: "18:00",
+};
+
+export const weekdayOrder: Array<WorkspaceSettings["officeWeek"][number]> = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
+
+const pixelsPerHalfHour = 44;
 
 export const statusToneMap: Record<InterviewStatus, string> = {
   Scheduled: "bg-blue-500/12 text-blue-700 border-blue-200",
@@ -78,15 +102,44 @@ export const saveInterviewView = (value: "calendar" | "list") => {
   }
 };
 
-export const getWeekStart = (value?: Date) => startOfWeek(value || new Date(), { weekStartsOn: 1 });
-export const getWeekEnd = (value?: Date) => endOfWeek(value || new Date(), { weekStartsOn: 1 });
+export const sortOfficeWeek = (officeWeek?: WorkspaceSettings["officeWeek"]) => {
+  const source = officeWeek?.length ? officeWeek : defaultOfficeWeek;
+  return Array.from(new Set(source)).sort(
+    (left, right) => weekdayOrder.indexOf(left) - weekdayOrder.indexOf(right)
+  );
+};
 
-export const buildWeekDays = (weekStart: Date) => Array.from({ length: 5 }, (_, index) => addDays(weekStart, index));
+export const getWeekStartsOn = (officeWeek?: WorkspaceSettings["officeWeek"]) =>
+  weekdayOrder.indexOf(sortOfficeWeek(officeWeek)[0]);
 
-export const buildTimeSlots = (startHour = 8, endHour = 18) =>
-  Array.from({ length: (endHour - startHour) * 2 }, (_, index) => {
-    const hour = startHour + Math.floor(index / 2);
-    const minute = index % 2 === 0 ? 0 : 30;
+export const getWeekStart = (value?: Date, officeWeek?: WorkspaceSettings["officeWeek"]) =>
+  startOfWeek(value || new Date(), { weekStartsOn: getWeekStartsOn(officeWeek) as 0 | 1 | 2 | 3 | 4 | 5 | 6 });
+
+export const getWeekEnd = (value?: Date, officeWeek?: WorkspaceSettings["officeWeek"]) =>
+  endOfWeek(value || new Date(), { weekStartsOn: getWeekStartsOn(officeWeek) as 0 | 1 | 2 | 3 | 4 | 5 | 6 });
+
+export const buildWeekDays = (weekStart: Date, officeWeek?: WorkspaceSettings["officeWeek"]) =>
+  sortOfficeWeek(officeWeek).map((day) => addDays(weekStart, weekdayOrder.indexOf(day) - getWeekStartsOn(officeWeek)));
+
+const parseOfficeHour = (value: string) => {
+  const [hourText, minuteText] = value.split(":");
+  return {
+    hour: Number(hourText || 0),
+    minute: Number(minuteText || 0),
+  };
+};
+
+export const buildTimeSlots = (officeHours?: WorkspaceSettings["officeHours"]) => {
+  const hours = officeHours || defaultOfficeHours;
+  const start = parseOfficeHour(hours.start);
+  const end = parseOfficeHour(hours.end);
+  const totalMinutes = Math.max(60, end.hour * 60 + end.minute - (start.hour * 60 + start.minute));
+  const slotCount = Math.max(1, Math.ceil(totalMinutes / 60));
+
+  return Array.from({ length: slotCount }, (_, index) => {
+    const total = start.hour * 60 + start.minute + index * 60;
+    const hour = Math.floor(total / 60);
+    const minute = total % 60;
     const slot = new Date();
     slot.setHours(hour, minute, 0, 0);
     return {
@@ -95,26 +148,44 @@ export const buildTimeSlots = (startHour = 8, endHour = 18) =>
       minute,
     };
   });
+};
+
+export const getCalendarHourRowHeight = () => pixelsPerHalfHour * 2;
 
 export const formatInterviewDate = (value: string) => format(parseISO(value), "EEE, MMM d");
 export const formatInterviewTime = (value: string) => format(parseISO(value), "h:mm a");
 export const formatInterviewDateTime = (value: string) => format(parseISO(value), "EEE, MMM d • h:mm a");
-export const formatWeekRange = (weekStart: Date) =>
-  `${format(weekStart, "MMM d")} - ${format(addDays(weekStart, 4), "MMM d, yyyy")}`;
 
-export const getInterviewLayout = (interview: Interview, weekStart: Date) => {
+export const formatWeekRange = (weekStart: Date, officeWeek?: WorkspaceSettings["officeWeek"]) => {
+  const days = buildWeekDays(weekStart, officeWeek);
+  const firstDay = days[0] || weekStart;
+  const lastDay = days[days.length - 1] || weekStart;
+  return `${format(firstDay, "MMM d")} - ${format(lastDay, "MMM d, yyyy")}`;
+};
+
+export const getInterviewLayout = (
+  interview: Interview,
+  weekStart: Date,
+  officeWeek?: WorkspaceSettings["officeWeek"],
+  officeHours?: WorkspaceSettings["officeHours"]
+) => {
   const start = parseISO(interview.scheduledAt);
-  const dayIndex = Math.max(0, Math.min(4, Math.floor((startOfDay(start).getTime() - startOfDay(weekStart).getTime()) / (1000 * 60 * 60 * 24))));
-  const minutesFromEight = (start.getHours() - 8) * 60 + start.getMinutes();
-  const top = Math.max(0, (minutesFromEight / 30) * 44);
-  const height = Math.max(44, (interview.duration / 30) * 44);
+  const dayIndex = sortOfficeWeek(officeWeek).indexOf(weekdayOrder[getDay(start)]);
+  const officeStart = parseOfficeHour((officeHours || defaultOfficeHours).start);
+  const minutesFromStart = start.getHours() * 60 + start.getMinutes() - (officeStart.hour * 60 + officeStart.minute);
+  const top = Math.max(0, (minutesFromStart / 30) * pixelsPerHalfHour);
+  const height = Math.max(pixelsPerHalfHour, (interview.duration / 30) * pixelsPerHalfHour);
 
   return { dayIndex, top, height };
 };
 
-export const isInterviewInWorkWeek = (interview: Interview, weekStart: Date) => {
+export const isInterviewInWorkWeek = (
+  interview: Interview,
+  weekStart: Date,
+  officeWeek?: WorkspaceSettings["officeWeek"]
+) => {
   const date = parseISO(interview.scheduledAt);
-  return buildWeekDays(weekStart).some((day) => isSameDay(day, date));
+  return buildWeekDays(weekStart, officeWeek).some((day) => isSameDay(day, date));
 };
 
 export const getInitials = (value: string) =>

@@ -9,8 +9,9 @@ import { InterviewCalendarView } from "@/features/interviews/components/Intervie
 import { InterviewDrawer } from "@/features/interviews/components/InterviewDrawer";
 import { InterviewListView } from "@/features/interviews/components/InterviewListView";
 import { InterviewToolbar } from "@/features/interviews/components/InterviewToolbar";
-import { UpcomingSidebar } from "@/features/interviews/components/UpcomingSidebar";
-import { downloadInterviewCsv } from "@/features/interviews/helpers";
+import { settingsApi } from "@/features/settings/api";
+import { WorkspaceSettings } from "@/features/settings/types";
+import { defaultOfficeHours, defaultOfficeWeek, downloadInterviewCsv, getWeekStart } from "@/features/interviews/helpers";
 import { useInterviewsStore } from "@/features/interviews/store";
 import { Interview } from "@/features/interviews/types";
 
@@ -23,7 +24,6 @@ export default function InterviewsPage() {
     meta,
     items,
     calendarItems,
-    upcoming,
     pagination,
     loadingList,
     loadingCalendar,
@@ -51,6 +51,8 @@ export default function InterviewsPage() {
   } = useInterviewsStore();
 
   const [refreshKey, setRefreshKey] = useState(0);
+  const [officeHours, setOfficeHours] = useState<WorkspaceSettings["officeHours"]>(defaultOfficeHours);
+  const [officeWeek, setOfficeWeek] = useState<WorkspaceSettings["officeWeek"]>(defaultOfficeWeek);
 
   useEffect(() => {
     void fetchCalendar();
@@ -59,6 +61,24 @@ export default function InterviewsPage() {
   useEffect(() => {
     void fetchList();
   }, [fetchList, pagination.page, pagination.limit, refreshKey]);
+
+  useEffect(() => {
+    const loadWorkspacePreferences = async () => {
+      try {
+        const settings = await settingsApi.getWorkspace();
+        const nextOfficeHours = settings.officeHours || defaultOfficeHours;
+        const nextOfficeWeek = settings.officeWeek?.length ? settings.officeWeek : defaultOfficeWeek;
+        setOfficeHours(nextOfficeHours);
+        setOfficeWeek(nextOfficeWeek);
+        setWeekStart(getWeekStart(new Date(), nextOfficeWeek));
+      } catch (_error) {
+        setOfficeHours(defaultOfficeHours);
+        setOfficeWeek(defaultOfficeWeek);
+      }
+    };
+
+    void loadWorkspacePreferences();
+  }, [setWeekStart]);
 
   const handleReschedulePrompt = async (interview: Interview) => {
     const next = window.prompt("New interview time in ISO format", interview.scheduledAt);
@@ -127,6 +147,7 @@ export default function InterviewsPage() {
         canManage={canManage}
         view={view}
         weekStart={weekStart}
+        officeWeek={officeWeek}
         onViewChange={setView}
         onWeekChange={shiftWeek}
         onWeekStartChange={setWeekStart}
@@ -181,35 +202,26 @@ export default function InterviewsPage() {
       )}
 
       {view === "calendar" ? (
-        <div className="grid gap-6 lg:grid-cols-3">
-          {loadingCalendar ? (
-            <Card className="lg:col-span-2 rounded-[28px] border border-border/80 shadow-sm">
-              <CardContent className="flex items-center gap-3 p-10 text-muted-foreground">
-                <LoaderCircle className="h-5 w-5 animate-spin" />
-                Loading interview calendar...
-              </CardContent>
-            </Card>
-          ) : (
-            <InterviewCalendarView
-              weekStart={weekStart}
-              items={calendarItems}
-              onOpen={(id) => void openDrawer(id)}
-              onReschedule={async (id, payload) => {
-                await rescheduleInterview(id, payload);
-                setRefreshKey((value) => value + 1);
-              }}
-            />
-          )}
-
-          <UpcomingSidebar
-            items={upcoming}
-            onView={(id) => void openDrawer(id)}
-            onReschedule={(interview) => void handleReschedulePrompt(interview)}
-            onCancel={(interview) => void handleCancel(interview)}
-            onDelete={(interview) => void handleDelete(interview)}
-            onReminder={(interview) => void handleReminder(interview)}
+        loadingCalendar ? (
+          <Card className="rounded-[28px] border border-border/80 shadow-sm">
+            <CardContent className="flex items-center gap-3 p-10 text-muted-foreground">
+              <LoaderCircle className="h-5 w-5 animate-spin" />
+              Loading interview calendar...
+            </CardContent>
+          </Card>
+        ) : (
+          <InterviewCalendarView
+            weekStart={weekStart}
+            items={calendarItems}
+            officeHours={officeHours}
+            officeWeek={officeWeek}
+            onOpen={(id) => void openDrawer(id)}
+            onReschedule={async (id, payload) => {
+              await rescheduleInterview(id, payload);
+              setRefreshKey((value) => value + 1);
+            }}
           />
-        </div>
+        )
       ) : loadingList ? (
         <Card className="rounded-[28px] border border-border/80 shadow-sm">
           <CardContent className="flex items-center gap-3 p-10 text-muted-foreground">

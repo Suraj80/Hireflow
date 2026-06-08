@@ -13,6 +13,11 @@ const DEFAULT_WORKSPACE_SETTINGS = {
   defaultPipelineDisplay: "Applied -> Screening -> Interview -> Offer -> Hired",
   defaultTimezone: "Asia/Kolkata",
   defaultCurrency: "USD",
+  officeHours: {
+    start: "09:00",
+    end: "18:00",
+  },
+  officeWeek: ["monday", "tuesday", "wednesday", "thursday", "friday"],
   brandingLogo: "",
   notifications: {
     email: true,
@@ -24,12 +29,40 @@ const DEFAULT_WORKSPACE_SETTINGS = {
   },
 };
 
+const weekdayOptions = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
+
+const officeHourSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Time must be in HH:mm format");
+
 const workspaceSettingsSchema = z.object({
   workspaceName: z.string().trim().min(2).max(120),
   companyName: z.string().trim().min(2).max(120),
   defaultPipelineDisplay: z.string().trim().min(2).max(200),
   defaultTimezone: z.string().trim().min(2).max(120),
   defaultCurrency: z.string().trim().min(3).max(5).transform((value) => value.toUpperCase()),
+  officeHours: z
+    .object({
+      start: officeHourSchema,
+      end: officeHourSchema,
+    })
+    .refine(({ start, end }) => start < end, {
+      message: "Office end time must be after start time",
+      path: ["end"],
+    }),
+  officeWeek: z
+    .array(z.enum(weekdayOptions))
+    .min(1, "Select at least one office day")
+    .max(7)
+    .transform((days) => Array.from(new Set(days))),
   brandingLogo: z.string().trim().max(255).optional().default(""),
   notifications: z.object({
     email: z.boolean().default(true),
@@ -59,6 +92,14 @@ const normalizeSettingsResponse = (settings) => ({
   defaultPipelineDisplay: settings.defaultPipelineDisplay,
   defaultTimezone: settings.defaultTimezone,
   defaultCurrency: settings.defaultCurrency,
+  officeHours: {
+    start: settings.officeHours?.start || "09:00",
+    end: settings.officeHours?.end || "18:00",
+  },
+  officeWeek:
+    settings.officeWeek?.length
+      ? settings.officeWeek
+      : ["monday", "tuesday", "wednesday", "thursday", "friday"],
   brandingLogo: settings.brandingLogo || "",
   notifications: {
     email: settings.notifications?.email ?? true,
@@ -120,6 +161,8 @@ const updateSettings = async (req, res) => {
         companyName: settings.companyName,
         timezone: settings.defaultTimezone,
         currency: settings.defaultCurrency,
+        officeHours: settings.officeHours,
+        officeWeek: settings.officeWeek,
         notifications: settings.notifications,
       },
     });

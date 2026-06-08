@@ -33,6 +33,24 @@ const workspaceSettingSchema = new mongoose.Schema(
       uppercase: true,
       default: "USD",
     },
+    officeHours: {
+      start: {
+        type: String,
+        required: true,
+        trim: true,
+        default: "09:00",
+      },
+      end: {
+        type: String,
+        required: true,
+        trim: true,
+        default: "18:00",
+      },
+    },
+    officeWeek: {
+      type: [String],
+      default: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    },
     brandingLogo: {
       type: String,
       trim: true,
