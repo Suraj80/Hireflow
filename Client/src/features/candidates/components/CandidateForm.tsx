@@ -77,9 +77,11 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const [isImportingResume, setIsImportingResume] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const autosaveTimerRef = useRef<number | null>(null);
   const duplicateTimerRef = useRef<number | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const storageKey = `hireflow-candidate-draft:${candidate?.id || "new"}`;
 
   const form = useForm<CandidateFormValues>({
@@ -243,6 +245,9 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
       );
       form.setValue("aiScore", null, { shouldDirty: true });
       toast.success("Resume uploaded");
+      if (file.type === "application/msword") {
+        toast.warning("Legacy .doc resumes upload successfully, but AI scoring works only with PDF or DOCX.");
+      }
     } catch (error) {
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -250,6 +255,127 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
       toast.error(message);
     } finally {
       setIsUploadingResume(false);
+    }
+  };
+
+  const applyImportedResumeData = (
+    parsedCandidate: Awaited<ReturnType<typeof candidatesApi.uploadResume>>["parsedCandidate"]
+  ) => {
+    if (!parsedCandidate) {
+      toast.message("Resume imported, but no structured candidate fields were confidently detected.");
+      return;
+    }
+
+    const currentValues = form.getValues();
+    let updatedFields = 0;
+
+    const setIfEmpty = <K extends keyof CandidateFormValues>(key: K, value: CandidateFormValues[K]) => {
+      const currentValue = currentValues[key];
+
+      if (typeof currentValue === "string") {
+        if (!currentValue.trim() && typeof value === "string" && value.trim()) {
+          form.setValue(key, value, { shouldDirty: true, shouldValidate: true });
+          updatedFields += 1;
+        }
+        return;
+      }
+
+      if (currentValue === null || typeof currentValue === "undefined") {
+        if (value !== null && typeof value !== "undefined") {
+          form.setValue(key, value, { shouldDirty: true, shouldValidate: true });
+          updatedFields += 1;
+        }
+      }
+    };
+
+    setIfEmpty("name", parsedCandidate.name);
+    setIfEmpty("email", parsedCandidate.email);
+    setIfEmpty("phone", parsedCandidate.phone);
+    setIfEmpty("location", parsedCandidate.location);
+    setIfEmpty("linkedin", parsedCandidate.linkedin);
+    setIfEmpty("portfolio", parsedCandidate.portfolio);
+    setIfEmpty("currentRole", parsedCandidate.currentRole);
+    setIfEmpty("currentCompany", parsedCandidate.currentCompany);
+
+    if (
+      (!currentValues.skills || currentValues.skills.length === 0) &&
+      parsedCandidate.skills?.length
+    ) {
+      form.setValue("skills", parsedCandidate.skills, { shouldDirty: true, shouldValidate: true });
+      updatedFields += 1;
+    }
+
+    if (
+      (!currentValues.certifications || currentValues.certifications.length === 0) &&
+      parsedCandidate.certifications?.length
+    ) {
+      form.setValue("certifications", parsedCandidate.certifications, { shouldDirty: true, shouldValidate: true });
+      updatedFields += 1;
+    }
+
+    if (
+      (!currentValues.languages || currentValues.languages.length === 0) &&
+      parsedCandidate.languages?.length
+    ) {
+      form.setValue("languages", parsedCandidate.languages, { shouldDirty: true, shouldValidate: true });
+      updatedFields += 1;
+    }
+
+    if (
+      currentValues.education.every((item) => !item.degree && !item.college && !item.year) &&
+      parsedCandidate.education?.length
+    ) {
+      form.setValue("education", parsedCandidate.education, { shouldDirty: true, shouldValidate: true });
+      updatedFields += 1;
+    }
+
+    if (
+      currentValues.experience.years === 0 &&
+      currentValues.experience.months === 0 &&
+      (parsedCandidate.experience.years > 0 || parsedCandidate.experience.months > 0)
+    ) {
+      form.setValue("experience", parsedCandidate.experience, { shouldDirty: true, shouldValidate: true });
+      updatedFields += 1;
+    }
+
+    toast.success(
+      updatedFields > 0
+        ? `Imported resume and filled ${updatedFields} form section${updatedFields === 1 ? "" : "s"}`
+        : "Resume imported"
+    );
+  };
+
+  const handleResumeImport = async (file: File) => {
+    if (!["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type)) {
+      toast.error("Import currently supports PDF and DOCX only");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Resume must be smaller than 5MB");
+      return;
+    }
+
+    try {
+      setIsImportingResume(true);
+      setUploadProgress(0);
+      const uploadedResume = await candidatesApi.uploadResume(file, setUploadProgress);
+      form.setValue("resumeUrl", uploadedResume.resumeUrl, { shouldDirty: true, shouldValidate: true });
+      form.setValue("resumeMeta", uploadedResume.resumeMeta, { shouldDirty: true, shouldValidate: true });
+      form.setValue(
+        "aiReasoning",
+        "Resume imported. AI scoring will run after you save this candidate.",
+        { shouldDirty: true }
+      );
+      form.setValue("aiScore", null, { shouldDirty: true });
+      applyImportedResumeData(uploadedResume.parsedCandidate);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (error instanceof Error ? error.message : "Unable to import resume");
+      toast.error(message);
+    } finally {
+      setIsImportingResume(false);
     }
   };
 
@@ -626,6 +752,32 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
                       }}
                     />
                   </Label>
+                  {mode === "create" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-2xl"
+                      disabled={isImportingResume}
+                      onClick={() => importInputRef.current?.click()}
+                    >
+                      <UploadCloud className="mr-2 h-4 w-4" />
+                      {isImportingResume ? "Importing..." : "Import PDF / DOCX"}
+                    </Button>
+                  )}
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept=".pdf,.docx"
+                    className="sr-only"
+                    disabled={isImportingResume}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        void handleResumeImport(file);
+                      }
+                      event.target.value = "";
+                    }}
+                  />
                   {watchedResumeUrl && (
                     <Button type="button" variant="outline" className="rounded-2xl" asChild>
                       <a href={watchedResumeUrl} target="_blank" rel="noreferrer">

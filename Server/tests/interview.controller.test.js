@@ -391,3 +391,117 @@ test("updateInterviewStatus only triggers notification and reminder emails when 
     restore();
   }
 });
+
+test("createInterview returns a scheduling conflict when candidate or panel time overlaps", async () => {
+  const candidateId = "507f1f77bcf86cd799439121";
+  const jobId = "507f1f77bcf86cd799439122";
+  const interviewerId = "507f1f77bcf86cd799439123";
+  const recruiterId = "507f1f77bcf86cd799439124";
+
+  const conflictInterview = {
+    _id: "507f1f77bcf86cd799439125",
+    round: "Existing Round",
+    scheduledAt: new Date("2026-06-15T10:45:00"),
+    duration: 60,
+    candidateId,
+    interviewers: [interviewerId],
+  };
+
+  const InterviewCreate = createSpy(async () => {
+    throw new Error("Interview should not be created when conflicts exist");
+  });
+
+  const { loaded, restore } = loadModuleWithMocks(controllerPath, {
+    "../models/Candidate": {
+      findById: createSpy(() =>
+        createQuery({
+          _id: candidateId,
+          name: "Jamie Candidate",
+          email: "jamie@example.com",
+          stage: "Screening",
+          jobId: { toString: () => jobId },
+          recruiterAssigned: recruiterId,
+          archived: false,
+        })
+      ),
+    },
+    "../models/Interview": {
+      create: InterviewCreate,
+      find: createSpy(() => createQuery([conflictInterview])),
+      findById: createSpy(() => createQuery(null)),
+    },
+    "../models/Job": {
+      findById: createSpy(() =>
+        createQuery({
+          _id: jobId,
+          title: "Backend Engineer",
+          department: "Platform",
+          location: "Remote",
+          archived: false,
+        })
+      ),
+    },
+    "../models/User": {
+      find: createSpy(() =>
+        createQuery([
+          {
+            _id: interviewerId,
+            name: "Morgan Interviewer",
+            email: "morgan@example.com",
+            role: "recruiter",
+          },
+        ])
+      ),
+    },
+    "../services/audit.service": {
+      createAuditLog: createSpy(async () => undefined),
+    },
+    "../services/email.service": {
+      sendCandidateStageChangeEmail: createSpy(async () => undefined),
+      sendInterviewInviteEmails: createSpy(async () => undefined),
+      sendInterviewReminderEmails: createSpy(async () => undefined),
+    },
+    "../services/notification.service": {
+      notifyCandidateStageChange: createSpy(async () => undefined),
+      notifyInterviewEvent: createSpy(async () => undefined),
+    },
+  });
+
+  try {
+    const req = {
+      body: {
+        candidateId,
+        jobId,
+        round: "Technical Round",
+        type: "Video",
+        status: "Scheduled",
+        date: "2026-06-15",
+        time: "10:30",
+        timezone: "Asia/Kolkata",
+        duration: 60,
+        interviewers: [interviewerId],
+        leadInterviewer: interviewerId,
+        agenda: "",
+        notes: "",
+        meetingLink: "",
+        location: "",
+        reminderSettings: [1440, 60],
+        sendInvite: true,
+      },
+      user: {
+        id: recruiterId,
+        role: "recruiter",
+      },
+    };
+    const res = createResponse();
+
+    await loaded.createInterview(req, res);
+
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.message, "Scheduling conflict detected");
+    assert.equal(res.body.conflicts.length, 1);
+    assert.equal(InterviewCreate.calls.length, 0);
+  } finally {
+    restore();
+  }
+});

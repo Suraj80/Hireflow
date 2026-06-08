@@ -331,6 +331,15 @@ const candidateSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    aiLastAttemptAt: {
+      type: Date,
+      default: null,
+    },
+    aiRetryCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
     aiInputHash: {
       type: String,
       trim: true,

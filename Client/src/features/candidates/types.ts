@@ -215,6 +215,21 @@ export type ResumeUploadResponse = {
     size: number;
     mimeType: string;
   };
+  parsedCandidate?: {
+    name: string;
+    email: string;
+    phone: string;
+    location: string;
+    linkedin: string;
+    portfolio: string;
+    currentRole: string;
+    currentCompany: string;
+    skills: string[];
+    education: CandidateEducation[];
+    certifications: string[];
+    languages: string[];
+    experience: CandidateExperience;
+  } | null;
 };
 
 export type PublicCandidateApplicationPayload = {

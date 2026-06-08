@@ -106,6 +106,24 @@ export default function CandidateDetailPage() {
     void fetchCandidateById(candidateId);
   }, [candidateId, fetchCandidateById]);
 
+  useEffect(() => {
+    if (!candidateId || !detail || detail.id !== candidateId) {
+      return;
+    }
+
+    if (!["queued", "processing"].includes(detail.aiStatus)) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void fetchCandidateById(candidateId).catch(() => undefined);
+    }, 4000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [candidateId, detail, fetchCandidateById]);
+
   const candidate = detail && detail.id === candidateId ? detail : null;
   const canManage = candidate?.permissions.canEdit ?? false;
 

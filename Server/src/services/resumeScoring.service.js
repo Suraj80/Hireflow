@@ -9,6 +9,9 @@ const Job = require("../models/Job");
 
 const EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
 const RESUME_UPLOADS_DIRECTORY = path.join(__dirname, "..", "..", "uploads", "resumes");
+const AI_SCORING_LOG_DIRECTORY = path.join(__dirname, "..", "..", "logs");
+const AI_SCORING_LOG_FILE = path.join(AI_SCORING_LOG_DIRECTORY, "ai-scoring.log");
+const MAX_AI_SCORING_ATTEMPTS = 2;
 const STOP_WORDS = new Set([
   "a",
   "an",
@@ -118,6 +121,48 @@ const dedupeItems = (items) =>
         .filter(Boolean)
     )
   );
+
+const writeAiScoringLog = async (entry) => {
+  await fs.mkdir(AI_SCORING_LOG_DIRECTORY, { recursive: true });
+  await fs.appendFile(
+    AI_SCORING_LOG_FILE,
+    `${JSON.stringify({ timestamp: new Date().toISOString(), ...entry })}\n`,
+    "utf8"
+  );
+};
+
+const normalizeScoringError = (error) => {
+  const message = error?.message || "Unknown AI scoring error";
+
+  if (
+    /Legacy DOC resumes/i.test(message) ||
+    /supports PDF and DOCX only/i.test(message)
+  ) {
+    return "AI scoring does not support legacy .doc resumes yet. Re-upload this resume as PDF or DOCX and try again.";
+  }
+
+  if (/Unsupported resume file type/i.test(message)) {
+    return "AI scoring supports PDF and DOCX resumes only.";
+  }
+
+  return message;
+};
+
+const isRetryableScoringError = (error) => {
+  const message = error?.message || "";
+
+  if (
+    /Legacy DOC resumes/i.test(message) ||
+    /supports PDF and DOCX only/i.test(message) ||
+    /Unsupported resume file type/i.test(message) ||
+    /too little content/i.test(message) ||
+    /could not be resolved/i.test(message)
+  ) {
+    return false;
+  }
+
+  return true;
+};
 
 const resolveResumePath = (resumeUrl) => {
   if (!resumeUrl) {
@@ -343,6 +388,8 @@ const markUnavailable = async (candidateId, message) => {
     aiStatus: "unavailable",
     aiError: message,
     aiScoredAt: null,
+    aiLastAttemptAt: new Date(),
+    aiRetryCount: 0,
     aiModel: "",
     aiInputHash: "",
   });
@@ -420,6 +467,8 @@ const scoreCandidateResume = async (candidateId) => {
     aiStatus: "completed",
     aiError: "",
     aiScoredAt: new Date(),
+    aiLastAttemptAt: new Date(),
+    aiRetryCount: 0,
     aiInputHash: inputHash,
     aiModel: EMBEDDING_MODEL,
   });
@@ -434,6 +483,8 @@ const queueCandidateResumeScoring = async (candidateId) => {
       aiStatus: "not-started",
       aiError: "",
       aiScoredAt: null,
+      aiLastAttemptAt: null,
+      aiRetryCount: 0,
       aiInputHash: "",
       aiModel: "",
     });
@@ -454,28 +505,70 @@ const queueCandidateResumeScoring = async (candidateId) => {
     aiError: "",
     aiReasoning: "Resume uploaded. AI scoring has been queued and will complete shortly.",
     aiScoredAt: null,
+    aiLastAttemptAt: null,
+    aiRetryCount: 0,
     aiInputHash: "",
     aiModel: "",
   });
 
-  setImmediate(async () => {
+  const runAttempt = async (attemptNumber = 1) => {
     try {
+      await updateCandidateScoreState(candidateId, {
+        aiLastAttemptAt: new Date(),
+        aiRetryCount: attemptNumber - 1,
+      });
       await scoreCandidateResume(candidateId);
     } catch (error) {
+      const normalizedMessage = normalizeScoringError(error);
+      const retryable = isRetryableScoringError(error);
+
+      await writeAiScoringLog({
+        level: retryable && attemptNumber < MAX_AI_SCORING_ATTEMPTS ? "warn" : "error",
+        candidateId,
+        attemptNumber,
+        message: normalizedMessage,
+        rawMessage: error?.message || "",
+      }).catch(() => undefined);
+
+      if (retryable && attemptNumber < MAX_AI_SCORING_ATTEMPTS) {
+        await updateCandidateScoreState(candidateId, {
+          aiScore: null,
+          aiStatus: "queued",
+          aiError: normalizedMessage,
+          aiReasoning: `AI scoring hit a temporary issue and is retrying (attempt ${attemptNumber + 1} of ${MAX_AI_SCORING_ATTEMPTS}).`,
+          aiScoredAt: null,
+          aiModel: EMBEDDING_MODEL,
+          aiRetryCount: attemptNumber,
+          aiLastAttemptAt: new Date(),
+        });
+
+        setTimeout(() => {
+          void runAttempt(attemptNumber + 1);
+        }, 750);
+        return;
+      }
+
       await updateCandidateScoreState(candidateId, {
         aiScore: null,
         aiStatus: "failed",
-        aiError: error.message,
-        aiReasoning: error.message,
+        aiError: normalizedMessage,
+        aiReasoning: normalizedMessage,
         aiScoredAt: null,
         aiModel: EMBEDDING_MODEL,
+        aiRetryCount: attemptNumber - 1,
+        aiLastAttemptAt: new Date(),
       });
     }
+  };
+
+  setImmediate(() => {
+    void runAttempt(1);
   });
 };
 
 module.exports = {
   EMBEDDING_MODEL,
+  AI_SCORING_LOG_FILE,
   queueCandidateResumeScoring,
   scoreCandidateResume,
 };
