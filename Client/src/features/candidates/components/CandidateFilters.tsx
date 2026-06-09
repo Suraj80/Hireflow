@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CandidateFilters as CandidateFiltersType, CandidateMeta } from "@/features/candidates/types";
 import { sourceLabels } from "@/features/candidates/helpers";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 type CandidateFiltersProps = {
   filters: CandidateFiltersType;
@@ -20,6 +22,19 @@ export function CandidateFilters({
   onChange,
   onReset,
 }: CandidateFiltersProps) {
+  const [searchInput, setSearchInput] = useState(filters.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 1500);
+
+  useEffect(() => {
+    setSearchInput(filters.search);
+  }, [filters.search]);
+
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      onChange({ search: debouncedSearch });
+    }
+  }, [debouncedSearch, filters.search, onChange]);
+
   return (
     <Card className="rounded-[28px] border border-border/80 shadow-sm">
       <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -36,10 +51,11 @@ export function CandidateFilters({
           <div className="relative min-w-[240px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={filters.search}
-              onChange={(event) => onChange({ search: event.target.value })}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search name, email, phone"
               className="h-11 rounded-2xl pl-9"
+              autoComplete="off"
             />
           </div>
           <Button type="button" variant="outline" className="h-11 rounded-2xl" onClick={onReset}>

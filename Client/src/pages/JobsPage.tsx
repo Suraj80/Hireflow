@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobDetailsSheet } from "@/features/jobs/components/JobDetailsSheet";
+import { JobFilters } from "@/features/jobs/components/JobFilters";
 import { JobTable } from "@/features/jobs/components/JobTable";
 import { useJobsStore } from "@/features/jobs/store";
 import { Job } from "@/features/jobs/types";
@@ -52,9 +53,12 @@ export default function JobsPage() {
     error,
     filters,
     pagination,
+    availableDepartments,
     selectedJob,
     setSelectedJob,
+    setFilters,
     setPage,
+    resetFilters,
     fetchJobs,
     archiveJob,
   } = useJobsStore();
@@ -79,14 +83,13 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {canManageJobs && (
-          <Button className="h-11 rounded-2xl self-start" onClick={() => navigate("/jobs/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Job
-          </Button>
-        )}
-      </div>
+      <JobFilters
+        filters={filters}
+        departments={availableDepartments}
+        onChange={setFilters}
+        onReset={resetFilters}
+      />
+
       {loading ? (
         <LoadingState />
       ) : error ? (
@@ -123,7 +126,7 @@ export default function JobsPage() {
           <p className="text-sm text-muted-foreground">
             Page {pagination.page} of {pagination.totalPages} | {pagination.total} total jobs
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               className="rounded-2xl"
@@ -140,6 +143,12 @@ export default function JobsPage() {
             >
               Next
             </Button>
+            {canManageJobs && (
+              <Button className="rounded-2xl" onClick={() => navigate("/jobs/new")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Job
+              </Button>
+            )}
           </div>
         </div>
       )}

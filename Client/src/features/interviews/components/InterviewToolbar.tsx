@@ -1,6 +1,5 @@
 import { addMonths, format, setMonth } from "date-fns";
-import { ChevronLeft, ChevronRight, List, Plus, Rows3 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,7 +8,6 @@ import { formatWeekRange, getWeekStart } from "@/features/interviews/helpers";
 import { InterviewView } from "@/features/interviews/types";
 
 type InterviewToolbarProps = {
-  canManage: boolean;
   view: InterviewView;
   weekStart: Date;
   officeWeek: WorkspaceSettings["officeWeek"];
@@ -19,7 +17,6 @@ type InterviewToolbarProps = {
 };
 
 export function InterviewToolbar({
-  canManage,
   view,
   weekStart,
   officeWeek,
@@ -27,39 +24,11 @@ export function InterviewToolbar({
   onWeekChange,
   onWeekStartChange,
 }: InterviewToolbarProps) {
-  const navigate = useNavigate();
   const months = Array.from({ length: 12 }, (_, index) => setMonth(new Date(weekStart), index));
 
   return (
     <Card className="rounded-[28px] border border-border/80 shadow-sm">
-      <CardContent className="space-y-4 p-5">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={view === "calendar" ? "default" : "outline"}
-              className="h-11 rounded-2xl"
-              onClick={() => onViewChange("calendar")}
-            >
-              <Rows3 className="mr-2 h-4 w-4" />
-              Calendar View
-            </Button>
-            <Button
-              variant={view === "list" ? "default" : "outline"}
-              className="h-11 rounded-2xl"
-              onClick={() => onViewChange("list")}
-            >
-              <List className="mr-2 h-4 w-4" />
-              List View
-            </Button>
-            {canManage && (
-              <Button className="h-11 rounded-2xl" onClick={() => navigate("/interviews/new")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Schedule Interview
-              </Button>
-            )}
-          </div>
-        </div>
-
+      <CardContent className="p-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="h-11 rounded-2xl" onClick={() => onWeekStartChange(getWeekStart(new Date(), officeWeek))}>
@@ -92,6 +61,15 @@ export function InterviewToolbar({
               {formatWeekRange(weekStart, officeWeek)}
             </div>
           </div>
+          <Select value={view} onValueChange={(value) => onViewChange(value as InterviewView)}>
+            <SelectTrigger className="h-11 w-full rounded-2xl xl:w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="calendar">Calendar View</SelectItem>
+              <SelectItem value="list">List View</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </CardContent>
     </Card>

@@ -20,6 +20,21 @@ export type WorkspaceSettings = {
     stageChanges: boolean;
     dailyDigest: boolean;
   };
+  hiringPreferences: {
+    defaultCandidateSource: "portal" | "referral" | "manual" | "campus" | "linkedin" | "agency";
+    defaultJobStatus: "draft" | "open" | "closed";
+    resumeFileSizeLimitMb: number;
+    allowedResumeFormats: Array<"PDF" | "DOC" | "DOCX">;
+    duplicateApplicationWarning: boolean;
+  };
+  security: {
+    sessionTimeoutMinutes: number;
+    refreshTokenDurationDays: number;
+    passwordMinLength: number;
+    requireStrongPasswords: boolean;
+    twoFactorRequired: boolean;
+    loginActivityVisible: boolean;
+  };
   updatedAt?: string | null;
 };
 

@@ -11,6 +11,7 @@ export const jobsApi = {
         search: params.search || undefined,
         status: params.status,
         department: params.department === "all" ? undefined : params.department,
+        type: params.jobType === "all" ? undefined : params.jobType,
         sort: params.sort,
       },
     });

@@ -90,7 +90,8 @@ export const useInterviewsStore = create<InterviewsStoreState>((set, get) => ({
     set((state) => ({
       pagination: { ...state.pagination, limit, page: 1 },
     })),
-  setWeekStart: (weekStart) => set({ weekStart }),
+  setWeekStart: (weekStart) =>
+    set((state) => (state.weekStart.getTime() === weekStart.getTime() ? state : { weekStart })),
   shiftWeek: (direction) => set((state) => ({ weekStart: addWeeks(state.weekStart, direction) })),
   toggleSelected: (id) =>
     set((state) => ({

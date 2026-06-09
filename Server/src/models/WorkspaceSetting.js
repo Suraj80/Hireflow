@@ -82,6 +82,64 @@ const workspaceSettingSchema = new mongoose.Schema(
         default: false,
       },
     },
+    hiringPreferences: {
+      defaultCandidateSource: {
+        type: String,
+        trim: true,
+        default: "manual",
+      },
+      defaultJobStatus: {
+        type: String,
+        trim: true,
+        default: "draft",
+      },
+      resumeFileSizeLimitMb: {
+        type: Number,
+        min: 1,
+        max: 25,
+        default: 5,
+      },
+      allowedResumeFormats: {
+        type: [String],
+        default: ["PDF", "DOC", "DOCX"],
+      },
+      duplicateApplicationWarning: {
+        type: Boolean,
+        default: true,
+      },
+    },
+    security: {
+      sessionTimeoutMinutes: {
+        type: Number,
+        min: 5,
+        max: 1440,
+        default: 15,
+      },
+      refreshTokenDurationDays: {
+        type: Number,
+        min: 1,
+        max: 90,
+        default: 7,
+      },
+      passwordMinLength: {
+        type: Number,
+        min: 6,
+        max: 32,
+        default: 6,
+      },
+      requireStrongPasswords: {
+        type: Boolean,
+        default: false,
+      },
+      twoFactorRequired: {
+        type: Boolean,
+        default: false,
+      },
+      loginActivityVisible: {
+        type: Boolean,
+        default: false,
+      },
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

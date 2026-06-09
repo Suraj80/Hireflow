@@ -10,6 +10,7 @@ import {
   FileText,
   Zap,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -25,6 +26,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/components/AuthProvider";
+import { settingsApi } from "@/features/settings/api";
 
 const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -45,6 +47,7 @@ const adminItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const { user } = useAuth();
+  const [workspaceName, setWorkspaceName] = useState("HireFlow");
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
@@ -55,6 +58,19 @@ export function AppSidebar() {
       user?.role === "recruiter"
   );
 
+  useEffect(() => {
+    const loadWorkspaceName = async () => {
+      try {
+        const settings = await settingsApi.getWorkspace();
+        setWorkspaceName(settings.workspaceName?.trim() || "HireFlow");
+      } catch (_error) {
+        setWorkspaceName("HireFlow");
+      }
+    };
+
+    void loadWorkspaceName();
+  }, []);
+
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarHeader className="p-4">
@@ -63,7 +79,7 @@ export function AppSidebar() {
             <Zap className="h-4 w-4 text-primary-foreground" />
           </div>
           {!collapsed && (
-            <span className="text-lg font-bold tracking-tight text-foreground">HireFlow</span>
+            <span className="text-lg font-bold tracking-tight text-foreground">{workspaceName}</span>
           )}
         </NavLink>
       </SidebarHeader>

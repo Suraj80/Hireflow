@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InterviewFilters as InterviewFiltersType, InterviewMeta } from "@/features/interviews/types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 type InterviewFiltersProps = {
   filters: InterviewFiltersType;
@@ -9,15 +11,28 @@ type InterviewFiltersProps = {
 };
 
 export function InterviewFilters({ filters, meta, onChange }: InterviewFiltersProps) {
+  const [searchInput, setSearchInput] = useState(filters.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 1500);
   const teams = Array.from(new Set(meta.jobs.map((job) => job.department))).filter(Boolean).sort();
+
+  useEffect(() => {
+    setSearchInput(filters.search);
+  }, [filters.search]);
+
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      onChange({ search: debouncedSearch });
+    }
+  }, [debouncedSearch, filters.search, onChange]);
 
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
       <Input
-        value={filters.search}
-        onChange={(event) => onChange({ search: event.target.value })}
+        value={searchInput}
+        onChange={(event) => setSearchInput(event.target.value)}
         placeholder="Search candidate"
         className="h-11 rounded-2xl"
+        autoComplete="off"
       />
       <Select value={filters.team} onValueChange={(value) => onChange({ team: value })}>
         <SelectTrigger className="h-11 rounded-2xl">

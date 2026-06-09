@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { offersApi } from "@/features/offers/api";
 import { Offer, OfferMetaResponse, OfferStatus } from "@/features/offers/types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const defaultMeta: OfferMetaResponse = {
   candidates: [],
@@ -56,7 +57,8 @@ export default function OffersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput, 1500);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, limit: 10 as 10 | 25 | 50 | 100, total: 0, totalPages: 1 });
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -71,7 +73,7 @@ export default function OffersPage() {
           page,
           limit: pagination.limit,
           status: statusFilter,
-          search,
+          search: debouncedSearch,
         }),
         offersApi.meta(),
       ]);
@@ -89,7 +91,7 @@ export default function OffersPage() {
 
   useEffect(() => {
     void loadPageData();
-  }, [page, pagination.limit, statusFilter, search]);
+  }, [debouncedSearch, page, pagination.limit, statusFilter]);
 
   const handleCopyLink = async (offer: Offer) => {
     try {
@@ -193,12 +195,13 @@ export default function OffersPage() {
       <Card className="rounded-[28px] border border-border/80 shadow-sm">
         <CardContent className="grid gap-3 p-5 md:grid-cols-[minmax(0,1fr)_220px]">
           <Input
-            value={search}
+            value={searchInput}
             onChange={(event) => {
               setPage(1);
-              setSearch(event.target.value);
+              setSearchInput(event.target.value);
             }}
             placeholder="Search by candidate, role, or job"
+            autoComplete="off"
             className="h-11 rounded-2xl"
           />
           <Select

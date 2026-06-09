@@ -27,6 +27,21 @@ const DEFAULT_WORKSPACE_SETTINGS = {
     stageChanges: true,
     dailyDigest: false,
   },
+  hiringPreferences: {
+    defaultCandidateSource: "manual",
+    defaultJobStatus: "draft",
+    resumeFileSizeLimitMb: 5,
+    allowedResumeFormats: ["PDF", "DOC", "DOCX"],
+    duplicateApplicationWarning: true,
+  },
+  security: {
+    sessionTimeoutMinutes: 15,
+    refreshTokenDurationDays: 7,
+    passwordMinLength: 6,
+    requireStrongPasswords: false,
+    twoFactorRequired: false,
+    loginActivityVisible: false,
+  },
 };
 
 const weekdayOptions = [
@@ -72,6 +87,25 @@ const workspaceSettingsSchema = z.object({
     stageChanges: z.boolean().default(true),
     dailyDigest: z.boolean().default(false),
   }),
+  hiringPreferences: z.object({
+    defaultCandidateSource: z.enum(["portal", "referral", "manual", "campus", "linkedin", "agency"]).default("manual"),
+    defaultJobStatus: z.enum(["draft", "open", "closed"]).default("draft"),
+    resumeFileSizeLimitMb: z.number().int().min(1).max(25).default(5),
+    allowedResumeFormats: z
+      .array(z.enum(["PDF", "DOC", "DOCX"]))
+      .min(1, "Select at least one resume format")
+      .max(3)
+      .transform((formats) => Array.from(new Set(formats))),
+    duplicateApplicationWarning: z.boolean().default(true),
+  }),
+  security: z.object({
+    sessionTimeoutMinutes: z.number().int().min(5).max(1440).default(15),
+    refreshTokenDurationDays: z.number().int().min(1).max(90).default(7),
+    passwordMinLength: z.number().int().min(6).max(32).default(6),
+    requireStrongPasswords: z.boolean().default(false),
+    twoFactorRequired: z.boolean().default(false),
+    loginActivityVisible: z.boolean().default(false),
+  }),
 });
 
 const buildValidationError = (issues) => ({
@@ -108,6 +142,24 @@ const normalizeSettingsResponse = (settings) => ({
     interviewReminders: settings.notifications?.interviewReminders ?? true,
     stageChanges: settings.notifications?.stageChanges ?? true,
     dailyDigest: settings.notifications?.dailyDigest ?? false,
+  },
+  hiringPreferences: {
+    defaultCandidateSource: settings.hiringPreferences?.defaultCandidateSource || "manual",
+    defaultJobStatus: settings.hiringPreferences?.defaultJobStatus || "draft",
+    resumeFileSizeLimitMb: settings.hiringPreferences?.resumeFileSizeLimitMb ?? 5,
+    allowedResumeFormats:
+      settings.hiringPreferences?.allowedResumeFormats?.length
+        ? settings.hiringPreferences.allowedResumeFormats
+        : ["PDF", "DOC", "DOCX"],
+    duplicateApplicationWarning: settings.hiringPreferences?.duplicateApplicationWarning ?? true,
+  },
+  security: {
+    sessionTimeoutMinutes: settings.security?.sessionTimeoutMinutes ?? 15,
+    refreshTokenDurationDays: settings.security?.refreshTokenDurationDays ?? 7,
+    passwordMinLength: settings.security?.passwordMinLength ?? 6,
+    requireStrongPasswords: settings.security?.requireStrongPasswords ?? false,
+    twoFactorRequired: settings.security?.twoFactorRequired ?? false,
+    loginActivityVisible: settings.security?.loginActivityVisible ?? false,
   },
   updatedAt: settings.updatedAt || null,
 });
@@ -164,6 +216,8 @@ const updateSettings = async (req, res) => {
         officeHours: settings.officeHours,
         officeWeek: settings.officeWeek,
         notifications: settings.notifications,
+        hiringPreferences: settings.hiringPreferences,
+        security: settings.security,
       },
     });
 

@@ -64,6 +64,7 @@ export type JobsFilters = {
   search: string;
   status: "all" | JobStatus;
   department: string;
+  jobType: "all" | EmploymentType;
   sort: JobSort;
 };
 

@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { auditApi } from "@/features/audit/api";
 import { AuditFilters, AuditLogItem, AuditPagination } from "@/features/audit/types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const defaultPagination: AuditPagination = {
   page: 1,
@@ -67,6 +70,10 @@ export default function AuditLogPage() {
   const [items, setItems] = useState<AuditLogItem[]>([]);
   const [filters, setFilters] = useState<AuditFilters>(defaultFilters);
   const [pagination, setPagination] = useState<AuditPagination>(defaultPagination);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 1500);
+  const [category, setCategory] = useState("all");
+  const [actorId, setActorId] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,11 +86,11 @@ export default function AuditLogPage() {
         const response = await auditApi.list({
           page: nextPage,
           limit: pagination.limit,
-          search: "",
+          search: debouncedSearch,
           action: "all",
-          category: "all",
+          category,
           entityType: "all",
-          actorId: "",
+          actorId: actorId === "all" ? "" : actorId,
         });
 
         setItems(response.items);
@@ -95,7 +102,7 @@ export default function AuditLogPage() {
         setLoading(false);
       }
     },
-    [pagination.limit, pagination.page]
+    [actorId, category, debouncedSearch, pagination.limit, pagination.page]
   );
 
   useEffect(() => {
@@ -115,11 +122,40 @@ export default function AuditLogPage() {
         </p>
       </div>
 
-      <div className="flex justify-end">
-        <Button className="h-11 rounded-2xl" variant="outline" onClick={() => void loadAuditLogs(1)}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+      <div className="grid gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm md:grid-cols-3">
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search audit events"
+          autoComplete="off"
+          className="h-11 rounded-2xl"
+        />
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger className="h-11 rounded-2xl">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {filters.categories.map((entry) => (
+              <SelectItem key={entry} value={entry}>
+                {entry}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={actorId} onValueChange={setActorId}>
+          <SelectTrigger className="h-11 rounded-2xl">
+            <SelectValue placeholder="Actor" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All actors</SelectItem>
+            {filters.actors.map((actor) => (
+              <SelectItem key={actor.id || actor.email || actor.name} value={actor.id || actor.email || actor.name}>
+                {actor.name || actor.email || "System"}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {error ? (

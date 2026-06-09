@@ -91,7 +91,7 @@ const applySort = (sort) => {
   }
 };
 
-const buildListQuery = ({ search, status, department, includeArchived }) => {
+const buildListQuery = ({ search, status, department, type, includeArchived }) => {
   const query = {};
 
   if (!includeArchived) {
@@ -104,6 +104,10 @@ const buildListQuery = ({ search, status, department, includeArchived }) => {
 
   if (department && department !== "all") {
     query.department = department;
+  }
+
+  if (type && type !== "all") {
+    query.type = type;
   }
 
   if (search) {
@@ -197,8 +201,8 @@ const getJobs = async (req, res) => {
   }
 
   try {
-    const { page, limit, status, department, search, sort, includeArchived } = parsedQuery.data;
-    const query = buildListQuery({ search, status, department, includeArchived });
+    const { page, limit, status, department, type, search, sort, includeArchived } = parsedQuery.data;
+    const query = buildListQuery({ search, status, department, type, includeArchived });
     const skip = (page - 1) * limit;
 
     const [jobs, total, departments] = await Promise.all([

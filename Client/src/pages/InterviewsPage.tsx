@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Download, LoaderCircle, XCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { AlertCircle, Download, LoaderCircle, Plus, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,6 +17,7 @@ import { useInterviewsStore } from "@/features/interviews/store";
 import { Interview } from "@/features/interviews/types";
 
 export default function InterviewsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const canManage = user?.role === "admin" || user?.role === "recruiter";
   const {
@@ -136,15 +138,22 @@ export default function InterviewsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Interviews</h1>
-        <p className="text-muted-foreground">
-          Keep the calendar as the operating center, then flip into list mode for bulk management and reporting.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold tracking-tight">Interviews</h1>
+          <p className="text-muted-foreground">
+            Keep the calendar as the operating center, then flip into list mode for bulk management and reporting.
+          </p>
+        </div>
+        {canManage && (
+          <Button className="h-11 rounded-2xl self-start" onClick={() => navigate("/interviews/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Schedule Interview
+          </Button>
+        )}
       </div>
 
       <InterviewToolbar
-        canManage={canManage}
         view={view}
         weekStart={weekStart}
         officeWeek={officeWeek}

@@ -46,9 +46,29 @@ const defaultWorkspaceSettings: WorkspaceSettings = {
   officeWeek: ["monday", "tuesday", "wednesday", "thursday", "friday"],
   brandingLogo: "",
   notifications: defaultNotificationSettings,
+  hiringPreferences: {
+    defaultCandidateSource: "manual",
+    defaultJobStatus: "draft",
+    resumeFileSizeLimitMb: 5,
+    allowedResumeFormats: ["PDF", "DOC", "DOCX"],
+    duplicateApplicationWarning: true,
+  },
+  security: {
+    sessionTimeoutMinutes: 15,
+    refreshTokenDurationDays: 7,
+    passwordMinLength: 6,
+    requireStrongPasswords: false,
+    twoFactorRequired: false,
+    loginActivityVisible: false,
+  },
 };
 
 const currencyOptions = ["USD", "EUR", "GBP", "INR", "AED", "CAD", "AUD", "SGD"];
+const resumeFormatOptions: Array<WorkspaceSettings["hiringPreferences"]["allowedResumeFormats"][number]> = [
+  "PDF",
+  "DOC",
+  "DOCX",
+];
 const officeDayOptions: Array<{ value: WorkspaceSettings["officeWeek"][number]; label: string }> = [
   { value: "sunday", label: "Sun" },
   { value: "monday", label: "Mon" },
@@ -76,6 +96,14 @@ const normalizeWorkspaceSettings = (settings: Partial<WorkspaceSettings> | null 
   notifications: {
     ...defaultNotificationSettings,
     ...(settings?.notifications || {}),
+  },
+  hiringPreferences: {
+    ...defaultWorkspaceSettings.hiringPreferences,
+    ...(settings?.hiringPreferences || {}),
+  },
+  security: {
+    ...defaultWorkspaceSettings.security,
+    ...(settings?.security || {}),
   },
 });
 
@@ -165,11 +193,6 @@ export default function SettingsPage() {
     void loadEmailIntegration();
   }, []);
 
-  const activeDepartments = useMemo(
-    () => departments.filter((department) => department.isActive),
-    [departments]
-  );
-
   const workspaceDirty = useMemo(() => {
     if (!initialWorkspaceSettings) {
       return false;
@@ -211,6 +234,25 @@ export default function SettingsPage() {
     });
   };
 
+  const handleResumeFormatToggle = (
+    format: WorkspaceSettings["hiringPreferences"]["allowedResumeFormats"][number],
+    checked: boolean
+  ) => {
+    setWorkspaceSettings((current) => {
+      const nextFormats = checked
+        ? Array.from(new Set([...current.hiringPreferences.allowedResumeFormats, format]))
+        : current.hiringPreferences.allowedResumeFormats.filter((entry) => entry !== format);
+
+      return {
+        ...current,
+        hiringPreferences: {
+          ...current.hiringPreferences,
+          allowedResumeFormats: nextFormats.length > 0 ? nextFormats : current.hiringPreferences.allowedResumeFormats,
+        },
+      };
+    });
+  };
+
   const handleSaveWorkspace = async () => {
     try {
       setSavingWorkspace(true);
@@ -224,6 +266,8 @@ export default function SettingsPage() {
         officeWeek: workspaceSettings.officeWeek,
         brandingLogo: workspaceSettings.brandingLogo.trim(),
         notifications: workspaceSettings.notifications,
+        hiringPreferences: workspaceSettings.hiringPreferences,
+        security: workspaceSettings.security,
       });
       const normalized = normalizeWorkspaceSettings(response.settings);
       setWorkspaceSettings(normalized);
@@ -356,23 +400,6 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Default pipeline display</Label>
-                <Select
-                  value={workspaceSettings.defaultPipelineDisplay}
-                  disabled={loadingWorkspace || savingWorkspace}
-                  onValueChange={(value) => handleWorkspaceChange("defaultPipelineDisplay", value)}
-                >
-                  <SelectTrigger className="h-11 rounded-2xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Applied -> Screening -> Interview -> Offer -> Hired">
-                      Applied → Screening → Interview → Offer → Hired
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <Label>Default timezone</Label>
                 <Select
                   value={workspaceSettings.defaultTimezone}
@@ -408,16 +435,6 @@ export default function SettingsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Branding / logo</Label>
-                <Input
-                  value={workspaceSettings.brandingLogo}
-                  disabled={loadingWorkspace || savingWorkspace}
-                  onChange={(event) => handleWorkspaceChange("brandingLogo", event.target.value)}
-                  className="h-11 rounded-2xl"
-                  placeholder="Logo URL or branding note"
-                />
               </div>
               <div className="space-y-2">
                 <Label>Office hours start</Label>
@@ -500,9 +517,7 @@ export default function SettingsPage() {
           <Card className="rounded-[28px] border border-border/80 shadow-sm">
             <CardHeader>
               <CardTitle>Departments</CardTitle>
-              <CardDescription>
-                Add departments once here, then reuse them in job creation and filters to avoid typos and reporting drift.
-              </CardDescription>
+              <CardDescription>Add and manage the department list used across jobs and forms.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
@@ -522,50 +537,31 @@ export default function SettingsPage() {
                 </Button>
               </div>
 
-              <div className="rounded-[24px] border border-border/80 bg-muted/20 p-4">
-                <p className="text-sm font-medium">Active departments</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {loadingDepartments
-                    ? "Loading department list..."
-                    : `${activeDepartments.length} active department${activeDepartments.length === 1 ? "" : "s"} available for jobs.`}
-                </p>
-              </div>
-
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {loadingDepartments ? (
                   <div className="rounded-[24px] border border-border/80 bg-muted/20 p-5 text-sm text-muted-foreground">
                     Loading departments...
                   </div>
                 ) : departments.length === 0 ? (
                   <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5 text-sm text-muted-foreground">
-                    No departments exist yet. Add your first department to start using dropdown-based selection in job forms.
+                    No departments yet.
                   </div>
                 ) : (
                   departments.map((department) => (
                     <div
                       key={department.id}
-                      className="flex flex-col gap-4 rounded-[24px] border border-border/80 bg-background/80 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                      className="flex items-center justify-between gap-3 rounded-[20px] border border-border/80 bg-background/80 px-4 py-3 shadow-sm"
                     >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium">{department.name}</p>
-                          <Badge variant={department.isActive ? "secondary" : "outline"} className="rounded-full px-2.5 py-1 text-xs">
-                            {department.isActive ? "Active" : "Archived"}
+                      <div className="min-w-0 flex items-center gap-2">
+                        <p className="truncate font-medium">{department.name}</p>
+                        {department.isLegacy && (
+                          <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[11px]">
+                            Legacy
                           </Badge>
-                          {department.isLegacy && (
-                            <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
-                              Legacy
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {department.isLegacy
-                            ? "This department exists on older job records. Recreate it here if you want full settings control."
-                            : "Used in structured job creation and downstream filtering."}
-                        </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground">Available in forms</span>
+                        <span className="text-sm text-muted-foreground">{department.isActive ? "Active" : "Archived"}</span>
                         <Switch
                           checked={department.isActive}
                           disabled={Boolean(workingDepartmentId) || department.isLegacy}
@@ -641,25 +637,100 @@ export default function SettingsPage() {
                 Hiring Preferences
               </CardTitle>
               <CardDescription>
-                These defaults reflect the current product behavior and can be connected to a settings API later.
+                Save workspace-level hiring defaults so candidate intake and job creation start from a consistent baseline.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-2">
                 <Label>Default candidate source</Label>
-                <Input value="manual" disabled className="h-11 rounded-2xl opacity-80" />
+                <Select
+                  value={workspaceSettings.hiringPreferences.defaultCandidateSource}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onValueChange={(value) =>
+                    setWorkspaceSettings((current) => ({
+                      ...current,
+                      hiringPreferences: {
+                        ...current.hiringPreferences,
+                        defaultCandidateSource: value as WorkspaceSettings["hiringPreferences"]["defaultCandidateSource"],
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-11 rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">manual</SelectItem>
+                    <SelectItem value="portal">portal</SelectItem>
+                    <SelectItem value="referral">referral</SelectItem>
+                    <SelectItem value="campus">campus</SelectItem>
+                    <SelectItem value="linkedin">linkedin</SelectItem>
+                    <SelectItem value="agency">agency</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Default job status</Label>
-                <Input value="draft" disabled className="h-11 rounded-2xl opacity-80" />
+                <Select
+                  value={workspaceSettings.hiringPreferences.defaultJobStatus}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onValueChange={(value) =>
+                    setWorkspaceSettings((current) => ({
+                      ...current,
+                      hiringPreferences: {
+                        ...current.hiringPreferences,
+                        defaultJobStatus: value as WorkspaceSettings["hiringPreferences"]["defaultJobStatus"],
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-11 rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">draft</SelectItem>
+                    <SelectItem value="open">open</SelectItem>
+                    <SelectItem value="closed">closed</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Resume file size limit</Label>
-                <Input value="5 MB" disabled className="h-11 rounded-2xl opacity-80" />
+                <Input
+                  type="number"
+                  min={1}
+                  max={25}
+                  value={workspaceSettings.hiringPreferences.resumeFileSizeLimitMb}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) =>
+                    setWorkspaceSettings((current) => ({
+                      ...current,
+                      hiringPreferences: {
+                        ...current.hiringPreferences,
+                        resumeFileSizeLimitMb: Number(event.target.value || 1),
+                      },
+                    }))
+                  }
+                  className="h-11 rounded-2xl"
+                />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 lg:col-span-2">
                 <Label>Allowed resume formats</Label>
-                <Input value="PDF, DOC, DOCX" disabled className="h-11 rounded-2xl opacity-80" />
+                <div className="flex flex-wrap gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                  {resumeFormatOptions.map((format) => (
+                    <label
+                      key={format}
+                      className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background px-3 py-2 text-sm shadow-sm"
+                    >
+                      <Switch
+                        checked={workspaceSettings.hiringPreferences.allowedResumeFormats.includes(format)}
+                        disabled={loadingWorkspace || savingWorkspace}
+                        onCheckedChange={(checked) => handleResumeFormatToggle(format, checked)}
+                      />
+                      <span>{format}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="space-y-2 lg:col-span-2">
                 <Label>Duplicate application warning</Label>
@@ -667,11 +738,39 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-medium">Warn when the same email applies to the same job</p>
                     <p className="text-sm text-muted-foreground">
-                      This behavior exists in candidate creation flow and is shown here as a workspace preference placeholder.
+                      This setting is saved now so the workspace has an explicit intake preference to enforce later.
                     </p>
                   </div>
-                  <Switch checked disabled />
+                  <Switch
+                    checked={workspaceSettings.hiringPreferences.duplicateApplicationWarning}
+                    disabled={loadingWorkspace || savingWorkspace}
+                    onCheckedChange={(checked) =>
+                      setWorkspaceSettings((current) => ({
+                        ...current,
+                        hiringPreferences: {
+                          ...current.hiringPreferences,
+                          duplicateApplicationWarning: checked,
+                        },
+                      }))
+                    }
+                  />
                 </div>
+              </div>
+              <div className="lg:col-span-2 flex flex-col gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">Save hiring preferences</p>
+                  <p className="text-sm text-muted-foreground">
+                    These defaults are saved now and can be hooked into broader enforcement and automation flows later.
+                  </p>
+                </div>
+                <Button
+                  className="h-11 rounded-2xl"
+                  disabled={loadingWorkspace || savingWorkspace || !workspaceDirty}
+                  onClick={() => void handleSaveWorkspace()}
+                >
+                  {savingWorkspace ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save hiring preferences
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -685,31 +784,147 @@ export default function SettingsPage() {
                 Security
               </CardTitle>
               <CardDescription>
-                These values are derived from the current authentication implementation and future roadmap items.
+                Save workspace security preferences now so auth behavior and admin controls have a clear policy source.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
-                <p className="font-medium">Session timeout</p>
-                <p className="mt-1 text-sm text-muted-foreground">15 minutes access token lifetime</p>
+              <div className="space-y-2">
+                <Label>Session timeout (minutes)</Label>
+                <Input
+                  type="number"
+                  min={5}
+                  max={1440}
+                  value={workspaceSettings.security.sessionTimeoutMinutes}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) =>
+                    setWorkspaceSettings((current) => ({
+                      ...current,
+                      security: {
+                        ...current.security,
+                        sessionTimeoutMinutes: Number(event.target.value || 5),
+                      },
+                    }))
+                  }
+                  className="h-11 rounded-2xl"
+                />
               </div>
-              <div className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
-                <p className="font-medium">Refresh token duration</p>
-                <p className="mt-1 text-sm text-muted-foreground">7 days rolling refresh window</p>
+              <div className="space-y-2">
+                <Label>Refresh token duration (days)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={workspaceSettings.security.refreshTokenDurationDays}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) =>
+                    setWorkspaceSettings((current) => ({
+                      ...current,
+                      security: {
+                        ...current.security,
+                        refreshTokenDurationDays: Number(event.target.value || 1),
+                      },
+                    }))
+                  }
+                  className="h-11 rounded-2xl"
+                />
               </div>
-              <div className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
-                <p className="font-medium">Password policy</p>
-                <p className="mt-1 text-sm text-muted-foreground">Minimum 6 characters, hashed before storage</p>
+              <div className="space-y-2">
+                <Label>Password minimum length</Label>
+                <Input
+                  type="number"
+                  min={6}
+                  max={32}
+                  value={workspaceSettings.security.passwordMinLength}
+                  disabled={loadingWorkspace || savingWorkspace}
+                  onChange={(event) =>
+                    setWorkspaceSettings((current) => ({
+                      ...current,
+                      security: {
+                        ...current.security,
+                        passwordMinLength: Number(event.target.value || 6),
+                      },
+                    }))
+                  }
+                  className="h-11 rounded-2xl"
+                />
               </div>
-              <div className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
-                <p className="font-medium">Two-factor authentication</p>
-                <p className="mt-1 text-sm text-muted-foreground">Planned for a future security release</p>
+              <div className="space-y-2">
+                <Label>Security controls</Label>
+                <div className="space-y-3 rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium">Require strong passwords</p>
+                      <p className="text-sm text-muted-foreground">Save a stronger password policy preference for future enforcement.</p>
+                    </div>
+                    <Switch
+                      checked={workspaceSettings.security.requireStrongPasswords}
+                      disabled={loadingWorkspace || savingWorkspace}
+                      onCheckedChange={(checked) =>
+                        setWorkspaceSettings((current) => ({
+                          ...current,
+                          security: {
+                            ...current.security,
+                            requireStrongPasswords: checked,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium">Require two-factor authentication</p>
+                      <p className="text-sm text-muted-foreground">Persist the workspace preference even before 2FA enforcement is fully rolled out.</p>
+                    </div>
+                    <Switch
+                      checked={workspaceSettings.security.twoFactorRequired}
+                      disabled={loadingWorkspace || savingWorkspace}
+                      onCheckedChange={(checked) =>
+                        setWorkspaceSettings((current) => ({
+                          ...current,
+                          security: {
+                            ...current.security,
+                            twoFactorRequired: checked,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium">Show login activity in admin UI</p>
+                      <p className="text-sm text-muted-foreground">Save whether workspace admins want a login activity surface exposed in the product.</p>
+                    </div>
+                    <Switch
+                      checked={workspaceSettings.security.loginActivityVisible}
+                      disabled={loadingWorkspace || savingWorkspace}
+                      onCheckedChange={(checked) =>
+                        setWorkspaceSettings((current) => ({
+                          ...current,
+                          security: {
+                            ...current.security,
+                            loginActivityVisible: checked,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="rounded-[22px] border border-border/80 bg-muted/20 p-4 lg:col-span-2">
-                <p className="font-medium">Login activity</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Session history and login activity auditing are not exposed in the UI yet.
-                </p>
+              <div className="lg:col-span-2 flex flex-col gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">Save security preferences</p>
+                  <p className="text-sm text-muted-foreground">
+                    These values are saved now as workspace policy settings and can later be enforced deeper in auth and admin flows.
+                  </p>
+                </div>
+                <Button
+                  className="h-11 rounded-2xl"
+                  disabled={loadingWorkspace || savingWorkspace || !workspaceDirty}
+                  onClick={() => void handleSaveWorkspace()}
+                >
+                  {savingWorkspace ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save security
+                </Button>
               </div>
             </CardContent>
           </Card>

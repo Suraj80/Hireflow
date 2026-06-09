@@ -6,6 +6,7 @@ const defaultFilters: JobsFilters = {
   search: "",
   status: "all",
   department: "all",
+  jobType: "all",
   sort: "newest",
 };
 

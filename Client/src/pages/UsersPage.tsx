@@ -37,6 +37,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/components/AuthProvider";
 import { usersApi } from "@/features/users/api";
 import { UserListItem, UserRole } from "@/features/users/types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const roleLabel: Record<UserRole, string> = {
   admin: "Admin",
@@ -90,6 +91,9 @@ function formatDate(value: string) {
 export default function UsersPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<UserListItem[]>([]);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 1500);
+  const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -124,8 +128,8 @@ export default function UsersPage() {
 
     try {
       const response = await usersApi.list({
-        search: "",
-        role: "all",
+        search: debouncedSearch.trim(),
+        role: roleFilter,
       });
       setUsers(response.items);
     } catch (loadError) {
@@ -133,7 +137,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearch, roleFilter]);
 
   useEffect(() => {
     void loadUsers();
@@ -259,6 +263,29 @@ export default function UsersPage() {
           <UserPlus className="mr-2 h-4 w-4" />
           Add new user
         </Button>
+      </div>
+
+      <div className="grid gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_220px]">
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search by name or email"
+          autoComplete="off"
+          className="h-11 rounded-2xl"
+        />
+        <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | "all")}>
+          <SelectTrigger className="h-11 rounded-2xl">
+            <SelectValue placeholder="Filter by role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All roles</SelectItem>
+            {(["admin", "recruiter", "viewer"] as UserRole[]).map((option) => (
+              <SelectItem key={option} value={option}>
+                {roleLabel[option]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (

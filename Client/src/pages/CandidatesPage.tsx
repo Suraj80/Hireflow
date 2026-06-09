@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Plus, Users2 } from "lucide-react";
+import { AlertCircle, Plus, Search, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -30,6 +30,7 @@ import {
 import { Candidate, CandidateInterviewMode, CandidateInterviewStatus, CandidateStage } from "@/features/candidates/types";
 import { RichTextEditor } from "@/features/jobs/components/RichTextEditor";
 import { TagSelector } from "@/features/jobs/components/TagSelector";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const EMPTY_CANDIDATES: Candidate[] = [];
 const EMPTY_SELECTED_IDS: string[] = [];
@@ -78,6 +79,8 @@ export default function CandidatesPage() {
     pagination,
     meta,
     selectedIds,
+    setFilters,
+    resetFilters,
     setPage,
     clearSelection,
     fetchCandidates,
@@ -106,10 +109,22 @@ export default function CandidatesPage() {
   const [bulkStage, setBulkStage] = useState<CandidateStage>("Applied");
   const [bulkRecruiter, setBulkRecruiter] = useState<string>("unassigned");
   const [working, setWorking] = useState(false);
+  const [searchInput, setSearchInput] = useState(filters.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 1500);
 
   useEffect(() => {
     void fetchCandidates();
   }, [fetchCandidates, filters, safePagination.page, safePagination.limit]);
+
+  useEffect(() => {
+    setSearchInput(filters.search);
+  }, [filters.search]);
+
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      setFilters({ search: debouncedSearch });
+    }
+  }, [debouncedSearch, filters.search, setFilters]);
 
   const selectedCandidates = useMemo(
     () => safeCandidates.filter((candidate) => safeSelectedIds.includes(candidate.id)),
@@ -321,14 +336,39 @@ export default function CandidatesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {canManageCandidates && (
-          <Button className="h-11 rounded-2xl self-start" onClick={() => navigate("/candidates/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create candidate
+      <Card className="rounded-[28px] border border-border/80 shadow-sm">
+        <CardContent className="flex flex-col gap-3 p-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="relative xl:w-[320px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search name, email, phone"
+                className="h-11 rounded-2xl pl-9"
+                autoComplete="off"
+              />
+            </div>
+            <Select value={filters.department} onValueChange={(value) => setFilters({ department: value })}>
+              <SelectTrigger className="h-11 rounded-2xl xl:w-[220px]">
+                <SelectValue placeholder="Department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All departments</SelectItem>
+                {safeMeta.departments.map((department) => (
+                  <SelectItem key={department} value={department}>
+                    {department}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="button" variant="ghost" className="rounded-2xl xl:shrink-0" onClick={resetFilters}>
+            Reset filters
           </Button>
-        )}
-      </div>
+        </CardContent>
+      </Card>
+
       {safeSelectedIds.length > 0 && canManageCandidates && (
         <Card className="rounded-[28px] border border-primary/20 bg-primary/5 shadow-sm">
           <CardContent className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto]">
@@ -546,7 +586,7 @@ export default function CandidatesPage() {
           <p className="text-sm text-muted-foreground">
             Page {safePagination.page} of {safePagination.totalPages} | {safePagination.total} total candidates
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               className="rounded-2xl"
@@ -563,6 +603,12 @@ export default function CandidatesPage() {
             >
               Next
             </Button>
+            {canManageCandidates && (
+              <Button className="rounded-2xl" onClick={() => navigate("/candidates/new")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create candidate
+              </Button>
+            )}
           </div>
         </div>
       )}

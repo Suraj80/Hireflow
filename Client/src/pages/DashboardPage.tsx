@@ -2,11 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertCircle,
-  BriefcaseBusiness,
-  CalendarClock,
-  CheckCircle2,
-  GitBranch,
-  Users2,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -86,31 +81,26 @@ export default function DashboardPage() {
         label: "Total Candidates",
         value: formatDashboardNumber(overview.totalCandidates),
         helper: `${formatDashboardNumber(overview.candidatesInInterview)} in interview stage`,
-        icon: Users2,
       },
       {
         label: "Active Jobs",
         value: formatDashboardNumber(overview.activeJobs),
         helper: `${formatDashboardNumber(overview.openJobs)} open for applications`,
-        icon: BriefcaseBusiness,
       },
       {
         label: "Pending Applications",
         value: formatDashboardNumber(overview.pendingApplications),
         helper: "Fresh applications waiting for first review",
-        icon: GitBranch,
       },
       {
         label: "Upcoming Interviews",
         value: formatDashboardNumber(overview.upcomingInterviewsCount),
         helper: "Scheduled over the next 7 days",
-        icon: CalendarClock,
       },
       {
         label: "Hired This Month",
         value: formatDashboardNumber(overview.hiredThisMonth),
         helper: "Candidates that reached hired this month",
-        icon: CheckCircle2,
       },
     ];
   }, [overview]);
@@ -147,16 +137,13 @@ export default function DashboardPage() {
             {kpis.map((item) => (
               <Card key={item.label} className="rounded-[28px] border border-border/80 shadow-sm">
                 <CardContent className="p-5">
-                  <div className="mb-4 flex items-center justify-between gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-                      <item.icon className="h-5 w-5 text-primary" />
-                    </div>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">{item.label}</p>
                     <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
                       Live
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">{item.label}</p>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight">{item.value}</p>
+                  <p className="text-3xl font-semibold tracking-tight">{item.value}</p>
                   <p className="mt-2 text-xs text-muted-foreground">{item.helper}</p>
                 </CardContent>
               </Card>

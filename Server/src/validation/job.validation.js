@@ -116,6 +116,7 @@ const jobsQuerySchema = z.object({
   search: z.string().trim().max(120).optional().default(""),
   status: z.enum(["all", ...jobStatuses]).optional().default("all"),
   department: z.string().trim().max(80).optional().default("all"),
+  type: z.enum(["all", ...employmentTypes]).optional().default("all"),
   sort: z.enum(["newest", "oldest", "deadline"]).optional().default("newest"),
   includeArchived: z
     .union([z.literal("true"), z.literal("false"), z.boolean()])
