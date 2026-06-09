@@ -83,6 +83,13 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Jobs</h1>
+        <p className="mt-1 text-muted-foreground">
+          Manage active openings, review job coverage, and keep hiring plans organized.
+        </p>
+      </div>
+
       <JobFilters
         filters={filters}
         departments={availableDepartments}

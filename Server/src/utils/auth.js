@@ -36,14 +36,24 @@ const sanitizeUser = (user) => ({
   lastLoginAt: user.lastLoginAt || null,
 });
 
-const signAccessToken = (user) =>
+const getAccessTokenExpiresIn = (securitySettings) =>
+  securitySettings?.sessionTimeoutMinutes
+    ? `${securitySettings.sessionTimeoutMinutes}m`
+    : ACCESS_TOKEN_EXPIRES_IN;
+
+const getRefreshTokenExpiresIn = (securitySettings) =>
+  securitySettings?.refreshTokenDurationDays
+    ? `${securitySettings.refreshTokenDurationDays}d`
+    : REFRESH_TOKEN_EXPIRES_IN;
+
+const signAccessToken = (user, securitySettings = null) =>
   jwt.sign({ id: user._id, role: user.role }, ACCESS_TOKEN_SECRET, {
-    expiresIn: ACCESS_TOKEN_EXPIRES_IN,
+    expiresIn: getAccessTokenExpiresIn(securitySettings),
   });
 
-const signRefreshToken = (user, tokenId) =>
+const signRefreshToken = (user, tokenId, securitySettings = null) =>
   jwt.sign({ id: user._id, role: user.role, tokenId }, REFRESH_TOKEN_SECRET, {
-    expiresIn: REFRESH_TOKEN_EXPIRES_IN,
+    expiresIn: getRefreshTokenExpiresIn(securitySettings),
   });
 
 const verifyRefreshToken = (token) => jwt.verify(token, REFRESH_TOKEN_SECRET);
@@ -52,15 +62,17 @@ const hashToken = (token) => crypto.createHash("sha256").update(token).digest("h
 
 const generateTokenId = () => crypto.randomBytes(32).toString("hex");
 
-const getRefreshTokenExpiryDate = () =>
-  new Date(Date.now() + parseDurationToMs(REFRESH_TOKEN_EXPIRES_IN, 7 * 24 * 60 * 60 * 1000));
+const getRefreshTokenExpiryDate = (securitySettings = null) =>
+  new Date(
+    Date.now() + parseDurationToMs(getRefreshTokenExpiresIn(securitySettings), 7 * 24 * 60 * 60 * 1000)
+  );
 
-const getRefreshCookieOptions = () => ({
+const getRefreshCookieOptions = (securitySettings = null) => ({
   httpOnly: true,
   secure: process.env.COOKIE_SECURE === "true",
   sameSite: "lax",
   path: "/api/auth",
-  maxAge: parseDurationToMs(REFRESH_TOKEN_EXPIRES_IN, 7 * 24 * 60 * 60 * 1000),
+  maxAge: parseDurationToMs(getRefreshTokenExpiresIn(securitySettings), 7 * 24 * 60 * 60 * 1000),
 });
 
 module.exports = {

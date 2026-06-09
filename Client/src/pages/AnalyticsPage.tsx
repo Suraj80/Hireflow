@@ -17,7 +17,6 @@ import {
   Activity,
   AlertCircle,
   BriefcaseBusiness,
-  CalendarClock,
   TrendingUp,
   Users2,
 } from "lucide-react";
@@ -31,7 +30,6 @@ import { analyticsApi } from "@/features/analytics/api";
 import {
   analyticsChartColors,
   formatCompact,
-  formatInterviewDate,
   formatNumber,
   formatPercent,
   getEmptyChartMessage,
@@ -41,7 +39,6 @@ import {
   PipelineAnalyticsItem,
   SourceAnalyticsItem,
   TimeToHireResponse,
-  UpcomingInterviewsResponse,
 } from "@/features/analytics/types";
 import { candidatesApi } from "@/features/candidates/api";
 import { CandidateJobSummary } from "@/features/candidates/types";
@@ -80,7 +77,6 @@ export default function AnalyticsPage() {
   const [pipeline, setPipeline] = useState<PipelineAnalyticsItem[]>([]);
   const [sources, setSources] = useState<SourceAnalyticsItem[]>([]);
   const [timeToHire, setTimeToHire] = useState<TimeToHireResponse | null>(null);
-  const [interviews, setInterviews] = useState<UpcomingInterviewsResponse | null>(null);
   const [jobs, setJobs] = useState<CandidateJobSummary[]>([]);
   const [jobId, setJobId] = useState("all");
   const [datePreset, setDatePreset] = useState("all");
@@ -131,14 +127,13 @@ export default function AnalyticsPage() {
 
     try {
       const overviewParams = jobId !== "all" ? { jobId } : {};
-      const [meta, overviewResponse, pipelineResponse, sourcesResponse, timeToHireResponse, interviewsResponse] =
+      const [meta, overviewResponse, pipelineResponse, sourcesResponse, timeToHireResponse] =
         await Promise.all([
           candidatesApi.meta(),
           analyticsApi.overview(overviewParams),
           analyticsApi.pipeline(queryParams),
           analyticsApi.sources(queryParams),
           analyticsApi.timeToHire(queryParams),
-          analyticsApi.interviews(queryParams),
         ]);
 
       setJobs(meta.jobs);
@@ -146,7 +141,6 @@ export default function AnalyticsPage() {
       setPipeline(pipelineResponse.items);
       setSources(sourcesResponse.items);
       setTimeToHire(timeToHireResponse);
-      setInterviews(interviewsResponse);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load analytics");
     } finally {
@@ -396,41 +390,6 @@ export default function AnalyticsPage() {
                   </>
                 ) : (
                   <EmptyChartState message="Not enough hiring data yet." />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[28px] border border-border/80 shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle>Upcoming Interviews</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Scheduled interviews over the next 7 days.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {interviews && interviews.items.length > 0 ? (
-                  interviews.items.map((item) => (
-                    <div key={item.id} className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold">{item.candidateName}</p>
-                          <p className="text-sm text-muted-foreground">{item.jobTitle}</p>
-                        </div>
-                        <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
-                          {item.mode}
-                        </Badge>
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span>{formatInterviewDate(item.scheduledAt)}</span>
-                        <span>&bull;</span>
-                        <span>{item.round}</span>
-                        <span>&bull;</span>
-                        <span>{item.status}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <EmptyChartState message="No interviews are scheduled in the next 7 days." />
                 )}
               </CardContent>
             </Card>

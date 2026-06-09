@@ -5,6 +5,7 @@ const Job = require("../models/Job");
 const User = require("../models/User");
 const { getMergedDepartments } = require("./department.controller");
 const { createAuditLog } = require("../services/audit.service");
+const { getHiringPreferences } = require("../services/workspace-settings.service");
 const {
   jobCreateSchema,
   jobsQuerySchema,
@@ -273,7 +274,14 @@ const createJob = async (req, res) => {
   }
 
   try {
-    const payload = parsedBody.data;
+    const hiringPreferences = await getHiringPreferences();
+    const payload = {
+      ...parsedBody.data,
+      status:
+        typeof req.body.status === "undefined"
+          ? hiringPreferences.defaultJobStatus || "draft"
+          : parsedBody.data.status,
+    };
     const [departmentAllowed, hiringManagerRecord] = await Promise.all([
       isDepartmentAllowed(payload.department),
       getHiringManagerRecord(payload.hiringManagerId),

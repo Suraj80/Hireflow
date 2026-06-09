@@ -186,7 +186,6 @@ const offerSchema = new mongoose.Schema(
   }
 );
 
-offerSchema.index({ publicToken: 1 }, { unique: true });
 offerSchema.index({ candidateId: 1, createdAt: -1 });
 offerSchema.index({ status: 1, expiresAt: 1 });
 

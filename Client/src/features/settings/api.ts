@@ -1,5 +1,9 @@
 import { api } from "@/lib/api";
-import { EmailIntegrationStatus, WorkspaceSettings } from "@/features/settings/types";
+import {
+  EmailIntegrationStatus,
+  SettingsIntegrationStatuses,
+  WorkspaceSettings,
+} from "@/features/settings/types";
 
 export const settingsApi = {
   getWorkspace: async () => {
@@ -12,6 +16,10 @@ export const settingsApi = {
   },
   getEmailIntegration: async () => {
     const response = await api.get<EmailIntegrationStatus>("/settings/integrations/email");
+    return response.data;
+  },
+  getIntegrationStatuses: async () => {
+    const response = await api.get<SettingsIntegrationStatuses>("/settings/integrations/status");
     return response.data;
   },
   sendTestEmail: async (email?: string) => {

@@ -336,6 +336,13 @@ export default function CandidatesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
+        <p className="mt-1 text-muted-foreground">
+          Review talent, manage pipeline movement, and keep candidate activity in one place.
+        </p>
+      </div>
+
       <Card className="rounded-[28px] border border-border/80 shadow-sm">
         <CardContent className="flex flex-col gap-3 p-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">

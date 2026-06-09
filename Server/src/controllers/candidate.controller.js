@@ -18,7 +18,6 @@ const {
   interviewModeOptions,
   interviewStatusOptions,
   priorityOptions,
-  resumeUploadRequestSchema,
   sourceOptions,
   stageOptions,
   statusOptions,
@@ -34,6 +33,11 @@ const {
   parseResumeCandidateData,
 } = require("../services/resumeImport.service");
 const { queueCandidateResumeScoring } = require("../services/resumeScoring.service");
+const {
+  getHiringPreferences,
+  getResumeUploadPolicy,
+  validateResumeUpload,
+} = require("../services/workspace-settings.service");
 
 const buildValidationError = (issues) => ({
   message: "Validation failed",
@@ -611,7 +615,14 @@ const createCandidate = async (req, res) => {
   }
 
   try {
-    const payload = parsedBody.data;
+    const hiringPreferences = await getHiringPreferences();
+    const payload = {
+      ...parsedBody.data,
+      source:
+        parsedBody.data.source && parsedBody.data.source.length
+          ? parsedBody.data.source
+          : hiringPreferences.defaultCandidateSource || "manual",
+    };
     const job = await Job.findById(payload.jobId);
 
     if (!job || job.archived) {
@@ -691,7 +702,7 @@ const createCandidate = async (req, res) => {
         includeNotes: true,
         viewerUser: req.user,
       }),
-      duplicateWarning: duplicate
+      duplicateWarning: duplicate && hiringPreferences.duplicateApplicationWarning
         ? {
             candidateId: duplicate._id,
             name: duplicate.name,
@@ -1425,15 +1436,12 @@ const requestResumeUploadUrl = async (req, res) => {
     return res.status(400).json({ message: "Resume file is required" });
   }
 
-  const parsedBody = resumeUploadRequestSchema.safeParse({
-    filename: req.file.originalname,
-    contentType: req.file.mimetype,
-    size: req.file.size,
-  });
+  const resumePolicy = await getResumeUploadPolicy();
+  const resumeValidationError = validateResumeUpload(req.file, resumePolicy);
 
-  if (!parsedBody.success) {
+  if (resumeValidationError) {
     fs.unlink(req.file.path, () => undefined);
-    return res.status(400).json(buildValidationError(parsedBody.error.issues));
+    return res.status(400).json({ message: resumeValidationError });
   }
 
   let parsedCandidate = null;
@@ -1472,18 +1480,15 @@ const applyToJobPublic = async (req, res) => {
     return res.status(400).json(buildValidationError(parsedBody.error.issues));
   }
 
-  const parsedResume = resumeUploadRequestSchema.safeParse({
-    filename: req.file.originalname,
-    contentType: req.file.mimetype,
-    size: req.file.size,
-  });
-
-  if (!parsedResume.success) {
-    fs.unlink(req.file.path, () => undefined);
-    return res.status(400).json(buildValidationError(parsedResume.error.issues));
-  }
-
   try {
+    const resumePolicy = await getResumeUploadPolicy();
+    const resumeValidationError = validateResumeUpload(req.file, resumePolicy);
+
+    if (resumeValidationError) {
+      fs.unlink(req.file.path, () => undefined);
+      return res.status(400).json({ message: resumeValidationError });
+    }
+
     const job = await Job.findById(req.params.jobId).populate("createdBy", "name email role");
 
     if (!job || job.archived || job.status !== "open" || job.visibility !== "public") {

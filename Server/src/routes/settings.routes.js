@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   getEmailIntegrationSettings,
+  getIntegrationStatuses,
   getSettings,
   sendTestEmail,
   updateSettings,
@@ -11,6 +12,7 @@ const router = express.Router();
 
 router.get("/", protect, requireRole("admin"), getSettings);
 router.patch("/", protect, requireRole("admin"), updateSettings);
+router.get("/integrations/status", protect, requireRole("admin"), getIntegrationStatuses);
 router.get("/integrations/email", protect, requireRole("admin"), getEmailIntegrationSettings);
 router.post("/integrations/email/test", protect, requireRole("admin"), sendTestEmail);
 

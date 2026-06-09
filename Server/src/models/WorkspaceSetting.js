@@ -140,6 +140,61 @@ const workspaceSettingSchema = new mongoose.Schema(
         default: false,
       },
     },
+    integrations: {
+      resumeStorage: {
+        provider: {
+          type: String,
+          trim: true,
+          enum: ["local", "s3"],
+          default: "local",
+        },
+        s3Bucket: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        s3Region: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        s3BasePath: {
+          type: String,
+          trim: true,
+          default: "resumes/",
+        },
+      },
+      aiScoring: {
+        provider: {
+          type: String,
+          trim: true,
+          enum: ["disabled", "openai"],
+          default: "openai",
+        },
+        model: {
+          type: String,
+          trim: true,
+          default: "gpt-4.1-mini",
+        },
+      },
+      calendar: {
+        provider: {
+          type: String,
+          trim: true,
+          enum: ["none", "google", "outlook"],
+          default: "none",
+        },
+        enabled: {
+          type: Boolean,
+          default: false,
+        },
+        organizerEmail: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

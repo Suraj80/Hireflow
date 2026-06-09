@@ -1,48 +1,15 @@
 const { z } = require("zod");
-const WorkspaceSetting = require("../models/WorkspaceSetting");
 const User = require("../models/User");
 const { createAuditLog } = require("../services/audit.service");
 const {
   buildEmailIntegrationStatus,
   sendTransactionalEmail,
 } = require("../services/email.service");
-
-const DEFAULT_WORKSPACE_SETTINGS = {
-  workspaceName: "HireFlow Workspace",
-  companyName: "HireFlow Labs",
-  defaultPipelineDisplay: "Applied -> Screening -> Interview -> Offer -> Hired",
-  defaultTimezone: "Asia/Kolkata",
-  defaultCurrency: "USD",
-  officeHours: {
-    start: "09:00",
-    end: "18:00",
-  },
-  officeWeek: ["monday", "tuesday", "wednesday", "thursday", "friday"],
-  brandingLogo: "",
-  notifications: {
-    email: true,
-    inApp: true,
-    newApplications: true,
-    interviewReminders: true,
-    stageChanges: true,
-    dailyDigest: false,
-  },
-  hiringPreferences: {
-    defaultCandidateSource: "manual",
-    defaultJobStatus: "draft",
-    resumeFileSizeLimitMb: 5,
-    allowedResumeFormats: ["PDF", "DOC", "DOCX"],
-    duplicateApplicationWarning: true,
-  },
-  security: {
-    sessionTimeoutMinutes: 15,
-    refreshTokenDurationDays: 7,
-    passwordMinLength: 6,
-    requireStrongPasswords: false,
-    twoFactorRequired: false,
-    loginActivityVisible: false,
-  },
-};
+const {
+  buildIntegrationStatuses,
+  ensureWorkspaceSettings,
+  normalizeWorkspaceSettingsResponse,
+} = require("../services/workspace-settings.service");
 
 const weekdayOptions = [
   "sunday",
@@ -106,6 +73,23 @@ const workspaceSettingsSchema = z.object({
     twoFactorRequired: z.boolean().default(false),
     loginActivityVisible: z.boolean().default(false),
   }),
+  integrations: z.object({
+    resumeStorage: z.object({
+      provider: z.enum(["local", "s3"]).default("local"),
+      s3Bucket: z.string().trim().max(120).default(""),
+      s3Region: z.string().trim().max(80).default(""),
+      s3BasePath: z.string().trim().max(120).default("resumes/"),
+    }),
+    aiScoring: z.object({
+      provider: z.enum(["disabled", "openai"]).default("openai"),
+      model: z.string().trim().min(2).max(80).default("gpt-4.1-mini"),
+    }),
+    calendar: z.object({
+      provider: z.enum(["none", "google", "outlook"]).default("none"),
+      enabled: z.boolean().default(false),
+      organizerEmail: z.string().trim().email().or(z.literal("")).default(""),
+    }),
+  }),
 });
 
 const buildValidationError = (issues) => ({
@@ -120,64 +104,10 @@ const testEmailSchema = z.object({
   email: z.string().trim().email().optional(),
 });
 
-const normalizeSettingsResponse = (settings) => ({
-  workspaceName: settings.workspaceName,
-  companyName: settings.companyName,
-  defaultPipelineDisplay: settings.defaultPipelineDisplay,
-  defaultTimezone: settings.defaultTimezone,
-  defaultCurrency: settings.defaultCurrency,
-  officeHours: {
-    start: settings.officeHours?.start || "09:00",
-    end: settings.officeHours?.end || "18:00",
-  },
-  officeWeek:
-    settings.officeWeek?.length
-      ? settings.officeWeek
-      : ["monday", "tuesday", "wednesday", "thursday", "friday"],
-  brandingLogo: settings.brandingLogo || "",
-  notifications: {
-    email: settings.notifications?.email ?? true,
-    inApp: settings.notifications?.inApp ?? true,
-    newApplications: settings.notifications?.newApplications ?? true,
-    interviewReminders: settings.notifications?.interviewReminders ?? true,
-    stageChanges: settings.notifications?.stageChanges ?? true,
-    dailyDigest: settings.notifications?.dailyDigest ?? false,
-  },
-  hiringPreferences: {
-    defaultCandidateSource: settings.hiringPreferences?.defaultCandidateSource || "manual",
-    defaultJobStatus: settings.hiringPreferences?.defaultJobStatus || "draft",
-    resumeFileSizeLimitMb: settings.hiringPreferences?.resumeFileSizeLimitMb ?? 5,
-    allowedResumeFormats:
-      settings.hiringPreferences?.allowedResumeFormats?.length
-        ? settings.hiringPreferences.allowedResumeFormats
-        : ["PDF", "DOC", "DOCX"],
-    duplicateApplicationWarning: settings.hiringPreferences?.duplicateApplicationWarning ?? true,
-  },
-  security: {
-    sessionTimeoutMinutes: settings.security?.sessionTimeoutMinutes ?? 15,
-    refreshTokenDurationDays: settings.security?.refreshTokenDurationDays ?? 7,
-    passwordMinLength: settings.security?.passwordMinLength ?? 6,
-    requireStrongPasswords: settings.security?.requireStrongPasswords ?? false,
-    twoFactorRequired: settings.security?.twoFactorRequired ?? false,
-    loginActivityVisible: settings.security?.loginActivityVisible ?? false,
-  },
-  updatedAt: settings.updatedAt || null,
-});
-
-const ensureWorkspaceSettings = async () => {
-  let settings = await WorkspaceSetting.findOne();
-
-  if (!settings) {
-    settings = await WorkspaceSetting.create(DEFAULT_WORKSPACE_SETTINGS);
-  }
-
-  return settings;
-};
-
 const getSettings = async (_req, res) => {
   try {
     const settings = await ensureWorkspaceSettings();
-    return res.status(200).json(normalizeSettingsResponse(settings));
+    return res.status(200).json(normalizeWorkspaceSettingsResponse(settings));
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -218,13 +148,22 @@ const updateSettings = async (req, res) => {
         notifications: settings.notifications,
         hiringPreferences: settings.hiringPreferences,
         security: settings.security,
+        integrations: settings.integrations,
       },
     });
 
     return res.status(200).json({
       message: "Workspace settings updated successfully",
-      settings: normalizeSettingsResponse(settings),
+      settings: normalizeWorkspaceSettingsResponse(settings),
     });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const getIntegrationStatuses = async (_req, res) => {
+  try {
+    return res.status(200).json(await buildIntegrationStatuses());
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -316,6 +255,7 @@ const sendTestEmail = async (req, res) => {
 
 module.exports = {
   getEmailIntegrationSettings,
+  getIntegrationStatuses,
   getSettings,
   sendTestEmail,
   updateSettings,

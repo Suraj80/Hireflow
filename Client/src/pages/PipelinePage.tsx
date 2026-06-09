@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { AlertCircle, Brain, GripVertical, Mail, Phone, Users2 } from "lucide-react";
+import { AlertCircle, Brain, GripVertical, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -9,10 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StageBadge } from "@/features/candidates/components/StageBadge";
 import {
-  formatRelative,
-  formatShortDate,
   getCandidateInitials,
   groupCandidatesByStage,
   scoreToneClass,
@@ -254,8 +251,6 @@ export default function PipelinePage() {
                   }}
                 >
                   {stageCandidates.map((candidate) => {
-                    const detailLine = candidate.phone || candidate.email;
-
                     return (
                       <Card
                         key={candidate.id}
@@ -290,37 +285,21 @@ export default function PipelinePage() {
                                 {canMoveCandidates && <GripVertical className="mt-0.5 h-4 w-4 text-muted-foreground" />}
                               </div>
                               <div className="mt-3 flex flex-wrap gap-2">
-                                <StageBadge stage={candidate.stage} />
                                 {typeof candidate.aiScore === "number" && (
                                   <Badge variant="outline" className={`rounded-full border px-2.5 py-1 text-xs ${scoreToneClass(candidate.aiScore)}`}>
                                     <Brain className="mr-1 h-3 w-3" />
                                     {candidate.aiScore}
                                   </Badge>
                                 )}
+                                {candidate.job?.department && (
+                                  <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
+                                    {candidate.job.department}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </div>
 
-                          <div className="grid gap-2 text-xs text-muted-foreground">
-                            <div className="flex items-center justify-between gap-3">
-                              <span>Applied</span>
-                              <span className="font-medium text-foreground">{formatShortDate(candidate.createdAt)}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span>Updated</span>
-                              <span className="font-medium text-foreground">{formatRelative(candidate.updatedAt)}</span>
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl bg-muted/50 p-3 text-xs">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              {candidate.phone ? <Phone className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
-                              <span className="truncate">{detailLine}</span>
-                            </div>
-                            {candidate.job?.department && (
-                              <p className="mt-2 truncate text-muted-foreground">{candidate.job.department}</p>
-                            )}
-                          </div>
                         </CardContent>
                       </Card>
                     );

@@ -35,6 +35,23 @@ export type WorkspaceSettings = {
     twoFactorRequired: boolean;
     loginActivityVisible: boolean;
   };
+  integrations: {
+    resumeStorage: {
+      provider: "local" | "s3";
+      s3Bucket: string;
+      s3Region: string;
+      s3BasePath: string;
+    };
+    aiScoring: {
+      provider: "disabled" | "openai";
+      model: string;
+    };
+    calendar: {
+      provider: "none" | "google" | "outlook";
+      enabled: boolean;
+      organizerEmail: string;
+    };
+  };
   updatedAt?: string | null;
 };
 
@@ -47,4 +64,34 @@ export type EmailIntegrationStatus = {
   senderName: string;
   replyToEmail: string;
   hasApiKey: boolean;
+};
+
+export type SettingsIntegrationStatuses = {
+  resumeStorage: {
+    provider: "local" | "s3";
+    configured: boolean;
+    ready: boolean;
+    mode: "active" | "needs-credentials" | "needs-config";
+    message: string;
+    s3Bucket: string;
+    s3Region: string;
+    s3BasePath: string;
+  };
+  aiScoring: {
+    provider: "disabled" | "openai";
+    configured: boolean;
+    ready: boolean;
+    mode: "active" | "disabled" | "needs-credentials";
+    model: string;
+    message: string;
+  };
+  calendar: {
+    provider: "none" | "google" | "outlook";
+    enabled: boolean;
+    configured: boolean;
+    ready: boolean;
+    mode: "disabled" | "manual" | "needs-config";
+    organizerEmail: string;
+    message: string;
+  };
 };

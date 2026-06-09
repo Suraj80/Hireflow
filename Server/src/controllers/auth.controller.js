@@ -12,20 +12,24 @@ const {
   verifyRefreshToken,
 } = require("../utils/auth");
 const { createAuditLog } = require("../services/audit.service");
+const {
+  getSecuritySettings,
+  validatePasswordAgainstPolicy,
+} = require("../services/workspace-settings.service");
 
-const issueSession = async (res, user, rotatedFrom = null) => {
+const issueSession = async (res, user, securitySettings, rotatedFrom = null) => {
   const tokenId = generateTokenId();
-  const accessToken = signAccessToken(user);
-  const refreshToken = signRefreshToken(user, tokenId);
+  const accessToken = signAccessToken(user, securitySettings);
+  const refreshToken = signRefreshToken(user, tokenId, securitySettings);
 
   await RefreshToken.create({
     userId: user._id,
     tokenHash: hashToken(refreshToken),
-    expiresAt: getRefreshTokenExpiryDate(),
+    expiresAt: getRefreshTokenExpiryDate(securitySettings),
     rotatedFrom,
   });
 
-  res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, getRefreshCookieOptions());
+  res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, getRefreshCookieOptions(securitySettings));
 
   return accessToken;
 };
@@ -40,9 +44,15 @@ const register = async (req, res) => {
     }
 
     const { name, email, password } = req.body;
+    const securitySettings = await getSecuritySettings();
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required" });
+    }
+
+    const passwordPolicyError = validatePasswordAgainstPolicy(password, securitySettings);
+    if (passwordPolicyError) {
+      return res.status(400).json({ message: passwordPolicyError });
     }
 
     const user = await User.create({
@@ -52,7 +62,7 @@ const register = async (req, res) => {
       role: "admin",
       lastLoginAt: new Date(),
     });
-    const accessToken = await issueSession(res, user);
+    const accessToken = await issueSession(res, user, securitySettings);
 
     await createAuditLog({
       req,
@@ -83,6 +93,7 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const securitySettings = await getSecuritySettings();
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
@@ -105,7 +116,7 @@ const login = async (req, res) => {
     user.lastLoginAt = new Date();
     await user.save();
 
-    const accessToken = await issueSession(res, user);
+    const accessToken = await issueSession(res, user, securitySettings);
 
     await createAuditLog({
       req,
@@ -136,6 +147,7 @@ const login = async (req, res) => {
 const refresh = async (req, res) => {
   try {
     const token = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+    const securitySettings = await getSecuritySettings();
 
     if (!token) {
       return res.status(401).json({ message: "Refresh token missing" });
@@ -145,7 +157,7 @@ const refresh = async (req, res) => {
     try {
       decoded = verifyRefreshToken(token);
     } catch (error) {
-      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions());
+      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions(securitySettings));
       return res.status(401).json({ message: "Refresh token invalid" });
     }
 
@@ -158,25 +170,25 @@ const refresh = async (req, res) => {
     });
 
     if (!existingToken) {
-      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions());
+      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions(securitySettings));
       return res.status(401).json({ message: "Refresh token expired or revoked" });
     }
 
     const user = await User.findById(decoded.id);
     if (!user) {
       await RefreshToken.findByIdAndUpdate(existingToken._id, { revokedAt: new Date() });
-      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions());
+      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions(securitySettings));
       return res.status(401).json({ message: "User not found" });
     }
 
     if (user.isActive === false) {
       await RefreshToken.findByIdAndUpdate(existingToken._id, { revokedAt: new Date() });
-      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions());
+      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions(securitySettings));
       return res.status(403).json({ message: "This account has been deactivated. Contact your administrator." });
     }
 
     await RefreshToken.findByIdAndUpdate(existingToken._id, { revokedAt: new Date() });
-    const accessToken = await issueSession(res, user, existingToken._id);
+    const accessToken = await issueSession(res, user, securitySettings, existingToken._id);
 
     return res.status(200).json({ accessToken });
   } catch (error) {
@@ -187,6 +199,7 @@ const refresh = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const token = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+    const securitySettings = await getSecuritySettings();
     const actor = req.user
       ? {
           id: req.user.id,
@@ -218,7 +231,7 @@ const logout = async (req, res) => {
       });
     }
 
-    res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions());
+    res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getRefreshCookieOptions(securitySettings));
     return res.status(204).send();
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -245,6 +258,7 @@ const me = async (req, res) => {
 const updateMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("+password");
+    const securitySettings = await getSecuritySettings();
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -264,8 +278,9 @@ const updateMe = async (req, res) => {
     user.name = nextName;
 
     if (newPassword) {
-      if (newPassword.length < 6) {
-        return res.status(400).json({ message: "New password must be at least 6 characters" });
+      const passwordPolicyError = validatePasswordAgainstPolicy(newPassword, securitySettings);
+      if (passwordPolicyError) {
+        return res.status(400).json({ message: passwordPolicyError });
       }
 
       if (!currentPassword) {

@@ -11,7 +11,7 @@ const {
 
 const controllerPath = path.join(__dirname, "../src/controllers/candidate.controller.js");
 
-test("updateCandidateStage moves the candidate and triggers notification/email side effects", async () => {
+test("updateCandidateStage moves the candidate and triggers notification/email side effects", { concurrency: false }, async () => {
   const candidateId = "507f1f77bcf86cd799439011";
   const jobId = "507f1f77bcf86cd799439012";
   const recruiterId = "507f1f77bcf86cd799439013";
@@ -151,6 +151,26 @@ test("updateCandidateStage moves the candidate and triggers notification/email s
       extractResumeTextFromFile: createSpy(async () => ""),
       parseResumeCandidateData: createSpy(() => null),
     },
+    "../services/workspace-settings.service": {
+      getHiringPreferences: createSpy(async () => ({
+        defaultCandidateSource: "manual",
+        defaultJobStatus: "draft",
+        resumeFileSizeLimitMb: 5,
+        allowedResumeFormats: ["PDF", "DOC", "DOCX"],
+        duplicateApplicationWarning: true,
+      })),
+      getResumeUploadPolicy: createSpy(async () => ({
+        allowedFormats: ["PDF", "DOC", "DOCX"],
+        allowedMimeTypes: [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ],
+        maxSizeMb: 5,
+        maxSizeBytes: 5 * 1024 * 1024,
+      })),
+      validateResumeUpload: createSpy(() => null),
+    },
   });
 
   try {
@@ -189,7 +209,7 @@ test("updateCandidateStage moves the candidate and triggers notification/email s
   }
 });
 
-test("checkDuplicateCandidate returns a normalized duplicate when the candidate already exists for the job", async () => {
+test("checkDuplicateCandidate returns a normalized duplicate when the candidate already exists for the job", { concurrency: false }, async () => {
   const candidateId = "507f1f77bcf86cd799439101";
   const jobId = "507f1f77bcf86cd799439102";
   const recruiterId = "507f1f77bcf86cd799439103";
@@ -285,6 +305,18 @@ test("checkDuplicateCandidate returns a normalized duplicate when the candidate 
       find: createSpy(() => createQuery([])),
     },
     "../models/Job": {},
+    "../models/WorkspaceSetting": {
+      findOne: createSpy(async () => ({
+        hiringPreferences: {
+          defaultCandidateSource: "manual",
+          defaultJobStatus: "draft",
+          resumeFileSizeLimitMb: 5,
+          allowedResumeFormats: ["PDF", "DOC", "DOCX"],
+          duplicateApplicationWarning: true,
+        },
+      })),
+      create: createSpy(async () => null),
+    },
     "../models/User": {},
     "../services/audit.service": { createAuditLog: createSpy(async () => undefined) },
     "../services/email.service": { sendCandidateStageChangeEmail: createSpy(async () => undefined) },
@@ -298,6 +330,26 @@ test("checkDuplicateCandidate returns a normalized duplicate when the candidate 
     "../services/resumeImport.service": {
       extractResumeTextFromFile: createSpy(async () => ""),
       parseResumeCandidateData: createSpy(() => null),
+    },
+    "../services/workspace-settings.service": {
+      getHiringPreferences: createSpy(async () => ({
+        defaultCandidateSource: "manual",
+        defaultJobStatus: "draft",
+        resumeFileSizeLimitMb: 5,
+        allowedResumeFormats: ["PDF", "DOC", "DOCX"],
+        duplicateApplicationWarning: true,
+      })),
+      getResumeUploadPolicy: createSpy(async () => ({
+        allowedFormats: ["PDF", "DOC", "DOCX"],
+        allowedMimeTypes: [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ],
+        maxSizeMb: 5,
+        maxSizeBytes: 5 * 1024 * 1024,
+      })),
+      validateResumeUpload: createSpy(() => null),
     },
   });
 
@@ -325,7 +377,7 @@ test("checkDuplicateCandidate returns a normalized duplicate when the candidate 
   }
 });
 
-test("applyToJobPublic creates a candidate, queues AI scoring, and triggers new application notifications", async () => {
+test("applyToJobPublic creates a candidate, queues AI scoring, and triggers new application notifications", { concurrency: false }, async () => {
   const jobId = "507f1f77bcf86cd799439111";
   const creatorId = "507f1f77bcf86cd799439112";
   const createdCandidateId = "507f1f77bcf86cd799439113";
@@ -368,6 +420,33 @@ test("applyToJobPublic creates a candidate, queues AI scoring, and triggers new 
     },
     "../models/Job": {
       findById: createSpy(() => createQuery(jobDocument)),
+    },
+    "../models/WorkspaceSetting": {
+      findOne: createSpy(async () => ({
+        hiringPreferences: {
+          defaultCandidateSource: "manual",
+          defaultJobStatus: "draft",
+          resumeFileSizeLimitMb: 5,
+          allowedResumeFormats: ["PDF", "DOC", "DOCX"],
+          duplicateApplicationWarning: true,
+        },
+        integrations: {
+          resumeStorage: {
+            provider: "local",
+            s3BasePath: "resumes/",
+          },
+          aiScoring: {
+            provider: "openai",
+            model: "gpt-4.1-mini",
+          },
+          calendar: {
+            provider: "none",
+            enabled: false,
+            organizerEmail: "",
+          },
+        },
+      })),
+      create: createSpy(async () => null),
     },
     "../models/User": {},
     "../services/audit.service": { createAuditLog },

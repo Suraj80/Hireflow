@@ -11,17 +11,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { departmentsApi } from "@/features/departments/api";
 import { DepartmentItem } from "@/features/departments/types";
 import { settingsApi } from "@/features/settings/api";
-import { EmailIntegrationStatus, WorkspaceSettings } from "@/features/settings/types";
+import {
+  EmailIntegrationStatus,
+  SettingsIntegrationStatuses,
+  WorkspaceSettings,
+} from "@/features/settings/types";
 import {
   BellRing,
   BriefcaseBusiness,
   Building2,
+  CalendarSync,
   LoaderCircle,
   LockKeyhole,
-  Plus,
   PlugZap,
+  Plus,
   Save,
   Send,
+  ShieldCheck,
 } from "lucide-react";
 
 const defaultNotificationSettings: WorkspaceSettings["notifications"] = {
@@ -61,6 +67,23 @@ const defaultWorkspaceSettings: WorkspaceSettings = {
     twoFactorRequired: false,
     loginActivityVisible: false,
   },
+  integrations: {
+    resumeStorage: {
+      provider: "local",
+      s3Bucket: "",
+      s3Region: "",
+      s3BasePath: "resumes/",
+    },
+    aiScoring: {
+      provider: "openai",
+      model: "gpt-4.1-mini",
+    },
+    calendar: {
+      provider: "none",
+      enabled: false,
+      organizerEmail: "",
+    },
+  },
 };
 
 const currencyOptions = ["USD", "EUR", "GBP", "INR", "AED", "CAD", "AUD", "SGD"];
@@ -90,6 +113,36 @@ const defaultEmailIntegration: EmailIntegrationStatus = {
   hasApiKey: false,
 };
 
+const defaultIntegrationStatuses: SettingsIntegrationStatuses = {
+  resumeStorage: {
+    provider: "local",
+    configured: true,
+    ready: true,
+    mode: "active",
+    message: "Resumes are stored on the local server uploads directory.",
+    s3Bucket: "",
+    s3Region: "",
+    s3BasePath: "resumes/",
+  },
+  aiScoring: {
+    provider: "openai",
+    configured: true,
+    ready: false,
+    mode: "needs-credentials",
+    model: "gpt-4.1-mini",
+    message: "Add OPENAI_API_KEY on the server to enable AI resume scoring.",
+  },
+  calendar: {
+    provider: "none",
+    enabled: false,
+    configured: true,
+    ready: false,
+    mode: "disabled",
+    organizerEmail: "",
+    message: "Calendar sync is turned off for this workspace.",
+  },
+};
+
 const normalizeWorkspaceSettings = (settings: Partial<WorkspaceSettings> | null | undefined): WorkspaceSettings => ({
   ...defaultWorkspaceSettings,
   ...settings,
@@ -105,34 +158,35 @@ const normalizeWorkspaceSettings = (settings: Partial<WorkspaceSettings> | null 
     ...defaultWorkspaceSettings.security,
     ...(settings?.security || {}),
   },
+  integrations: {
+    ...defaultWorkspaceSettings.integrations,
+    ...(settings?.integrations || {}),
+    resumeStorage: {
+      ...defaultWorkspaceSettings.integrations.resumeStorage,
+      ...(settings?.integrations?.resumeStorage || {}),
+    },
+    aiScoring: {
+      ...defaultWorkspaceSettings.integrations.aiScoring,
+      ...(settings?.integrations?.aiScoring || {}),
+    },
+    calendar: {
+      ...defaultWorkspaceSettings.integrations.calendar,
+      ...(settings?.integrations?.calendar || {}),
+    },
+  },
 });
 
-function ComingSoonCard({
-  title,
-  description,
-  actionLabel = "Coming soon",
-}: {
-  title: string;
-  description: string;
-  actionLabel?: string;
-}) {
-  return (
-    <Card className="rounded-[28px] border border-border/80 shadow-sm">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Badge variant="outline" className="w-fit rounded-full px-3 py-1">
-          Placeholder
-        </Badge>
-        <Button variant="outline" className="rounded-2xl" disabled>
-          {actionLabel}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
+const getIntegrationBadge = (ready: boolean, configured: boolean, fallback: string) => {
+  if (ready) {
+    return { label: "Ready", variant: "secondary" as const };
+  }
+
+  if (configured) {
+    return { label: fallback, variant: "outline" as const };
+  }
+
+  return { label: "Needs setup", variant: "outline" as const };
+};
 
 export default function SettingsPage() {
   const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(defaultWorkspaceSettings);
@@ -146,6 +200,8 @@ export default function SettingsPage() {
   const [workingDepartmentId, setWorkingDepartmentId] = useState<string | null>(null);
   const [emailIntegration, setEmailIntegration] = useState<EmailIntegrationStatus>(defaultEmailIntegration);
   const [loadingEmailIntegration, setLoadingEmailIntegration] = useState(true);
+  const [integrationStatuses, setIntegrationStatuses] = useState<SettingsIntegrationStatuses>(defaultIntegrationStatuses);
+  const [loadingIntegrationStatuses, setLoadingIntegrationStatuses] = useState(true);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [testEmailRecipient, setTestEmailRecipient] = useState("");
 
@@ -187,10 +243,23 @@ export default function SettingsPage() {
     }
   };
 
+  const loadIntegrationStatuses = async () => {
+    try {
+      setLoadingIntegrationStatuses(true);
+      const response = await settingsApi.getIntegrationStatuses();
+      setIntegrationStatuses(response);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to load integration statuses");
+    } finally {
+      setLoadingIntegrationStatuses(false);
+    }
+  };
+
   useEffect(() => {
     void loadWorkspaceSettings();
     void loadDepartments();
     void loadEmailIntegration();
+    void loadIntegrationStatuses();
   }, []);
 
   const workspaceDirty = useMemo(() => {
@@ -268,10 +337,12 @@ export default function SettingsPage() {
         notifications: workspaceSettings.notifications,
         hiringPreferences: workspaceSettings.hiringPreferences,
         security: workspaceSettings.security,
+        integrations: workspaceSettings.integrations,
       });
       const normalized = normalizeWorkspaceSettings(response.settings);
       setWorkspaceSettings(normalized);
       setInitialWorkspaceSettings(normalized);
+      await loadIntegrationStatuses();
       toast.success("Workspace settings saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to save workspace settings");
@@ -738,7 +809,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-medium">Warn when the same email applies to the same job</p>
                     <p className="text-sm text-muted-foreground">
-                      This setting is saved now so the workspace has an explicit intake preference to enforce later.
+                      Show an internal duplicate warning when a recruiter adds the same email to the same job again.
                     </p>
                   </div>
                   <Switch
@@ -760,7 +831,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="font-medium">Save hiring preferences</p>
                   <p className="text-sm text-muted-foreground">
-                    These defaults are saved now and can be hooked into broader enforcement and automation flows later.
+                    These preferences now drive default job status, candidate source, duplicate warnings, and resume upload limits.
                   </p>
                 </div>
                 <Button
@@ -854,7 +925,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="font-medium">Require strong passwords</p>
-                      <p className="text-sm text-muted-foreground">Save a stronger password policy preference for future enforcement.</p>
+                      <p className="text-sm text-muted-foreground">Apply the workspace password policy to account creation and password changes.</p>
                     </div>
                     <Switch
                       checked={workspaceSettings.security.requireStrongPasswords}
@@ -873,7 +944,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="font-medium">Require two-factor authentication</p>
-                      <p className="text-sm text-muted-foreground">Persist the workspace preference even before 2FA enforcement is fully rolled out.</p>
+                      <p className="text-sm text-muted-foreground">Keep the workspace policy saved while the dedicated 2FA flow is completed.</p>
                     </div>
                     <Switch
                       checked={workspaceSettings.security.twoFactorRequired}
@@ -892,7 +963,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="font-medium">Show login activity in admin UI</p>
-                      <p className="text-sm text-muted-foreground">Save whether workspace admins want a login activity surface exposed in the product.</p>
+                      <p className="text-sm text-muted-foreground">Keep login activity visible for admins in the product surfaces that support it.</p>
                     </div>
                     <Switch
                       checked={workspaceSettings.security.loginActivityVisible}
@@ -914,7 +985,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="font-medium">Save security preferences</p>
                   <p className="text-sm text-muted-foreground">
-                    These values are saved now as workspace policy settings and can later be enforced deeper in auth and admin flows.
+                    These values now drive password policy and session lifetime behavior across auth and user-management flows.
                   </p>
                 </div>
                 <Button
@@ -938,25 +1009,315 @@ export default function SettingsPage() {
                 Integrations
               </CardTitle>
               <CardDescription>
-                Service wiring is surfaced here as status placeholders until a dedicated settings service exists.
+                Save provider settings here and monitor whether each backend integration is actually ready.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 lg:grid-cols-2">
-              {[
-                ["S3 resume storage", "Resume storage configuration placeholder"],
-                ["OpenAI scoring", "Resume scoring provider status placeholder"],
-                ["Calendar integration", "Calendar sync support planned for future"],
-              ].map(([label, description]) => (
-                <div key={label} className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium">{label}</p>
-                    <Badge variant="outline" className="rounded-full px-3 py-1">
-                      Placeholder
-                    </Badge>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 lg:grid-cols-3">
+                {[
+                  {
+                    title: "Resume storage",
+                    icon: ShieldCheck,
+                    badge: getIntegrationBadge(
+                      integrationStatuses.resumeStorage.ready,
+                      integrationStatuses.resumeStorage.configured,
+                      "Config saved"
+                    ),
+                    message: loadingIntegrationStatuses
+                      ? "Checking storage status..."
+                      : integrationStatuses.resumeStorage.message,
+                  },
+                  {
+                    title: "AI scoring",
+                    icon: PlugZap,
+                    badge: getIntegrationBadge(
+                      integrationStatuses.aiScoring.ready,
+                      integrationStatuses.aiScoring.configured,
+                      integrationStatuses.aiScoring.provider === "disabled" ? "Disabled" : "Config saved"
+                    ),
+                    message: loadingIntegrationStatuses
+                      ? "Checking AI provider status..."
+                      : integrationStatuses.aiScoring.message,
+                  },
+                  {
+                    title: "Calendar sync",
+                    icon: CalendarSync,
+                    badge: getIntegrationBadge(
+                      integrationStatuses.calendar.ready,
+                      integrationStatuses.calendar.configured,
+                      integrationStatuses.calendar.enabled ? "Config saved" : "Disabled"
+                    ),
+                    message: loadingIntegrationStatuses
+                      ? "Checking calendar status..."
+                      : integrationStatuses.calendar.message,
+                  },
+                ].map(({ title, icon: Icon, badge, message }) => (
+                  <div key={title} className="rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4 text-primary" />
+                        <p className="font-medium">{title}</p>
+                      </div>
+                      <Badge variant={badge.variant} className="rounded-full px-3 py-1">
+                        {badge.label}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">{message}</p>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+                ))}
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-4 rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                  <div className="space-y-1">
+                    <p className="font-medium">Resume storage</p>
+                    <p className="text-sm text-muted-foreground">
+                      Local storage works today. S3 settings are saved here and the backend reports whether credentials are ready.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Provider</Label>
+                    <Select
+                      value={workspaceSettings.integrations.resumeStorage.provider}
+                      disabled={loadingWorkspace || savingWorkspace}
+                      onValueChange={(value: WorkspaceSettings["integrations"]["resumeStorage"]["provider"]) =>
+                        setWorkspaceSettings((current) => ({
+                          ...current,
+                          integrations: {
+                            ...current.integrations,
+                            resumeStorage: {
+                              ...current.integrations.resumeStorage,
+                              provider: value,
+                            },
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-11 rounded-2xl">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="local">Local storage</SelectItem>
+                        <SelectItem value="s3">AWS S3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {workspaceSettings.integrations.resumeStorage.provider === "s3" ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>S3 bucket</Label>
+                        <Input
+                          value={workspaceSettings.integrations.resumeStorage.s3Bucket}
+                          onChange={(event) =>
+                            setWorkspaceSettings((current) => ({
+                              ...current,
+                              integrations: {
+                                ...current.integrations,
+                                resumeStorage: {
+                                  ...current.integrations.resumeStorage,
+                                  s3Bucket: event.target.value,
+                                },
+                              },
+                            }))
+                          }
+                          className="h-11 rounded-2xl"
+                          placeholder="hireflow-resumes"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>S3 region</Label>
+                        <Input
+                          value={workspaceSettings.integrations.resumeStorage.s3Region}
+                          onChange={(event) =>
+                            setWorkspaceSettings((current) => ({
+                              ...current,
+                              integrations: {
+                                ...current.integrations,
+                                resumeStorage: {
+                                  ...current.integrations.resumeStorage,
+                                  s3Region: event.target.value,
+                                },
+                              },
+                            }))
+                          }
+                          className="h-11 rounded-2xl"
+                          placeholder="ap-south-1"
+                        />
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>S3 base path</Label>
+                        <Input
+                          value={workspaceSettings.integrations.resumeStorage.s3BasePath}
+                          onChange={(event) =>
+                            setWorkspaceSettings((current) => ({
+                              ...current,
+                              integrations: {
+                                ...current.integrations,
+                                resumeStorage: {
+                                  ...current.integrations.resumeStorage,
+                                  s3BasePath: event.target.value,
+                                },
+                              },
+                            }))
+                          }
+                          className="h-11 rounded-2xl"
+                          placeholder="resumes/"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              ))}
+
+                <div className="space-y-4 rounded-[22px] border border-border/80 bg-muted/20 p-4">
+                  <div className="space-y-1">
+                    <p className="font-medium">AI scoring provider</p>
+                    <p className="text-sm text-muted-foreground">
+                      Choose the resume scoring provider and the model the backend should expect when scoring is enabled.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Provider</Label>
+                    <Select
+                      value={workspaceSettings.integrations.aiScoring.provider}
+                      disabled={loadingWorkspace || savingWorkspace}
+                      onValueChange={(value: WorkspaceSettings["integrations"]["aiScoring"]["provider"]) =>
+                        setWorkspaceSettings((current) => ({
+                          ...current,
+                          integrations: {
+                            ...current.integrations,
+                            aiScoring: {
+                              ...current.integrations.aiScoring,
+                              provider: value,
+                            },
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-11 rounded-2xl">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="disabled">Disabled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Model</Label>
+                    <Input
+                      value={workspaceSettings.integrations.aiScoring.model}
+                      disabled={loadingWorkspace || savingWorkspace || workspaceSettings.integrations.aiScoring.provider === "disabled"}
+                      onChange={(event) =>
+                        setWorkspaceSettings((current) => ({
+                          ...current,
+                          integrations: {
+                            ...current.integrations,
+                            aiScoring: {
+                              ...current.integrations.aiScoring,
+                              model: event.target.value,
+                            },
+                          },
+                        }))
+                      }
+                      className="h-11 rounded-2xl"
+                      placeholder="gpt-4.1-mini"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-[22px] border border-border/80 bg-muted/20 p-4 lg:col-span-2">
+                  <div className="space-y-1">
+                    <p className="font-medium">Calendar integration</p>
+                    <p className="text-sm text-muted-foreground">
+                      Save which calendar provider this workspace intends to use and who should appear as the organizer for invites.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-[220px_220px_minmax(0,1fr)]">
+                    <div className="space-y-2">
+                      <Label>Provider</Label>
+                      <Select
+                        value={workspaceSettings.integrations.calendar.provider}
+                        disabled={loadingWorkspace || savingWorkspace}
+                        onValueChange={(value: WorkspaceSettings["integrations"]["calendar"]["provider"]) =>
+                          setWorkspaceSettings((current) => ({
+                            ...current,
+                            integrations: {
+                              ...current.integrations,
+                              calendar: {
+                                ...current.integrations.calendar,
+                                provider: value,
+                              },
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="h-11 rounded-2xl">
+                          <SelectValue placeholder="Select provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="google">Google Calendar</SelectItem>
+                          <SelectItem value="outlook">Outlook</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sync enabled</Label>
+                      <div className="flex h-11 items-center justify-between rounded-2xl border border-input bg-background px-4">
+                        <span className="text-sm text-muted-foreground">Allow calendar sync</span>
+                        <Switch
+                          checked={workspaceSettings.integrations.calendar.enabled}
+                          disabled={loadingWorkspace || savingWorkspace}
+                          onCheckedChange={(checked) =>
+                            setWorkspaceSettings((current) => ({
+                              ...current,
+                              integrations: {
+                                ...current.integrations,
+                                calendar: {
+                                  ...current.integrations.calendar,
+                                  enabled: checked,
+                                },
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Organizer email</Label>
+                      <Input
+                        value={workspaceSettings.integrations.calendar.organizerEmail}
+                        disabled={loadingWorkspace || savingWorkspace}
+                        onChange={(event) =>
+                          setWorkspaceSettings((current) => ({
+                            ...current,
+                            integrations: {
+                              ...current.integrations,
+                              calendar: {
+                                ...current.integrations.calendar,
+                                organizerEmail: event.target.value,
+                              },
+                            },
+                          }))
+                        }
+                        className="h-11 rounded-2xl"
+                        placeholder="scheduler@company.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  className="h-11 rounded-2xl"
+                  disabled={loadingWorkspace || savingWorkspace || !workspaceDirty}
+                  onClick={() => void handleSaveWorkspace()}
+                >
+                  {savingWorkspace ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save integrations
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -1034,10 +1395,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <ComingSoonCard
-            title="Integration management"
-            description="Credential management, health checks, and provider configuration can be connected once a workspace settings backend exists."
-          />
         </TabsContent>
       </Tabs>
     </div>

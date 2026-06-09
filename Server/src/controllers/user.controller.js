@@ -2,6 +2,10 @@ const User = require("../models/User");
 const RefreshToken = require("../models/RefreshToken");
 const { sanitizeUser } = require("../utils/auth");
 const { createAuditLog } = require("../services/audit.service");
+const {
+  getSecuritySettings,
+  validatePasswordAgainstPolicy,
+} = require("../services/workspace-settings.service");
 
 const ALLOWED_ROLES = ["admin", "recruiter", "viewer"];
 
@@ -82,6 +86,7 @@ const createUser = async (req, res) => {
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
     const role = String(req.body.role || "viewer").trim().toLowerCase();
+    const securitySettings = await getSecuritySettings();
 
     if (!name) {
       return res.status(400).json(buildValidationError("Name is required", "name"));
@@ -91,8 +96,9 @@ const createUser = async (req, res) => {
       return res.status(400).json(buildValidationError("Email is required", "email"));
     }
 
-    if (!password || password.length < 6) {
-      return res.status(400).json(buildValidationError("Password must be at least 6 characters", "password"));
+    const passwordPolicyError = validatePasswordAgainstPolicy(password, securitySettings);
+    if (passwordPolicyError) {
+      return res.status(400).json(buildValidationError(passwordPolicyError, "password"));
     }
 
     if (!ALLOWED_ROLES.includes(role)) {
@@ -244,9 +250,11 @@ const updatePassword = async (req, res) => {
   try {
     const { id } = req.params;
     const password = String(req.body.password || "");
+    const securitySettings = await getSecuritySettings();
 
-    if (!password || password.length < 6) {
-      return res.status(400).json(buildValidationError("Password must be at least 6 characters", "password"));
+    const passwordPolicyError = validatePasswordAgainstPolicy(password, securitySettings);
+    if (passwordPolicyError) {
+      return res.status(400).json(buildValidationError(passwordPolicyError, "password"));
     }
 
     const user = await User.findById(id).select("+password");

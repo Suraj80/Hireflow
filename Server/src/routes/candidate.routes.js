@@ -23,6 +23,7 @@ const {
   updateCandidateStage,
 } = require("../controllers/candidate.controller");
 const { protect, requireRole } = require("../middleware/auth.middleware");
+const { getResumeUploadPolicy } = require("../services/workspace-settings.service");
 
 const router = express.Router();
 const uploadsDirectory = path.join(__dirname, "..", "..", "uploads", "resumes");
@@ -46,26 +47,42 @@ const storage = multer.diskStorage({
   },
 });
 
-const uploadResume = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-  },
-  fileFilter: (_req, file, callback) => {
-    const allowedMimeTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
+const createResumeUploader = (policy) =>
+  multer({
+    storage,
+    limits: {
+      fileSize: policy.maxSizeBytes,
+    },
+    fileFilter: (_req, file, callback) => {
+      if (!policy.allowedMimeTypes.includes(file.mimetype)) {
+        callback(new Error(`Resume must be ${policy.allowedFormats.join(", ")}`));
+        return;
+      }
 
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      callback(new Error("Resume must be PDF, DOC, or DOCX"));
-      return;
-    }
+      callback(null, true);
+    },
+  });
 
-    callback(null, true);
-  },
-});
+const handleResumeUpload = async (req, res, next) => {
+  try {
+    const policy = await getResumeUploadPolicy();
+    const uploadResume = createResumeUploader(policy);
+
+    uploadResume.single("resume")(req, res, (error) => {
+      if (!error) {
+        return next();
+      }
+
+      if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ message: `Resume must be smaller than ${policy.maxSizeMb}MB` });
+      }
+
+      return res.status(400).json({ message: error.message || "Unable to upload resume" });
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
 
 router.get("/", protect, getCandidates);
 router.get("/meta", protect, getCandidatesMeta);
@@ -73,38 +90,14 @@ router.get("/duplicate-check", protect, checkDuplicateCandidate);
 router.get("/status/:token", getCandidateStatusByToken);
 router.post(
   "/public/apply/:jobId",
-  (req, res, next) => {
-    uploadResume.single("resume")(req, res, (error) => {
-      if (!error) {
-        return next();
-      }
-
-      if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-        return res.status(400).json({ message: "Resume must be smaller than 5MB" });
-      }
-
-      return res.status(400).json({ message: error.message || "Unable to upload resume" });
-    });
-  },
+  handleResumeUpload,
   applyToJobPublic
 );
 router.post(
   "/upload",
   protect,
   requireRole("recruiter", "admin"),
-  (req, res, next) => {
-    uploadResume.single("resume")(req, res, (error) => {
-      if (!error) {
-        return next();
-      }
-
-      if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-        return res.status(400).json({ message: "Resume must be smaller than 5MB" });
-      }
-
-      return res.status(400).json({ message: error.message || "Unable to upload resume" });
-    });
-  },
+  handleResumeUpload,
   requestResumeUploadUrl
 );
 router.post("/bulk-action", protect, requireRole("recruiter", "admin"), bulkActionCandidates);
