@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { offersApi } from "@/features/offers/api";
 import { Offer, OfferFormValues, OfferMetaResponse } from "@/features/offers/types";
+import { settingsApi } from "@/features/settings/api";
+
+const currencyOptions = ["USD", "INR", "EUR", "GBP", "AED", "SGD", "AUD", "CAD"];
 
 const defaultForm: OfferFormValues = {
   candidateId: "",
@@ -55,17 +58,21 @@ export default function CreateOfferPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [workspaceCurrency, setWorkspaceCurrency] = useState(defaultForm.currency);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [metaResponse, offerResponse] = await Promise.all([
+        const [metaResponse, offerResponse, workspaceResponse] = await Promise.all([
           offersApi.meta(),
           offerId ? offersApi.getById(offerId) : Promise.resolve(null),
+          settingsApi.getWorkspace().catch(() => null),
         ]);
 
         setMeta(metaResponse);
+        const nextWorkspaceCurrency = workspaceResponse?.defaultCurrency || defaultForm.currency;
+        setWorkspaceCurrency(nextWorkspaceCurrency);
 
         if (offerResponse) {
           setOffer(offerResponse);
@@ -74,6 +81,12 @@ export default function CreateOfferPage() {
           setForm((current) => ({
             ...current,
             candidateId: searchParams.get("candidateId") || "",
+            currency: current.currency === defaultForm.currency ? nextWorkspaceCurrency : current.currency,
+          }));
+        } else {
+          setForm((current) => ({
+            ...current,
+            currency: current.currency === defaultForm.currency ? nextWorkspaceCurrency : current.currency,
           }));
         }
 
@@ -107,7 +120,7 @@ export default function CreateOfferPage() {
       ...current,
       candidateId,
       title: current.title || candidate?.job?.title || "",
-      currency: current.currency || "USD",
+      currency: current.currency === defaultForm.currency ? workspaceCurrency : current.currency,
     }));
   };
 
@@ -220,13 +233,24 @@ export default function CreateOfferPage() {
               </div>
               <div className="space-y-2">
                 <Label>Currency</Label>
-                <Input
+                <Select
                   value={form.currency}
-                  onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))}
-                  className="h-11 rounded-2xl"
-                  placeholder="USD"
-                  maxLength={5}
-                />
+                  onValueChange={(value) => setForm((current) => ({ ...current, currency: value }))}
+                >
+                  <SelectTrigger className="h-11 rounded-2xl">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencyOptions.map((currency) => (
+                      <SelectItem key={currency} value={currency}>
+                        {currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Currency defaults to the workspace setting{workspaceCurrency ? ` (${workspaceCurrency})` : ""}.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Equity</Label>

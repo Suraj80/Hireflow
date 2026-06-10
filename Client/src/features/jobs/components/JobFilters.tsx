@@ -42,7 +42,7 @@ export function JobFilters({ filters, departments, onChange, onReset }: JobFilte
             <Input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by title, department, or location"
+              placeholder="Search by title"
               className="h-11 rounded-2xl pl-10"
               autoComplete="off"
             />

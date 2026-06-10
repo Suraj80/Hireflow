@@ -1,10 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/features/jobs/components/StatusBadge";
-import { employmentTypeLabels, formatAbsoluteDate, formatJobSalary } from "@/features/jobs/helpers";
+import { employmentTypeLabels, formatAbsoluteDate, formatJobLocation, formatJobSalary } from "@/features/jobs/helpers";
 import { Job } from "@/features/jobs/types";
-import { BriefcaseBusiness, CalendarDays, MapPin, MoreHorizontal, PencilLine, Trash2, Users } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Eye, MapPin, PencilLine, Trash2, Users } from "lucide-react";
 
 type JobTableProps = {
   jobs: Job[];
@@ -28,7 +27,7 @@ export function JobTable({ jobs, canManageJobs, onView, onEdit, onDelete }: JobT
               <TableHead>Salary</TableHead>
               <TableHead>Deadline</TableHead>
               <TableHead>Applicants</TableHead>
-              <TableHead className="w-14 pr-6" />
+              <TableHead className="pr-6 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -51,27 +50,50 @@ export function JobTable({ jobs, canManageJobs, onView, onEdit, onDelete }: JobT
                 </TableCell>
                 <TableCell>{job.department}</TableCell>
                 <TableCell>{employmentTypeLabels[job.type]}</TableCell>
-                <TableCell>{job.remote ? `${job.location} | Remote` : job.location}</TableCell>
+                <TableCell>{formatJobLocation(job)}</TableCell>
                 <TableCell>{formatJobSalary(job)}</TableCell>
                 <TableCell>{formatAbsoluteDate(job.deadline)}</TableCell>
                 <TableCell>{job.applicantsCount}</TableCell>
                 <TableCell className="pr-6">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
-                        <MoreHorizontal className="h-4 w-4" />
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl"
+                      onClick={() => onView(job)}
+                      aria-label={`View ${job.title}`}
+                      title="View"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {canManageJobs && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl"
+                        onClick={() => onEdit(job)}
+                        aria-label={`Edit ${job.title}`}
+                        title="Edit"
+                      >
+                        <PencilLine className="h-4 w-4" />
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onView(job)}>View</DropdownMenuItem>
-                      {canManageJobs && <DropdownMenuItem onClick={() => onEdit(job)}>Edit</DropdownMenuItem>}
-                      {canManageJobs && (
-                        <DropdownMenuItem onClick={() => onDelete(job)} className="text-destructive">
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    )}
+                    {canManageJobs && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl text-destructive hover:text-destructive"
+                        onClick={() => onDelete(job)}
+                        aria-label={`Delete ${job.title}`}
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -102,7 +124,7 @@ export function JobTable({ jobs, canManageJobs, onView, onEdit, onDelete }: JobT
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                {job.remote ? `${job.location} | Remote` : job.location}
+                {formatJobLocation(job)}
               </div>
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4" />

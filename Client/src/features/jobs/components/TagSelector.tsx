@@ -12,6 +12,7 @@ type TagSelectorProps = {
   placeholder?: string;
   limit?: number;
   disabled?: boolean;
+  inputClassName?: string;
 };
 
 export function TagSelector({
@@ -21,6 +22,7 @@ export function TagSelector({
   placeholder = "Type and press Enter",
   limit = 10,
   disabled = false,
+  inputClassName,
 }: TagSelectorProps) {
   const [inputValue, setInputValue] = useState("");
 
@@ -76,7 +78,10 @@ export function TagSelector({
           onKeyDown={handleKeyDown}
           placeholder={values.length >= limit ? `Limit reached (${limit})` : placeholder}
           disabled={disabled || values.length >= limit}
-          className="h-9 min-w-[180px] flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+          className={cn(
+            "h-9 min-w-[180px] flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0",
+            inputClassName,
+          )}
         />
         {!disabled && inputValue.trim() && values.length < limit && (
           <Button type="button" size="sm" variant="outline" onClick={() => addValue(inputValue)} className="rounded-full">

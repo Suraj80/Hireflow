@@ -9,7 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { candidatesApi } from "@/features/candidates/api";
 import { jobsApi } from "@/features/jobs/api";
-import { employmentTypeLabels, formatAbsoluteDate, formatJobSalary } from "@/features/jobs/helpers";
+import {
+  employmentTypeLabels,
+  formatAbsoluteDate,
+  formatJobLocation,
+  formatJobSalary,
+} from "@/features/jobs/helpers";
 import { PublicJob } from "@/features/jobs/types";
 
 type ApplyFormState = {
@@ -70,7 +75,7 @@ export default function JobApplicationPage() {
       return "Drop your resume here or click to upload";
     }
 
-    return `${form.resume.name} · ${Math.round(form.resume.size / 1024)} KB`;
+    return `${form.resume.name} | ${Math.round(form.resume.size / 1024)} KB`;
   }, [form.resume]);
 
   const handleFieldChange =
@@ -134,7 +139,9 @@ export default function JobApplicationPage() {
                 <Button className="w-full">Track Application Status</Button>
               </Link>
               <Link to="/">
-                <Button variant="outline" className="w-full">Back to Home</Button>
+                <Button variant="outline" className="w-full">
+                  Back to Home
+                </Button>
               </Link>
             </div>
           </CardContent>
@@ -168,7 +175,9 @@ export default function JobApplicationPage() {
           <Card className="border border-border">
             <CardContent className="p-8">
               <h1 className="text-xl font-semibold">Job unavailable</h1>
-              <p className="mt-2 text-sm text-muted-foreground">{error || "This role is not publicly accessible."}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {error || "This role is not publicly accessible."}
+              </p>
             </CardContent>
           </Card>
         ) : !job ? null : (
@@ -186,7 +195,7 @@ export default function JobApplicationPage() {
                 <h1 className="mt-4 text-2xl font-bold">{job.title}</h1>
                 <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" /> {job.remote ? `${job.location} · Remote` : job.location}
+                    <MapPin className="h-4 w-4" /> {formatJobLocation(job)}
                   </span>
                   <span className="flex items-center gap-1">
                     <Briefcase className="h-4 w-4" /> {employmentTypeLabels[job.type]}
@@ -208,24 +217,55 @@ export default function JobApplicationPage() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="fname">First Name *</Label>
-                    <Input id="fname" placeholder="John" className="mt-1.5" value={form.firstName} onChange={handleFieldChange("firstName")} />
+                    <Input
+                      id="fname"
+                      placeholder="John"
+                      className="mt-1.5"
+                      value={form.firstName}
+                      onChange={handleFieldChange("firstName")}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="lname">Last Name *</Label>
-                    <Input id="lname" placeholder="Doe" className="mt-1.5" value={form.lastName} onChange={handleFieldChange("lastName")} />
+                    <Input
+                      id="lname"
+                      placeholder="Doe"
+                      className="mt-1.5"
+                      value={form.lastName}
+                      onChange={handleFieldChange("lastName")}
+                    />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="email">Email *</Label>
-                  <Input id="email" type="email" placeholder="john@example.com" className="mt-1.5" value={form.email} onChange={handleFieldChange("email")} />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="john@example.com"
+                    className="mt-1.5"
+                    value={form.email}
+                    onChange={handleFieldChange("email")}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" placeholder="+1 (555) 000-0000" className="mt-1.5" value={form.phone} onChange={handleFieldChange("phone")} />
+                  <Input
+                    id="phone"
+                    placeholder="+1 (555) 000-0000"
+                    className="mt-1.5"
+                    value={form.phone}
+                    onChange={handleFieldChange("phone")}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="linkedin">LinkedIn Profile</Label>
-                  <Input id="linkedin" placeholder="https://linkedin.com/in/..." className="mt-1.5" value={form.linkedin} onChange={handleFieldChange("linkedin")} />
+                  <Input
+                    id="linkedin"
+                    placeholder="https://linkedin.com/in/..."
+                    className="mt-1.5"
+                    value={form.linkedin}
+                    onChange={handleFieldChange("linkedin")}
+                  />
                 </div>
                 <div>
                   <Label>Resume *</Label>
@@ -255,7 +295,11 @@ export default function JobApplicationPage() {
                   />
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button className="w-full gradient-primary text-primary-foreground border-0 h-11" disabled={submitting} onClick={() => void handleSubmit()}>
+                <Button
+                  className="w-full gradient-primary text-primary-foreground border-0 h-11"
+                  disabled={submitting}
+                  onClick={() => void handleSubmit()}
+                >
                   {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "Submit Application"}
                 </Button>
               </CardContent>

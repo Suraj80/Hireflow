@@ -84,6 +84,11 @@ const jobSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    workMode: {
+      type: String,
+      enum: ["onsite", "hybrid", "remote"],
+      default: "onsite",
+    },
     remote: {
       type: Boolean,
       default: false,

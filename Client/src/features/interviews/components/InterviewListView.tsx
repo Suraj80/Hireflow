@@ -1,11 +1,14 @@
-import { ArrowUpDown, CheckCircle2, Eye, MessageSquareMore, PencilLine, RotateCcw, Trash2, XCircle } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { ArrowUpDown, CheckCircle2, Eye, MessageSquareMore, MoreHorizontal, PencilLine, RotateCcw, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatInterviewDate, formatInterviewTime, getInitials, statusToneMap } from "@/features/interviews/helpers";
+import { formatInterviewDate, formatInterviewTime } from "@/features/interviews/helpers";
 import { Interview, InterviewPagination } from "@/features/interviews/types";
 
 type InterviewListViewProps = {
@@ -47,13 +50,7 @@ export function InterviewListView({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={items.length > 0 && selectedIds.length === items.length}
-                  onCheckedChange={() => onToggleAll(items.map((item) => item.id))}
-                />
-              </TableHead>
-              {["Candidate", "Job", "Round", "Date", "Time", "Duration", "Type", "Interviewers", "Recruiter", "Status", "Feedback", "Actions"].map(
+              {["Candidate", "Job", "Round", "Date", "Time", "Duration", "Interviewers", "Actions"].map(
                 (header) => (
                   <TableHead key={header}>
                     <button
@@ -61,13 +58,12 @@ export function InterviewListView({
                       className="inline-flex items-center gap-1"
                       onClick={() => {
                         if (header === "Candidate") onSortChange("candidate");
-                        if (header === "Status") onSortChange("status");
                         if (header === "Round") onSortChange("round");
                         if (header === "Date") onSortChange("scheduledAt-asc");
                       }}
                     >
                       {header}
-                      {["Candidate", "Status", "Round", "Date"].includes(header) && <ArrowUpDown className="h-3.5 w-3.5" />}
+                      {["Candidate", "Round", "Date"].includes(header) && <ArrowUpDown className="h-3.5 w-3.5" />}
                     </button>
                   </TableHead>
                 )
@@ -77,18 +73,10 @@ export function InterviewListView({
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id} onClick={() => onOpen(item.id)} className="cursor-pointer">
-                <TableCell onClick={(event) => event.stopPropagation()}>
-                  <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => onToggleSelected(item.id)} />
-                </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback>{getInitials(item.candidate?.name || "NA")}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{item.candidate?.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.candidate?.email}</p>
-                    </div>
+                  <div>
+                    <p className="font-medium">{item.candidate?.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.candidate?.email}</p>
                   </div>
                 </TableCell>
                 <TableCell>{item.job?.title}</TableCell>
@@ -96,56 +84,57 @@ export function InterviewListView({
                 <TableCell>{formatInterviewDate(item.scheduledAt)}</TableCell>
                 <TableCell>{formatInterviewTime(item.scheduledAt)}</TableCell>
                 <TableCell>{item.duration} min</TableCell>
-                <TableCell>{item.type}</TableCell>
                 <TableCell className="max-w-[220px] truncate">{item.interviewers.map((entry) => entry.name).join(", ")}</TableCell>
-                <TableCell>{item.recruiter?.name}</TableCell>
-                <TableCell>
-                  <Badge className={`border ${statusToneMap[item.status]}`}>{item.status}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{item.feedbackStatus}</Badge>
-                </TableCell>
                 <TableCell onClick={(event) => event.stopPropagation()}>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => onOpen(item.id)}>
-                      <Eye className="h-3.5 w-3.5" />
-                    </Button>
-                    {item.permissions.canEdit && (
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => onEdit(item)}>
-                        <PencilLine className="h-3.5 w-3.5" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl">
+                        <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
-                    )}
-                    {item.permissions.canReschedule && (
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => onReschedule(item)}>
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {item.permissions.canCancel && (
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => onCancel(item)}>
-                        <XCircle className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {item.permissions.canDelete && (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8 rounded-xl text-destructive hover:text-destructive"
-                        onClick={() => onDelete(item)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {item.permissions.canSubmitFeedback && (
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => onAddFeedback(item.id)}>
-                        <MessageSquareMore className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {item.permissions.canComplete && (
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => onMarkCompleted(item)}>
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52 rounded-2xl">
+                      <DropdownMenuItem onClick={() => onOpen(item.id)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View
+                      </DropdownMenuItem>
+                      {item.permissions.canEdit && (
+                        <DropdownMenuItem onClick={() => onEdit(item)}>
+                          <PencilLine className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {item.permissions.canReschedule && (
+                        <DropdownMenuItem onClick={() => onReschedule(item)}>
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Reschedule
+                        </DropdownMenuItem>
+                      )}
+                      {item.permissions.canCancel && (
+                        <DropdownMenuItem onClick={() => onCancel(item)}>
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Cancel
+                        </DropdownMenuItem>
+                      )}
+                      {item.permissions.canDelete && (
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(item)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+                      {item.permissions.canSubmitFeedback && (
+                        <DropdownMenuItem onClick={() => onAddFeedback(item.id)}>
+                          <MessageSquareMore className="mr-2 h-4 w-4" />
+                          Add feedback
+                        </DropdownMenuItem>
+                      )}
+                      {item.permissions.canComplete && (
+                        <DropdownMenuItem onClick={() => onMarkCompleted(item)}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Mark completed
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}

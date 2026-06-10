@@ -23,62 +23,72 @@ const buildValidationError = (issues) => ({
 const canManageJob = (job, user) =>
   user && (user.role === "admin" || job.createdBy.toString() === user.id);
 
-const sanitizePublicJob = (job) => ({
-  id: job._id,
-  title: job.title,
-  department: job.department,
-  descriptionHTML: job.descriptionHTML,
-  type: job.type,
-  location: job.location,
-  remote: job.remote,
-  salaryMin: job.showSalary ? job.salaryMin : null,
-  salaryMax: job.showSalary ? job.salaryMax : null,
-  currency: job.showSalary ? job.currency : null,
-  showSalary: job.showSalary,
-  requirements: job.requirements,
-  tags: job.tags,
-  deadline: job.deadline,
-  visibility: job.visibility,
-  status: job.status,
-  createdAt: job.createdAt,
-});
+const sanitizePublicJob = (job) => {
+  const normalizedWorkMode = job.workMode || (job.remote ? "remote" : "onsite");
 
-const normalizeJobResponse = (job, applicantsCount = 0) => ({
-  id: job._id,
-  title: job.title,
-  department: job.department,
-  hiringManager: job.hiringManager,
-  hiringManagerId: job.hiringManagerId?._id?.toString?.() || job.hiringManagerId?.toString?.() || null,
-  hiringManagerUser: job.hiringManagerId
-    ? {
-        id: job.hiringManagerId._id?.toString?.() || job.hiringManagerId.toString(),
-        name: job.hiringManagerId.name,
-        email: job.hiringManagerId.email,
-        role: job.hiringManagerId.role,
-      }
-    : null,
-  descriptionHTML: job.descriptionHTML,
-  type: job.type,
-  location: job.location,
-  remote: job.remote,
-  salaryMin: job.salaryMin,
-  salaryMax: job.salaryMax,
-  currency: job.currency,
-  showSalary: job.showSalary,
-  requirements: job.requirements,
-  tags: job.tags,
-  deadline: job.deadline,
-  maxApplicants: job.maxApplicants,
-  autoClose: job.autoClose,
-  visibility: job.visibility,
-  status: job.status,
-  archived: job.archived,
-  createdBy: job.createdBy,
-  updatedBy: job.updatedBy,
-  createdAt: job.createdAt,
-  updatedAt: job.updatedAt,
-  applicantsCount,
-});
+  return {
+    id: job._id,
+    title: job.title,
+    department: job.department,
+    descriptionHTML: job.descriptionHTML,
+    type: job.type,
+    location: job.location,
+    workMode: normalizedWorkMode,
+    remote: normalizedWorkMode === "remote",
+    salaryMin: job.showSalary ? job.salaryMin : null,
+    salaryMax: job.showSalary ? job.salaryMax : null,
+    currency: job.showSalary ? job.currency : null,
+    showSalary: job.showSalary,
+    requirements: job.requirements,
+    tags: job.tags,
+    deadline: job.deadline,
+    visibility: job.visibility,
+    status: job.status,
+    createdAt: job.createdAt,
+  };
+};
+
+const normalizeJobResponse = (job, applicantsCount = 0) => {
+  const normalizedWorkMode = job.workMode || (job.remote ? "remote" : "onsite");
+
+  return {
+    id: job._id,
+    title: job.title,
+    department: job.department,
+    hiringManager: job.hiringManager,
+    hiringManagerId: job.hiringManagerId?._id?.toString?.() || job.hiringManagerId?.toString?.() || null,
+    hiringManagerUser: job.hiringManagerId
+      ? {
+          id: job.hiringManagerId._id?.toString?.() || job.hiringManagerId.toString(),
+          name: job.hiringManagerId.name,
+          email: job.hiringManagerId.email,
+          role: job.hiringManagerId.role,
+        }
+      : null,
+    descriptionHTML: job.descriptionHTML,
+    type: job.type,
+    location: job.location,
+    workMode: normalizedWorkMode,
+    remote: normalizedWorkMode === "remote",
+    salaryMin: job.salaryMin,
+    salaryMax: job.salaryMax,
+    currency: job.currency,
+    showSalary: job.showSalary,
+    requirements: job.requirements,
+    tags: job.tags,
+    deadline: job.deadline,
+    maxApplicants: job.maxApplicants,
+    autoClose: job.autoClose,
+    visibility: job.visibility,
+    status: job.status,
+    archived: job.archived,
+    createdBy: job.createdBy,
+    updatedBy: job.updatedBy,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    applicantsCount,
+  };
+};
 
 const applySort = (sort) => {
   switch (sort) {
@@ -114,8 +124,6 @@ const buildListQuery = ({ search, status, department, type, includeArchived }) =
   if (search) {
     query.$or = [
       { title: { $regex: search, $options: "i" } },
-      { department: { $regex: search, $options: "i" } },
-      { location: { $regex: search, $options: "i" } },
     ];
   }
 
@@ -277,6 +285,7 @@ const createJob = async (req, res) => {
     const hiringPreferences = await getHiringPreferences();
     const payload = {
       ...parsedBody.data,
+      remote: parsedBody.data.workMode === "remote",
       status:
         typeof req.body.status === "undefined"
           ? hiringPreferences.defaultJobStatus || "draft"
@@ -350,7 +359,7 @@ const updateJob = async (req, res) => {
       descriptionHTML: req.body.descriptionHTML ?? job.descriptionHTML,
       type: req.body.type ?? job.type,
       location: req.body.location ?? job.location,
-      remote: req.body.remote ?? job.remote,
+      workMode: req.body.workMode ?? job.workMode ?? (job.remote ? "remote" : "onsite"),
       salaryMin: typeof req.body.salaryMin === "undefined" ? job.salaryMin : req.body.salaryMin,
       salaryMax: typeof req.body.salaryMax === "undefined" ? job.salaryMax : req.body.salaryMax,
       currency: req.body.currency ?? job.currency,
@@ -385,6 +394,7 @@ const updateJob = async (req, res) => {
     }
 
     Object.assign(job, parsedBody.data, {
+      remote: parsedBody.data.workMode === "remote",
       hiringManager: hiringManagerRecord?.name || "",
       hiringManagerId: hiringManagerRecord?._id || null,
       updatedBy: req.user.id,

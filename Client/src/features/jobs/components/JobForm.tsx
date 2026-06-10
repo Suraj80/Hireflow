@@ -19,12 +19,18 @@ import { RichTextEditor } from "@/features/jobs/components/RichTextEditor";
 import { SalaryInput } from "@/features/jobs/components/SalaryInput";
 import { TagSelector } from "@/features/jobs/components/TagSelector";
 import { jobsApi } from "@/features/jobs/api";
-import { defaultJobFormValues, employmentTypeOptions, JobFormValues, jobFormSchema, toJobFormValues } from "@/features/jobs/schema";
+import {
+  defaultJobFormValues,
+  employmentTypeOptions,
+  JobFormValues,
+  jobFormSchema,
+  toJobFormValues,
+  workModeOptions,
+} from "@/features/jobs/schema";
 import { Job, JobDepartmentOption, UserSummary } from "@/features/jobs/types";
 import { settingsApi } from "@/features/settings/api";
 import { cn } from "@/lib/utils";
 
-const defaultTagSuggestions = ["urgent", "remote", "engineering", "product", "marketing"];
 const defaultSkillsSuggestions = ["react", "typescript", "node.js", "communication", "figma", "mongodb"];
 const defaultCertificationSuggestions = ["aws", "gcp", "azure", "pmp", "scrum", "csm"];
 
@@ -35,6 +41,11 @@ type JobFormProps = {
 
 type AutosavedValues = JobFormValues & {
   _savedAt?: string;
+};
+
+type JobFormServerError = {
+  field?: string;
+  message?: string;
 };
 
 export function JobForm({ mode, job = null }: JobFormProps) {
@@ -222,14 +233,37 @@ export function JobForm({ mode, job = null }: JobFormProps) {
       toast.success(submitIntentRef.current === "draft" ? "Draft saved successfully" : "Job published successfully");
       navigate("/jobs");
     } catch (error) {
-      const message =
-        (error as { response?: { data?: { message?: string; errors?: { message: string }[] } } })?.response?.data?.errors?.[0]?.message ||
-        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Unable to save job";
-      toast.error(message);
+      const responseData = (error as { response?: { data?: { message?: string; errors?: JobFormServerError[] } } })?.response?.data;
+      const fieldErrors = responseData?.errors || [];
+
+      if (fieldErrors.length > 0) {
+        fieldErrors.forEach((fieldError) => {
+          if (!fieldError.field || !fieldError.message) {
+            return;
+          }
+
+          form.setError(fieldError.field as keyof JobFormValues, {
+            type: "server",
+            message: fieldError.message,
+          });
+        });
+
+        return;
+      }
+
+      toast.error(responseData?.message || "Unable to save job");
     } finally {
       setIsSubmitting(null);
     }
+  };
+
+  const handleSubmitWithStatus = (status: "draft" | "open") => {
+    submitIntentRef.current = status;
+    form.setValue("status", status, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    void form.handleSubmit(handleSubmit)();
   };
 
   const publicUrl = `${window.location.origin}/apply/${job?.id || "preview-after-save"}`;
@@ -274,7 +308,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                 <FormItem className="md:col-span-2">
                   <FormLabel>Job Title *</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Senior Frontend Engineer" className="h-11 rounded-2xl" />
+                    <Input {...field} placeholder="Enter job title" className="h-11 rounded-2xl" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -283,7 +317,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
             <FormField
               control={form.control}
               name="department"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>Department *</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange} disabled={metaLoading}>
@@ -300,9 +334,11 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Departments are managed centrally in Settings to keep reporting and filters consistent.
-                  </FormDescription>
+                  {!fieldState.error ? (
+                    <FormDescription>
+                      Departments are managed centrally in Settings to keep reporting and filters consistent.
+                    </FormDescription>
+                  ) : null}
                   <FormMessage />
                 </FormItem>
               )}
@@ -334,7 +370,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                       <SelectItem value="unassigned">Unassigned</SelectItem>
                       {hiringManagerOptions.map((manager) => (
                         <SelectItem key={manager.id} value={manager.id}>
-                          {manager.name}{manager.email ? ` • ${manager.email}` : ""}
+                          {manager.name}{manager.email ? ` | ${manager.email}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -377,7 +413,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                 <FormItem>
                   <FormLabel>Location *</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Bengaluru, India" className="h-11 rounded-2xl" />
+                    <Input {...field} placeholder="Enter location" className="h-11 rounded-2xl" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -385,18 +421,26 @@ export function JobForm({ mode, job = null }: JobFormProps) {
             />
             <FormField
               control={form.control}
-              name="remote"
+              name="workMode"
               render={({ field }) => (
-                <FormItem className="rounded-2xl border border-border bg-muted/20 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <FormLabel>Remote option</FormLabel>
-                      <FormDescription>Show this role as remote-friendly.</FormDescription>
-                    </div>
+                <FormItem>
+                  <FormLabel>Work Mode *</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <SelectTrigger className="h-11 rounded-2xl">
+                        <SelectValue />
+                      </SelectTrigger>
                     </FormControl>
-                  </div>
+                    <SelectContent>
+                      {workModeOptions.map((workMode) => (
+                        <SelectItem key={workMode} value={workMode}>
+                          {workMode.charAt(0).toUpperCase() + workMode.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Choose whether the role is onsite, hybrid, or fully remote.</FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -482,9 +526,9 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                     <TagSelector
                       values={field.value}
                       onChange={field.onChange}
-                      suggestions={defaultSkillsSuggestions}
                       placeholder="Add skill tags"
                       limit={20}
+                      inputClassName="w-[220px] min-w-[220px] flex-none"
                     />
                   </FormControl>
                   <FormMessage />
@@ -536,35 +580,8 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                     <TagSelector
                       values={field.value}
                       onChange={field.onChange}
-                      suggestions={defaultCertificationSuggestions}
                       placeholder="Add certifications"
                       limit={15}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Tags</CardTitle>
-            <CardDescription>Use searchable labels to support list filtering and routing.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <TagSelector
-                      values={field.value}
-                      onChange={field.onChange}
-                      suggestions={defaultTagSuggestions}
-                      placeholder="Add or create tags"
                     />
                   </FormControl>
                   <FormMessage />
@@ -703,24 +720,18 @@ export function JobForm({ mode, job = null }: JobFormProps) {
 
         <div className="flex flex-col gap-3 pb-8 sm:flex-row sm:items-center">
           <Button
-            type="submit"
+            type="button"
             className="h-11 rounded-2xl"
-            onClick={() => {
-              submitIntentRef.current = "draft";
-              form.setValue("status", "draft", { shouldDirty: true });
-            }}
+            onClick={() => handleSubmitWithStatus("draft")}
             disabled={Boolean(isSubmitting)}
           >
             {isSubmitting === "draft" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save draft
           </Button>
           <Button
-            type="submit"
+            type="button"
             className="h-11 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
-            onClick={() => {
-              submitIntentRef.current = "open";
-              form.setValue("status", "open", { shouldDirty: true });
-            }}
+            onClick={() => handleSubmitWithStatus("open")}
             disabled={Boolean(isSubmitting)}
           >
             {isSubmitting === "open" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

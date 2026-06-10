@@ -3,6 +3,7 @@ const { z } = require("zod");
 const jobStatuses = ["draft", "open", "closed"];
 const employmentTypes = ["full-time", "part-time", "contract", "internship"];
 const jobVisibility = ["public", "private"];
+const workModes = ["onsite", "hybrid", "remote"];
 
 const trimString = (min, max) =>
   z
@@ -56,7 +57,7 @@ const jobPayloadBaseSchema = z.object({
   descriptionHTML: trimString(30, 50000),
   type: z.enum(employmentTypes),
   location: trimString(2, 120),
-  remote: z.boolean().default(false),
+  workMode: z.enum(workModes).default("onsite"),
   salaryMin: nullableNumber.optional().default(null),
   salaryMax: nullableNumber.optional().default(null),
   currency: trimString(3, 5).transform((value) => value.toUpperCase()).default("USD"),
@@ -132,4 +133,5 @@ module.exports = {
   jobsQuerySchema,
   jobUpdateSchema,
   jobVisibility,
+  workModes,
 };

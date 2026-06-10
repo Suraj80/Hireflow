@@ -4,6 +4,7 @@ import { Job } from "@/features/jobs/types";
 export const jobStatusOptions = ["draft", "open", "closed"] as const;
 export const employmentTypeOptions = ["full-time", "part-time", "contract", "internship"] as const;
 export const visibilityOptions = ["public", "private"] as const;
+export const workModeOptions = ["onsite", "hybrid", "remote"] as const;
 
 const optionalNumber = z.preprocess((value) => {
   if (value === "" || value === null || typeof value === "undefined") {
@@ -31,7 +32,7 @@ export const jobFormSchema = z
     hiringManagerId: z.string().trim().nullable().optional().default(null),
     type: z.enum(employmentTypeOptions, { required_error: "Employment type is required" }),
     location: z.string().trim().min(2, "Location is required").max(120),
-    remote: z.boolean().default(false),
+    workMode: z.enum(workModeOptions).default("onsite"),
     salaryMin: optionalNumber.optional().default(null),
     salaryMax: optionalNumber.optional().default(null),
     currency: z.string().trim().min(3, "Currency is required").max(5).default("USD"),
@@ -88,7 +89,7 @@ export const defaultJobFormValues: JobFormValues = {
   hiringManagerId: null,
   type: "full-time",
   location: "",
-  remote: false,
+  workMode: "onsite",
   salaryMin: null,
   salaryMax: null,
   currency: "USD",
@@ -131,7 +132,7 @@ export const toJobFormValues = (job: Job): JobFormValues => ({
   hiringManagerId: job.hiringManagerId || null,
   type: job.type,
   location: job.location,
-  remote: job.remote,
+  workMode: job.workMode || (job.remote ? "remote" : "onsite"),
   salaryMin: job.salaryMin,
   salaryMax: job.salaryMax,
   currency: job.currency,

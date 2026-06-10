@@ -3,7 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/features/jobs/components/StatusBadge";
-import { employmentTypeLabels, formatAbsoluteDate, formatJobSalary } from "@/features/jobs/helpers";
+import {
+  employmentTypeLabels,
+  formatAbsoluteDate,
+  formatJobLocation,
+  formatJobSalary,
+} from "@/features/jobs/helpers";
 import { Job } from "@/features/jobs/types";
 import { Copy, Globe, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -39,7 +44,7 @@ export function JobDetailsSheet({ job, open, onOpenChange }: JobDetailsSheetProp
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Location</p>
-                  <p className="mt-1 font-medium">{job.remote ? `${job.location} · Remote` : job.location}</p>
+                  <p className="mt-1 font-medium">{formatJobLocation(job)}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Deadline</p>
@@ -47,7 +52,9 @@ export function JobDetailsSheet({ job, open, onOpenChange }: JobDetailsSheetProp
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Applicants</p>
-                  <p className="mt-1 flex items-center gap-2 font-medium"><Users className="h-4 w-4 text-primary" /> {job.applicantsCount}</p>
+                  <p className="mt-1 flex items-center gap-2 font-medium">
+                    <Users className="h-4 w-4 text-primary" /> {job.applicantsCount}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Salary Range</p>
@@ -62,7 +69,15 @@ export function JobDetailsSheet({ job, open, onOpenChange }: JobDetailsSheetProp
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Tags</h3>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {job.tags.length ? job.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>) : <Badge variant="outline">No tags</Badge>}
+                  {job.tags.length ? (
+                    job.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary">
+                        {tag}
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="outline">No tags</Badge>
+                  )}
                 </div>
               </div>
 
@@ -82,12 +97,22 @@ export function JobDetailsSheet({ job, open, onOpenChange }: JobDetailsSheetProp
                     <div>
                       <p className="font-medium">Skills</p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {job.requirements.skills.length ? job.requirements.skills.map((skill) => <Badge key={skill} variant="secondary">{skill}</Badge>) : <span className="text-muted-foreground">No skills added</span>}
+                        {job.requirements.skills.length ? (
+                          job.requirements.skills.map((skill) => (
+                            <Badge key={skill} variant="secondary">
+                              {skill}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">No skills added</span>
+                        )}
                       </div>
                     </div>
                     <div>
                       <p className="font-medium">Experience</p>
-                      <p className="mt-1 text-muted-foreground">{job.requirements.yearsOfExperience ?? "Not specified"} years</p>
+                      <p className="mt-1 text-muted-foreground">
+                        {job.requirements.yearsOfExperience ?? "Not specified"} years
+                      </p>
                     </div>
                     <div>
                       <p className="font-medium">Qualification</p>
@@ -96,7 +121,15 @@ export function JobDetailsSheet({ job, open, onOpenChange }: JobDetailsSheetProp
                     <div>
                       <p className="font-medium">Certifications</p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {job.requirements.certifications.length ? job.requirements.certifications.map((certification) => <Badge key={certification} variant="outline">{certification}</Badge>) : <span className="text-muted-foreground">No certifications added</span>}
+                        {job.requirements.certifications.length ? (
+                          job.requirements.certifications.map((certification) => (
+                            <Badge key={certification} variant="outline">
+                              {certification}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">No certifications added</span>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 export type JobStatus = "draft" | "open" | "closed";
 export type EmploymentType = "full-time" | "part-time" | "contract" | "internship";
 export type JobVisibility = "public" | "private";
+export type WorkMode = "onsite" | "hybrid" | "remote";
 export type JobSort = "newest" | "oldest" | "deadline";
 export type UserSummary = {
   _id?: string;
@@ -27,6 +28,7 @@ export type Job = {
   descriptionHTML: string;
   type: EmploymentType;
   location: string;
+  workMode: WorkMode;
   remote: boolean;
   salaryMin: number | null;
   salaryMax: number | null;

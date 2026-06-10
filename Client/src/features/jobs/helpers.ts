@@ -1,5 +1,5 @@
 import { format, formatDistanceToNowStrict, isValid } from "date-fns";
-import { EmploymentType, Job, JobStatus } from "@/features/jobs/types";
+import { EmploymentType, Job, JobStatus, WorkMode } from "@/features/jobs/types";
 
 export const employmentTypeLabels: Record<EmploymentType, string> = {
   "full-time": "Full-time",
@@ -12,6 +12,17 @@ export const statusLabels: Record<JobStatus, string> = {
   draft: "Draft",
   open: "Open",
   closed: "Closed",
+};
+
+export const workModeLabels: Record<WorkMode, string> = {
+  onsite: "Onsite",
+  hybrid: "Hybrid",
+  remote: "Remote",
+};
+
+export const formatJobLocation = (job: Pick<Job, "location" | "workMode" | "remote">) => {
+  const workMode = job.workMode || (job.remote ? "remote" : "onsite");
+  return `${job.location} | ${workModeLabels[workMode]}`;
 };
 
 export const formatJobSalary = (job: Pick<Job, "salaryMin" | "salaryMax" | "currency" | "showSalary">) => {
