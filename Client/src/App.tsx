@@ -12,6 +12,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
+import JobDetailPage from "./pages/JobDetailPage";
 import CreateJobPage from "./pages/CreateJobPage";
 import CandidatesPage from "./pages/CandidatesPage";
 import CreateCandidatePage from "./pages/CreateCandidatePage";
@@ -56,6 +57,7 @@ const App = () => (
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/jobs" element={<JobsPage />} />
+                  <Route path="/jobs/:jobId" element={<JobDetailPage />} />
                   <Route path="/candidates" element={<CandidatesPage />} />
                   <Route path="/candidates/:candidateId" element={<CandidateDetailPage />} />
                   <Route path="/pipeline" element={<PipelinePage />} />

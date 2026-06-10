@@ -21,6 +21,7 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarSync,
+  ImagePlus,
   LoaderCircle,
   LockKeyhole,
   PlugZap,
@@ -28,6 +29,7 @@ import {
   Save,
   Send,
   ShieldCheck,
+  X,
 } from "lucide-react";
 
 const defaultNotificationSettings: WorkspaceSettings["notifications"] = {
@@ -188,6 +190,14 @@ const getIntegrationBadge = (ready: boolean, configured: boolean, fallback: stri
   return { label: "Needs setup", variant: "outline" as const };
 };
 
+const readImageAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error("Unable to read the selected image"));
+    reader.readAsDataURL(file);
+  });
+
 export default function SettingsPage() {
   const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(defaultWorkspaceSettings);
   const [initialWorkspaceSettings, setInitialWorkspaceSettings] = useState<WorkspaceSettings | null>(null);
@@ -204,6 +214,7 @@ export default function SettingsPage() {
   const [loadingIntegrationStatuses, setLoadingIntegrationStatuses] = useState(true);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [testEmailRecipient, setTestEmailRecipient] = useState("");
+  const [logoInputKey, setLogoInputKey] = useState(0);
 
   const loadWorkspaceSettings = async () => {
     try {
@@ -410,6 +421,39 @@ export default function SettingsPage() {
     }
   };
 
+  const handleBrandLogoSelect = async (file?: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload a PNG, JPG, WEBP, or SVG logo");
+      setLogoInputKey((current) => current + 1);
+      return;
+    }
+
+    if (file.size > 1024 * 1024) {
+      toast.error("Logo image must be 1 MB or smaller");
+      setLogoInputKey((current) => current + 1);
+      return;
+    }
+
+    try {
+      const dataUrl = await readImageAsDataUrl(file);
+      handleWorkspaceChange("brandingLogo", dataUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to load logo preview");
+    } finally {
+      setLogoInputKey((current) => current + 1);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    handleWorkspaceChange("brandingLogo", "");
+    setLogoInputKey((current) => current + 1);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -469,6 +513,60 @@ export default function SettingsPage() {
                   className="h-11 rounded-2xl"
                   placeholder="HireFlow Labs"
                 />
+              </div>
+              <div className="space-y-3 lg:col-span-2">
+                <div className="space-y-1">
+                  <Label>Workspace logo</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a logo for your workspace header. PNG, JPG, WEBP, or SVG up to 1 MB.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-4 rounded-[22px] border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center">
+                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-border bg-background">
+                    {workspaceSettings.brandingLogo ? (
+                      <img
+                        src={workspaceSettings.brandingLogo}
+                        alt="Workspace logo preview"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Building2 className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <label>
+                        <input
+                          key={logoInputKey}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          className="sr-only"
+                          disabled={loadingWorkspace || savingWorkspace}
+                          onChange={(event) => void handleBrandLogoSelect(event.target.files?.[0])}
+                        />
+                        <span className="inline-flex h-11 cursor-pointer items-center rounded-2xl border border-input bg-background px-4 text-sm font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground">
+                          <ImagePlus className="mr-2 h-4 w-4" />
+                          Upload logo
+                        </span>
+                      </label>
+                      {workspaceSettings.brandingLogo ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 rounded-2xl"
+                          disabled={loadingWorkspace || savingWorkspace}
+                          onClick={handleRemoveLogo}
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Remove logo
+                        </Button>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      The uploaded logo is saved with workspace settings and shown in the sidebar header.
+                    </p>
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Default timezone</Label>

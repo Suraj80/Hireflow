@@ -6,7 +6,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { JobDetailsSheet } from "@/features/jobs/components/JobDetailsSheet";
 import { JobFilters } from "@/features/jobs/components/JobFilters";
 import { JobTable } from "@/features/jobs/components/JobTable";
 import { useJobsStore } from "@/features/jobs/store";
@@ -54,8 +53,6 @@ export default function JobsPage() {
     filters,
     pagination,
     availableDepartments,
-    selectedJob,
-    setSelectedJob,
     setFilters,
     setPage,
     resetFilters,
@@ -83,11 +80,19 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Jobs</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage active openings, review job coverage, and keep hiring plans organized.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Jobs</h1>
+          <p className="mt-1 text-muted-foreground">
+            Manage active openings, review job coverage, and keep hiring plans organized.
+          </p>
+        </div>
+        {canManageJobs && (
+          <Button className="h-11 rounded-2xl" onClick={() => navigate("/jobs/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Job
+          </Button>
+        )}
       </div>
 
       <JobFilters
@@ -116,17 +121,11 @@ export default function JobsPage() {
         <JobTable
           jobs={jobs}
           canManageJobs={canManageJobs && !isDeleting}
-          onView={setSelectedJob}
+          onView={(job) => navigate(`/jobs/${job.id}`)}
           onEdit={(job) => navigate(`/jobs/${job.id}/edit`)}
           onDelete={(job) => void handleDelete(job)}
         />
       )}
-
-      <JobDetailsSheet
-        job={selectedJob}
-        open={Boolean(selectedJob)}
-        onOpenChange={(open) => !open && setSelectedJob(null)}
-      />
 
       {!loading && !error && jobs.length > 0 && (
         <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -150,12 +149,6 @@ export default function JobsPage() {
             >
               Next
             </Button>
-            {canManageJobs && (
-              <Button className="rounded-2xl" onClick={() => navigate("/jobs/new")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Job
-              </Button>
-            )}
           </div>
         </div>
       )}

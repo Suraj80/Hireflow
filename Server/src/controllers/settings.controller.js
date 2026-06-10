@@ -45,7 +45,7 @@ const workspaceSettingsSchema = z.object({
     .min(1, "Select at least one office day")
     .max(7)
     .transform((days) => Array.from(new Set(days))),
-  brandingLogo: z.string().trim().max(255).optional().default(""),
+  brandingLogo: z.string().trim().max(2_000_000).optional().default(""),
   notifications: z.object({
     email: z.boolean().default(true),
     inApp: z.boolean().default(true),

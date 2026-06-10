@@ -79,12 +79,7 @@ export default function LoginPage() {
             </div>
             <span className="text-xl font-bold tracking-tight">HireFlow</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link to="/">
-              <Button variant="ghost" size="sm">Home</Button>
-            </Link>
-          </div>
+          <ThemeToggle />
         </div>
       </nav>
 
