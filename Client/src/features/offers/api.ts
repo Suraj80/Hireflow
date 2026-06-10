@@ -55,8 +55,20 @@ export const offersApi = {
     const response = await api.delete<{ message: string }>(`/offers/${id}`);
     return response.data;
   },
+  downloadPdf: async (id: string) => {
+    const response = await api.get<Blob>(`/offers/${id}/pdf`, {
+      responseType: "blob",
+    });
+    return response.data;
+  },
   getPublic: async (token: string) => {
     const response = await api.get<PublicOffer>(`/offers/public/${token}`);
+    return response.data;
+  },
+  downloadPublicPdf: async (token: string) => {
+    const response = await api.get<Blob>(`/offers/public/${token}/pdf`, {
+      responseType: "blob",
+    });
     return response.data;
   },
   respondPublic: async (token: string, payload: { decision: "Accepted" | "Declined"; signatureName: string; message: string }) => {

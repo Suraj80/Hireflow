@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Eye, FileText, LoaderCircle, MailCheck, Pencil, Plus, Trash2, XCircle } from "lucide-react";
+import { Copy, Download, Eye, FileText, LoaderCircle, MailCheck, Pencil, Plus, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,17 @@ const formatMoney = (amount: number | null, currency: string) =>
   amount === null ? "Not set" : `${currency} ${amount.toLocaleString()}`;
 
 const formatDate = (value: string | null) => (value ? new Date(value).toLocaleDateString() : "Not set");
+
+const triggerBlobDownload = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = window.document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  window.document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
 
 function LoadingState() {
   return (
@@ -151,6 +162,23 @@ export default function OffersPage() {
       const message =
         (deleteError as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (deleteError instanceof Error ? deleteError.message : "Unable to delete offer");
+      toast.error(message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const handleDownloadPdf = async (offer: Offer) => {
+    try {
+      setWorking(true);
+      const blob = await offersApi.downloadPdf(offer.id);
+      const fileName = `${(offer.candidate?.name || "candidate").replace(/\s+/g, "-").toLowerCase()}-offer-v${offer.version}.pdf`;
+      triggerBlobDownload(blob, fileName);
+      toast.success("Offer PDF downloaded");
+    } catch (downloadError) {
+      const message =
+        (downloadError as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (downloadError instanceof Error ? downloadError.message : "Unable to download offer PDF");
       toast.error(message);
     } finally {
       setWorking(false);
@@ -290,6 +318,9 @@ export default function OffersPage() {
                         <Button variant="outline" size="icon" className="h-9 w-9 rounded-2xl" onClick={() => navigate(`/offers/${offer.id}/edit`)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        <Button variant="outline" size="icon" className="h-9 w-9 rounded-2xl" onClick={() => void handleDownloadPdf(offer)}>
+                          <Download className="h-4 w-4" />
+                        </Button>
                         <Button variant="outline" size="icon" className="h-9 w-9 rounded-2xl" onClick={() => void handleCopyLink(offer)}>
                           <Copy className="h-4 w-4" />
                         </Button>
@@ -371,6 +402,10 @@ export default function OffersPage() {
                       <Button variant="outline" className="rounded-2xl" onClick={() => void handleCopyLink(selectedOffer)}>
                         <Copy className="mr-2 h-4 w-4" />
                         Copy link
+                      </Button>
+                      <Button variant="outline" className="rounded-2xl" disabled={working} onClick={() => void handleDownloadPdf(selectedOffer)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
                       </Button>
                       {selectedOffer.status === "Draft" && (
                         <Button className="rounded-2xl" disabled={working} onClick={() => void handleSendOffer(selectedOffer)}>

@@ -2,6 +2,8 @@ const express = require("express");
 const {
   createOffer,
   deleteOffer,
+  downloadOfferPdf,
+  downloadPublicOfferPdf,
   getOfferById,
   getOffersMeta,
   getPublicOffer,
@@ -18,7 +20,9 @@ const router = express.Router();
 router.get("/", protect, requireRole("recruiter", "admin"), listOffers);
 router.get("/meta", protect, requireRole("recruiter", "admin"), getOffersMeta);
 router.get("/public/:token", getPublicOffer);
+router.get("/public/:token/pdf", downloadPublicOfferPdf);
 router.post("/public/:token/respond", respondToOfferPublic);
+router.get("/:id/pdf", protect, requireRole("recruiter", "admin"), downloadOfferPdf);
 router.get("/:id", protect, requireRole("recruiter", "admin"), getOfferById);
 router.post("/", protect, requireRole("recruiter", "admin"), createOffer);
 router.patch("/:id", protect, requireRole("recruiter", "admin"), updateOffer);

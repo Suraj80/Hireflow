@@ -5,6 +5,7 @@ const WorkspaceSetting = require("../models/WorkspaceSetting");
 const { Offer, offerStatusOptions } = require("../models/Offer");
 const { createAuditLog } = require("../services/audit.service");
 const { sendCandidateStageChangeEmail } = require("../services/email.service");
+const { streamOfferPdf } = require("../services/offer-pdf.service");
 const {
   notifyCandidateStageChange,
   notifyOfferEvent,
@@ -91,6 +92,24 @@ const getClientBaseUrl = () =>
     .replace(/\/+$/g, "");
 
 const buildOfferShareUrl = (publicToken) => `${getClientBaseUrl()}/offers/${publicToken}`;
+
+const buildOfferPdfPayload = ({ offer, workspaceSettings }) => ({
+  candidateName: offer.candidateId?.name || "Candidate",
+  department: offer.jobId?.department || "",
+  location: offer.jobId?.location || "",
+  title: offer.title,
+  salaryAmount: offer.salaryAmount,
+  bonusAmount: offer.bonusAmount,
+  equity: offer.equity,
+  currency: offer.currency,
+  startDate: offer.startDate,
+  expiresAt: offer.expiresAt,
+  letterHtml: offer.letterHtml,
+  notes: offer.notes,
+  status: offer.status,
+  version: offer.version,
+  companyName: workspaceSettings?.companyName || "HireFlow",
+});
 
 const buildDefaultLetterHtml = ({ candidateName, title, salaryAmount, currency, startDate, companyName }) => {
   const salaryText =
@@ -361,6 +380,46 @@ const getOfferById = async (req, res) => {
     return res.status(200).json(mapOffer(offer));
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+};
+
+const downloadOfferPdf = async (req, res) => {
+  try {
+    await syncExpiredOffers();
+
+    const offer = await Offer.findOne({ _id: req.params.id, deletedAt: null })
+      .populate("candidateId", "name email")
+      .populate("jobId", "title department location");
+
+    if (!offer) {
+      return res.status(404).json({ message: "Offer not found" });
+    }
+
+    const workspaceSettings = await WorkspaceSetting.findOne().select("companyName");
+
+    await createAuditLog({
+      req,
+      action: "offer-pdf-downloaded",
+      category: "offers",
+      entity: {
+        type: "offer",
+        id: offer._id,
+        label: `${offer.candidateId?.name || "Candidate"} - ${offer.title}`,
+      },
+      description: `Downloaded PDF for ${offer.title}`,
+      meta: {
+        status: offer.status,
+        version: offer.version,
+      },
+    });
+
+    await streamOfferPdf(res, buildOfferPdfPayload({ offer, workspaceSettings }));
+  } catch (error) {
+    if (!res.headersSent) {
+      return res.status(500).json({ message: error.message });
+    }
+
+    res.end();
   }
 };
 
@@ -813,6 +872,30 @@ const getPublicOffer = async (req, res) => {
   }
 };
 
+const downloadPublicOfferPdf = async (req, res) => {
+  try {
+    await syncExpiredOffers();
+
+    const offer = await Offer.findOne({ publicToken: req.params.token, deletedAt: null })
+      .populate("candidateId", "name email")
+      .populate("jobId", "title department location");
+
+    if (!offer) {
+      return res.status(404).json({ message: "Offer not found" });
+    }
+
+    const workspaceSettings = await WorkspaceSetting.findOne().select("companyName");
+
+    await streamOfferPdf(res, buildOfferPdfPayload({ offer, workspaceSettings }));
+  } catch (error) {
+    if (!res.headersSent) {
+      return res.status(500).json({ message: error.message });
+    }
+
+    res.end();
+  }
+};
+
 const respondToOfferPublic = async (req, res) => {
   const parsedBody = publicOfferDecisionSchema.safeParse(req.body);
   if (!parsedBody.success) {
@@ -919,6 +1002,8 @@ const respondToOfferPublic = async (req, res) => {
 module.exports = {
   createOffer,
   deleteOffer,
+  downloadOfferPdf,
+  downloadPublicOfferPdf,
   getOfferById,
   getOffersMeta,
   getPublicOffer,

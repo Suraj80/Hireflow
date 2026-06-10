@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, FileText, LoaderCircle, XCircle, Zap } from "lucide-react";
+import { CheckCircle, Download, FileText, LoaderCircle, XCircle, Zap } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,28 @@ export default function PublicOfferPage() {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    try {
+      setWorking(true);
+      const blob = await offersApi.downloadPublicPdf(token);
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement("a");
+      link.href = url;
+      link.download = `${(offer?.candidateName || "candidate").replace(/\s+/g, "-").toLowerCase()}-offer.pdf`;
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      const messageText =
+        (downloadError as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (downloadError instanceof Error ? downloadError.message : "Unable to download offer PDF");
+      setError(messageText);
+    } finally {
+      setWorking(false);
+    }
+  };
+
   if (completed) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -122,10 +144,16 @@ export default function PublicOfferPage() {
           <div className="space-y-6">
             <Card className="border border-border">
               <CardHeader>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{offer.department}</Badge>
-                  <Badge variant="outline">Version {offer.version}</Badge>
-                  <Badge variant="outline">{offer.status}</Badge>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{offer.department}</Badge>
+                    <Badge variant="outline">Version {offer.version}</Badge>
+                    <Badge variant="outline">{offer.status}</Badge>
+                  </div>
+                  <Button variant="outline" className="rounded-2xl" disabled={working} onClick={() => void handleDownloadPdf()}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF
+                  </Button>
                 </div>
                 <CardTitle className="mt-2 text-2xl">{offer.title}</CardTitle>
               </CardHeader>
