@@ -21,6 +21,7 @@ import CandidateDetailPage from "./pages/CandidateDetailPage";
 import PipelinePage from "./pages/PipelinePage";
 import InterviewsPage from "./pages/InterviewsPage";
 import OffersPage from "./pages/OffersPage";
+import OfferDetailPage from "./pages/OfferDetailPage";
 import PublicOfferPage from "./pages/PublicOfferPage";
 import ScheduleInterviewPage from "./pages/ScheduleInterviewPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -67,6 +68,7 @@ const App = () => (
                   <Route element={<ProtectedRoute allowedRoles={["recruiter", "admin"]} />}>
                     <Route path="/analytics" element={<AnalyticsPage />} />
                     <Route path="/offers" element={<OffersPage />} />
+                    <Route path="/offers/view/:offerId" element={<OfferDetailPage />} />
                     <Route path="/offers/new" element={<CreateOfferPage />} />
                     <Route path="/offers/:offerId/edit" element={<CreateOfferPage />} />
                     <Route path="/interviews/new" element={<ScheduleInterviewPage />} />

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, PencilLine, Trash2, UserPlus, Users2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle, CheckCircle2, PencilLine, ShieldCheck, Trash2, UserPlus, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -33,9 +33,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/components/AuthProvider";
 import { usersApi } from "@/features/users/api";
+import {
+  getPasswordRequirementMessage,
+  getPasswordStrength,
+  isPasswordValidForClient,
+  MIN_PASSWORD_LENGTH,
+} from "@/features/users/password-strength";
 import { UserListItem, UserRole } from "@/features/users/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
@@ -103,6 +110,7 @@ export default function UsersPage() {
     email: "",
     password: "",
     role: "viewer" as UserRole,
+    isActive: true,
   });
   const [changingRoleId, setChangingRoleId] = useState<string | null>(null);
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
@@ -143,18 +151,30 @@ export default function UsersPage() {
     void loadUsers();
   }, [loadUsers]);
 
+  const createPasswordStrength = useMemo(
+    () => getPasswordStrength(createForm.password),
+    [createForm.password]
+  );
+  const resetPasswordStrength = useMemo(() => getPasswordStrength(newPassword), [newPassword]);
+
   const resetForm = () => {
     setCreateForm({
       name: "",
       email: "",
       password: "",
       role: "viewer",
+      isActive: true,
     });
   };
 
   const handleCreateUser = async () => {
     if (!createForm.name.trim() || !createForm.email.trim() || !createForm.password) {
       toast.error("Name, email, and password are required");
+      return;
+    }
+
+    if (!isPasswordValidForClient(createForm.password)) {
+      toast.error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       return;
     }
 
@@ -165,6 +185,7 @@ export default function UsersPage() {
         email: createForm.email.trim(),
         password: createForm.password,
         role: createForm.role,
+        isActive: createForm.isActive,
       });
       setUsers((current) => [response.user, ...current]);
       setDialogOpen(false);
@@ -227,8 +248,8 @@ export default function UsersPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (!isPasswordValidForClient(newPassword)) {
+      toast.error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       return;
     }
 
@@ -547,7 +568,7 @@ export default function UsersPage() {
                 type="password"
                 value={createForm.password}
                 onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))}
-                placeholder="Minimum 6 characters"
+                placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
                 autoComplete="new-password"
                 className="h-11 rounded-2xl"
               />
@@ -570,12 +591,49 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>User status</Label>
+              <div className="flex h-11 items-center justify-between rounded-2xl border border-input bg-background px-4">
+                <span className="text-sm text-muted-foreground">
+                  {createForm.isActive ? "Active" : "Deactive"}
+                </span>
+                <Switch
+                  checked={createForm.isActive}
+                  onCheckedChange={(checked) => setCreateForm((current) => ({ ...current, isActive: checked }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-4 sm:col-span-2 rounded-[24px] border border-border/70 bg-gradient-to-r from-background to-primary/[0.03] p-4 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium">Password strength</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{createPasswordStrength.hint}</p>
+                </div>
+                <Badge variant="outline" className={`rounded-full border-0 px-3 py-1 text-xs ${createPasswordStrength.tone}`}>
+                  {createPasswordStrength.label}
+                </Badge>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-violet-600 transition-all"
+                  style={{ width: `${createPasswordStrength.progress}%` }}
+                />
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                {getPasswordRequirementMessage()}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" className="rounded-2xl" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button className="rounded-2xl" disabled={submitting} onClick={() => void handleCreateUser()}>
+            <Button
+              className="rounded-2xl"
+              disabled={submitting || !isPasswordValidForClient(createForm.password)}
+              onClick={() => void handleCreateUser()}
+            >
               Create user
             </Button>
           </DialogFooter>
@@ -607,10 +665,31 @@ export default function UsersPage() {
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="Minimum 6 characters"
+              placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
               autoComplete="new-password"
               className="h-11 rounded-2xl"
             />
+          </div>
+            <div className="space-y-4 rounded-[24px] border border-border/70 bg-gradient-to-r from-background to-primary/[0.03] p-4 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium">Password strength</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{resetPasswordStrength.hint}</p>
+                </div>
+              <Badge variant="outline" className={`rounded-full border-0 px-3 py-1 text-xs ${resetPasswordStrength.tone}`}>
+                {resetPasswordStrength.label}
+              </Badge>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-violet-600 transition-all"
+                  style={{ width: `${resetPasswordStrength.progress}%` }}
+                />
+              </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              {getPasswordRequirementMessage()}
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -623,7 +702,11 @@ export default function UsersPage() {
             >
               Cancel
             </Button>
-            <Button className="rounded-2xl" disabled={passwordSubmitting} onClick={() => void handlePasswordUpdate()}>
+            <Button
+              className="rounded-2xl"
+              disabled={passwordSubmitting || !isPasswordValidForClient(newPassword)}
+              onClick={() => void handlePasswordUpdate()}
+            >
               Save password
             </Button>
           </DialogFooter>

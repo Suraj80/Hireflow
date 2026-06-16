@@ -20,4 +20,5 @@ export type CreateUserPayload = {
   email: string;
   password: string;
   role: UserRole;
+  isActive: boolean;
 };

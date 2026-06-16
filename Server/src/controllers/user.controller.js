@@ -86,6 +86,12 @@ const createUser = async (req, res) => {
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
     const role = String(req.body.role || "viewer").trim().toLowerCase();
+    const isActive =
+      typeof req.body.isActive === "boolean"
+        ? req.body.isActive
+        : typeof req.body.isActive === "undefined"
+          ? true
+          : null;
     const securitySettings = await getSecuritySettings();
 
     if (!name) {
@@ -105,6 +111,10 @@ const createUser = async (req, res) => {
       return res.status(400).json(buildValidationError("Invalid role", "role"));
     }
 
+    if (isActive === null) {
+      return res.status(400).json(buildValidationError("isActive must be a boolean", "isActive"));
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(409).json(buildValidationError("A user with this email already exists", "email"));
@@ -115,6 +125,7 @@ const createUser = async (req, res) => {
       email,
       password,
       role,
+      isActive,
     });
 
     await createAuditLog({
@@ -130,6 +141,7 @@ const createUser = async (req, res) => {
       meta: {
         name: user.name,
         role: user.role,
+        isActive: user.isActive !== false,
       },
     });
 
