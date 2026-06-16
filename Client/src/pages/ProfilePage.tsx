@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  KeyRound,
-  Mail,
-  ShieldCheck,
-  Sparkles,
-  UserRound,
-} from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -132,7 +123,7 @@ export default function ProfilePage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Profile</h1>
         <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-          Keep your hiring identity current, review workspace-managed details, and maintain account security.
+          Keep your hiring identity current and maintain account security.
         </p>
       </div>
 
@@ -148,9 +139,7 @@ export default function ProfilePage() {
                 </Badge>
                 <h2 className="mt-3 truncate text-xl font-semibold">{user.name}</h2>
                 <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-                <Badge variant="secondary" className="mt-3 rounded-full px-3 py-1 text-xs">
-                  {roleLabel[user.role]}
-                </Badge>
+                <p className="mt-3 text-sm font-medium text-foreground">Role: {roleLabel[user.role]}</p>
               </div>
             </div>
 
@@ -174,18 +163,6 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-
-            <div className="rounded-[24px] border border-border/70 bg-background/70 p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">Workspace-managed access</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Email and role are controlled by your organization administrator to keep permissions aligned across the ATS.
-                  </p>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -198,7 +175,7 @@ export default function ProfilePage() {
               <div>
                 <CardTitle className="text-xl">Profile Details</CardTitle>
                 <CardDescription>
-                  Update the personal details that appear across the workspace. Workspace identity fields stay read-only here.
+                  Update the personal details that appear across the workspace.
                 </CardDescription>
               </div>
             </div>
@@ -238,13 +215,13 @@ export default function ProfilePage() {
 
             <div className="space-y-2">
               <Label htmlFor="profile-role" className="text-sm font-medium text-foreground/90">
-                Workspace role
+                Role
               </Label>
               <div className="relative">
                 <ShieldCheck className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="profile-role"
-                  value={roleLabel[user.role]}
+                  value={`Role: ${roleLabel[user.role]}`}
                   disabled
                   className="h-12 rounded-2xl border-border/70 bg-muted/30 pl-11 text-muted-foreground opacity-100"
                 />

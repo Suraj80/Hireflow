@@ -34,7 +34,7 @@ export function TopNavbar() {
 
     try {
       const response = await notificationsApi.list();
-      setNotifications(response.items);
+      setNotifications(response.items.filter((item) => !item.readAt));
       setUnreadCount(response.unreadCount);
     } finally {
       setNotificationsLoading(false);
@@ -56,24 +56,15 @@ export function TopNavbar() {
       return;
     }
 
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === notificationId
-          ? {
-              ...notification,
-              readAt: new Date().toISOString(),
-            }
-          : notification
-      )
-    );
+    setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
     setUnreadCount((current) => Math.max(0, current - 1));
 
     try {
       const response = await notificationsApi.markRead(notificationId);
       setUnreadCount(response.unreadCount);
-      setNotifications((current) =>
-        current.map((notification) => (notification.id === notificationId ? response.item : notification))
-      );
+      if (!response.item.readAt) {
+        setNotifications((current) => [response.item, ...current.filter((notification) => notification.id !== notificationId)]);
+      }
     } catch (_error) {
       await loadNotifications();
     }
@@ -84,13 +75,7 @@ export function TopNavbar() {
       return;
     }
 
-    const now = new Date().toISOString();
-    setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        readAt: notification.readAt || now,
-      }))
-    );
+    setNotifications([]);
     setUnreadCount(0);
 
     try {
@@ -117,6 +102,12 @@ export function TopNavbar() {
       window.clearInterval(interval);
     };
   }, [user]);
+
+  useEffect(() => {
+    if (showNotifications && unreadCount === 0) {
+      setNotifications([]);
+    }
+  }, [showNotifications, unreadCount]);
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card/80 backdrop-blur-sm px-4">

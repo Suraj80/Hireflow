@@ -8,6 +8,7 @@ import {
   BarChart3,
   Settings,
   FileText,
+  LogOut,
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -22,6 +23,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -46,7 +48,7 @@ const adminItems = [
 
 export function AppSidebar() {
   const { state } = useSidebar();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [workspaceName, setWorkspaceName] = useState("HireFlow");
   const [workspaceLogo, setWorkspaceLogo] = useState("");
   const collapsed = state === "collapsed";
@@ -130,6 +132,20 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
+      <SidebarFooter className="mt-auto p-4 pt-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => void logout()}
+              className="justify-start rounded-xl text-destructive hover:text-destructive"
+              tooltip="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+              {!collapsed && <span>Logout</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

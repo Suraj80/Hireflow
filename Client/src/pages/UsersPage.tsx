@@ -562,7 +562,7 @@ export default function UsersPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="user-password">Temporary password</Label>
+              <Label htmlFor="user-password">Password</Label>
               <Input
                 id="user-password"
                 type="password"

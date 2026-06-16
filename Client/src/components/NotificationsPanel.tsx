@@ -63,6 +63,8 @@ export function NotificationsPanel({
   onMarkRead,
   onMarkAllRead,
 }: NotificationsPanelProps) {
+  const visibleItems = items.filter((notification) => !notification.readAt);
+
   return (
     <Card className="absolute right-0 top-12 w-80 p-0 shadow-float z-50 animate-scale-in">
       <div className="flex items-center justify-between p-3 border-b border-border">
@@ -86,11 +88,11 @@ export function NotificationsPanel({
             Loading notifications...
           </div>
         ) : null}
-        {!loading && items.length === 0 ? (
+        {!loading && visibleItems.length === 0 ? (
           <div className="p-4 text-sm text-muted-foreground">Your inbox is clear right now.</div>
         ) : null}
         {!loading &&
-          items.map((notification) => {
+          visibleItems.map((notification) => {
             const Icon = getNotificationIcon(notification.type);
 
             return (
