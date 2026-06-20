@@ -6,6 +6,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { WorkspaceSettings } from "@/features/settings/types";
 import {
   buildRescheduleTimestamp,
+  getCalendarHalfHourRowHeight,
   buildTimeLabels,
   buildTimeSlots,
   buildWeekDays,
@@ -47,6 +48,7 @@ export function InterviewCalendarView({
   const slots = useMemo(() => buildTimeSlots(officeHours), [officeHours]);
   const labels = useMemo(() => buildTimeLabels(officeHours), [officeHours]);
   const hourRowHeight = useMemo(() => getCalendarHourRowHeight(), []);
+  const halfHourRowHeight = useMemo(() => getCalendarHalfHourRowHeight(), []);
 
   useEffect(() => {
     if (!resizing) {
@@ -55,7 +57,7 @@ export function InterviewCalendarView({
 
     const handleMove = async (event: MouseEvent) => {
       const delta = event.clientY - resizing.originY;
-      const steps = Math.max(0, Math.round(delta / 44));
+      const steps = Math.max(0, Math.round(delta / halfHourRowHeight));
       const nextDuration = Math.max(15, resizing.duration + steps * 15);
       setResizing((current) => (current ? { ...current, duration: nextDuration } : current));
     };
@@ -79,7 +81,7 @@ export function InterviewCalendarView({
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [items, onReschedule, resizing]);
+  }, [halfHourRowHeight, items, onReschedule, resizing]);
 
   return (
     <Card className="lg:col-span-2 border border-border">
@@ -140,7 +142,10 @@ export function InterviewCalendarView({
                   .map((item) => {
                     const layout = getInterviewLayout(item, weekStart, officeWeek, officeHours);
                     const Icon = typeIcons[item.type];
-                    const visualHeight = resizing?.id === item.id ? Math.max(44, (resizing.duration / 30) * 44) : layout.height;
+                    const visualHeight =
+                      resizing?.id === item.id
+                        ? Math.max(halfHourRowHeight, (resizing.duration / 30) * halfHourRowHeight)
+                        : layout.height;
                     return (
                       <HoverCard key={item.id}>
                         <HoverCardTrigger asChild>

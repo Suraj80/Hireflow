@@ -24,7 +24,7 @@ export type WorkspaceSettings = {
     defaultCandidateSource: "portal" | "referral" | "manual" | "campus" | "linkedin" | "agency";
     defaultJobStatus: "draft" | "open" | "closed";
     resumeFileSizeLimitMb: number;
-    allowedResumeFormats: Array<"PDF" | "DOC" | "DOCX">;
+    allowedResumeFormats: Array<"PDF" | "DOCX">;
     duplicateApplicationWarning: boolean;
   };
   security: {

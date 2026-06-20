@@ -59,9 +59,9 @@ const workspaceSettingsSchema = z.object({
     defaultJobStatus: z.enum(["draft", "open", "closed"]).default("draft"),
     resumeFileSizeLimitMb: z.number().int().min(1).max(25).default(5),
     allowedResumeFormats: z
-      .array(z.enum(["PDF", "DOC", "DOCX"]))
+      .array(z.enum(["PDF", "DOCX"]))
       .min(1, "Select at least one resume format")
-      .max(3)
+      .max(2)
       .transform((formats) => Array.from(new Set(formats))),
     duplicateApplicationWarning: z.boolean().default(true),
   }),

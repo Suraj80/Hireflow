@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, AlertCircle, PencilLine } from "lucide-react";
+import { ArrowLeft, AlertCircle, LoaderCircle, PencilLine, RotateCw } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { candidatesApi } from "@/features/candidates/api";
 import { JobDetailsContent } from "@/features/jobs/components/JobDetailsContent";
 import { jobsApi } from "@/features/jobs/api";
 import { Job } from "@/features/jobs/types";
@@ -27,6 +29,7 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rescoring, setRescoring] = useState(false);
 
   useEffect(() => {
     const loadJob = async () => {
@@ -44,6 +47,18 @@ export default function JobDetailPage() {
 
     void loadJob();
   }, [jobId]);
+
+  const handleRescoreJobCandidates = async () => {
+    try {
+      setRescoring(true);
+      const response = await candidatesApi.rescoreByJob(jobId);
+      toast.success(response.message);
+    } catch (rescoreError) {
+      toast.error(rescoreError instanceof Error ? rescoreError.message : "Unable to queue AI scoring for this job");
+    } finally {
+      setRescoring(false);
+    }
+  };
 
   if (loading) {
     return <LoadingState />;
@@ -93,10 +108,21 @@ export default function JobDetailPage() {
           </div>
         </div>
         {canManageJobs && (
-          <Button className="h-11 rounded-2xl" onClick={() => navigate(`/jobs/${job.id}/edit`)}>
-            <PencilLine className="mr-2 h-4 w-4" />
-            Edit Job
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="h-11 rounded-2xl"
+              variant="outline"
+              disabled={rescoring}
+              onClick={() => void handleRescoreJobCandidates()}
+            >
+              {rescoring ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <RotateCw className="mr-2 h-4 w-4" />}
+              Re-score Candidates
+            </Button>
+            <Button className="h-11 rounded-2xl" onClick={() => navigate(`/jobs/${job.id}/edit`)}>
+              <PencilLine className="mr-2 h-4 w-4" />
+              Edit Job
+            </Button>
+          </div>
         )}
       </div>
 

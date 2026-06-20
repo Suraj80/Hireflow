@@ -60,7 +60,6 @@ type AutosavedValues = CandidateFormValues & {
 
 const allowedResumeTypes = [
   "application/pdf",
-  "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
@@ -223,7 +222,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
 
   const handleResumeUpload = async (file: File) => {
     if (!allowedResumeTypes.includes(file.type)) {
-      toast.error("Resume must be PDF, DOC, or DOCX");
+      toast.error("Resume must be PDF or DOCX");
       return;
     }
 
@@ -245,9 +244,6 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
       );
       form.setValue("aiScore", null, { shouldDirty: true });
       toast.success("Resume uploaded");
-      if (file.type === "application/msword") {
-        toast.warning("Legacy .doc resumes upload successfully, but AI scoring works only with PDF or DOCX.");
-      }
     } catch (error) {
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -723,7 +719,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
         <Card className="rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Resume upload</CardTitle>
-            <CardDescription>Resume files are stored locally for now. Accepted formats: PDF, DOC, DOCX up to 5MB.</CardDescription>
+            <CardDescription>Resume files are stored locally for now. Accepted formats: PDF and DOCX up to 5MB.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5">

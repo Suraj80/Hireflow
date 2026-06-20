@@ -18,6 +18,7 @@ const {
   getCandidates,
   requestResumeUploadUrl,
   rescoreCandidate,
+  rescoreCandidatesForJob,
   updateCandidate,
   updateCandidateNote,
   updateCandidateStage,
@@ -101,6 +102,7 @@ router.post(
   requestResumeUploadUrl
 );
 router.post("/bulk-action", protect, requireRole("recruiter", "admin"), bulkActionCandidates);
+router.post("/jobs/:jobId/rescore", protect, requireRole("recruiter", "admin"), rescoreCandidatesForJob);
 router.get("/:id", protect, getCandidateById);
 router.post("/", protect, requireRole("recruiter", "admin"), createCandidate);
 router.patch("/:id", protect, requireRole("recruiter", "admin"), updateCandidate);

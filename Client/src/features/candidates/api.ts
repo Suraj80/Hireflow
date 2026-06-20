@@ -93,6 +93,17 @@ export const candidatesApi = {
     const response = await api.post<Candidate>(`/candidates/${id}/rescore`);
     return response.data;
   },
+  rescoreByJob: async (jobId: string) => {
+    const response = await api.post<{
+      message: string;
+      jobId: string;
+      jobTitle: string;
+      queuedCount: number;
+      skippedCount: number;
+      skipped: Array<{ candidateId: string; candidateName: string; reason: string }>;
+    }>(`/candidates/jobs/${jobId}/rescore`);
+    return response.data;
+  },
   archive: async (id: string) => {
     const response = await api.delete<{ message: string }>(`/candidates/${id}`);
     return response.data;

@@ -272,10 +272,10 @@ export default function JobApplicationPage() {
                   <label className="mt-1.5 block cursor-pointer border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
                     <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">{resumeLabel}</p>
-                    <p className="text-xs text-muted-foreground mt-1">PDF, DOC, DOCX up to 5MB</p>
+                    <p className="text-xs text-muted-foreground mt-1">PDF or DOCX up to 5MB</p>
                     <input
                       type="file"
-                      accept=".pdf,.doc,.docx"
+                      accept=".pdf,.docx"
                       className="sr-only"
                       onChange={(event) => {
                         const file = event.target.files?.[0] || null;

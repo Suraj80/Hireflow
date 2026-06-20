@@ -4,7 +4,10 @@ const Job = require("../models/Job");
 const WorkspaceSetting = require("../models/WorkspaceSetting");
 const { Offer, offerStatusOptions } = require("../models/Offer");
 const { createAuditLog } = require("../services/audit.service");
-const { sendCandidateStageChangeEmail } = require("../services/email.service");
+const {
+  sendCandidateStageChangeEmail,
+  sendOfferLetterEmail,
+} = require("../services/email.service");
 const { streamOfferPdf } = require("../services/offer-pdf.service");
 const {
   notifyCandidateStageChange,
@@ -650,6 +653,15 @@ const sendOffer = async (req, res) => {
       .populate("recruiterAssigned", "name email role")
       .populate("createdBy", "name email role");
     const job = await Job.findById(offer.jobId).select("title department location");
+    const shareUrl = buildOfferShareUrl(offer.publicToken);
+
+    const emailResult = await sendOfferLetterEmail({
+      offer,
+      candidate,
+      job,
+      shareUrl,
+      message: parsedBody.data.message,
+    });
 
     await syncCandidateStage({
       candidate,
@@ -672,7 +684,8 @@ const sendOffer = async (req, res) => {
       meta: {
         status: offer.status,
         sentAt: offer.sentAt,
-        shareUrl: buildOfferShareUrl(offer.publicToken),
+        shareUrl,
+        emailDelivered: !emailResult?.skipped,
       },
     });
 
@@ -685,8 +698,9 @@ const sendOffer = async (req, res) => {
       title: "Offer sent",
       message: `Offer for ${candidate?.name || "candidate"} is ready for review.`,
       meta: {
-        shareUrl: buildOfferShareUrl(offer.publicToken),
+        shareUrl,
         message: parsedBody.data.message,
+        emailDelivered: !emailResult?.skipped,
       },
     });
 

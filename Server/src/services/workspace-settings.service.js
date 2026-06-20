@@ -25,7 +25,7 @@ const DEFAULT_WORKSPACE_SETTINGS = {
     defaultCandidateSource: "manual",
     defaultJobStatus: "draft",
     resumeFileSizeLimitMb: 5,
-    allowedResumeFormats: ["PDF", "DOC", "DOCX"],
+    allowedResumeFormats: ["PDF", "DOCX"],
     duplicateApplicationWarning: true,
   },
   security: {
@@ -57,11 +57,17 @@ const DEFAULT_WORKSPACE_SETTINGS = {
 
 const resumeFormatMimeTypes = {
   PDF: "application/pdf",
-  DOC: "application/msword",
   DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
 
+const supportedResumeFormats = ["PDF", "DOCX"];
+
 const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/;
+
+const sanitizeResumeFormats = (formats) => {
+  const filtered = Array.from(new Set((formats || []).filter((format) => supportedResumeFormats.includes(format))));
+  return filtered.length ? filtered : [...supportedResumeFormats];
+};
 
 const normalizeWorkspaceSettingsResponse = (settings) => ({
   workspaceName: settings.workspaceName,
@@ -90,10 +96,7 @@ const normalizeWorkspaceSettingsResponse = (settings) => ({
     defaultCandidateSource: settings.hiringPreferences?.defaultCandidateSource || "manual",
     defaultJobStatus: settings.hiringPreferences?.defaultJobStatus || "draft",
     resumeFileSizeLimitMb: settings.hiringPreferences?.resumeFileSizeLimitMb ?? 5,
-    allowedResumeFormats:
-      settings.hiringPreferences?.allowedResumeFormats?.length
-        ? settings.hiringPreferences.allowedResumeFormats
-        : ["PDF", "DOC", "DOCX"],
+    allowedResumeFormats: sanitizeResumeFormats(settings.hiringPreferences?.allowedResumeFormats),
     duplicateApplicationWarning: settings.hiringPreferences?.duplicateApplicationWarning ?? true,
   },
   security: {
@@ -170,7 +173,7 @@ const validatePasswordAgainstPolicy = (password, securitySettings) => {
 const getResumeUploadPolicy = async () => {
   const hiringPreferences = await getHiringPreferences();
   const allowedFormats = hiringPreferences.allowedResumeFormats?.length
-    ? hiringPreferences.allowedResumeFormats
+    ? sanitizeResumeFormats(hiringPreferences.allowedResumeFormats)
     : DEFAULT_WORKSPACE_SETTINGS.hiringPreferences.allowedResumeFormats;
   const allowedMimeTypes = allowedFormats
     .map((format) => resumeFormatMimeTypes[format])

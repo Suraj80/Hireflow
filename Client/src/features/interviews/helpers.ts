@@ -48,7 +48,7 @@ export const weekdayOrder: Array<WorkspaceSettings["officeWeek"][number]> = [
   "saturday",
 ];
 
-const pixelsPerHalfHour = 44;
+const pixelsPerHalfHour = 56;
 
 export const statusToneMap: Record<InterviewStatus, string> = {
   Scheduled: "bg-blue-500/12 text-blue-700 border-blue-200",
@@ -181,6 +181,7 @@ export const buildTimeLabels = (officeHours?: WorkspaceSettings["officeHours"]) 
 };
 
 export const getCalendarHourRowHeight = () => pixelsPerHalfHour * 2;
+export const getCalendarHalfHourRowHeight = () => pixelsPerHalfHour;
 
 export const formatInterviewDate = (value: string) => format(parseISO(value), "EEE, MMM d");
 export const formatInterviewTime = (value: string) => format(parseISO(value), "h:mm a");

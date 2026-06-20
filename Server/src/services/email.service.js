@@ -244,6 +244,84 @@ const buildInterviewEmailDetails = ({ interview, candidate, job }) => ({
   notes: stripHtml(interview?.notes || ""),
 });
 
+const formatDate = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+  }).format(new Date(value));
+};
+
+const sendOfferLetterEmail = async ({
+  offer,
+  candidate,
+  job,
+  shareUrl,
+  message = "",
+}) => {
+  const settings = await getWorkspaceEmailSettings();
+  if (!settings.notifications.email || !candidate?.email) {
+    return { skipped: true, reason: "offer-email-disabled" };
+  }
+
+  const safeCandidate = escapeHtml(candidate.name || "Candidate");
+  const safeCompany = escapeHtml(settings.companyName);
+  const safeJobTitle = escapeHtml(job?.title || offer?.title || "your role");
+  const safeOfferTitle = escapeHtml(offer?.title || safeJobTitle);
+  const safeShareUrl = escapeHtml(shareUrl || "");
+  const safeMessage = escapeHtml(message);
+  const compensation =
+    typeof offer?.salaryAmount === "number"
+      ? `${offer.currency || "USD"} ${Number(offer.salaryAmount).toLocaleString()}`
+      : "the compensation package discussed with you";
+  const safeCompensation = escapeHtml(compensation);
+  const expirationText = formatDate(offer?.expiresAt);
+  const startDateText = formatDate(offer?.startDate);
+
+  const htmlContent = `
+    <html>
+      <body>
+        <p>Hi ${safeCandidate},</p>
+        <p>We are pleased to share your offer for <strong>${safeOfferTitle}</strong> at <strong>${safeCompany}</strong>.</p>
+        <p><strong>Role:</strong> ${safeJobTitle}</p>
+        <p><strong>Compensation:</strong> ${safeCompensation}</p>
+        ${startDateText ? `<p><strong>Proposed start date:</strong> ${escapeHtml(startDateText)}</p>` : ""}
+        ${expirationText ? `<p><strong>Offer expires on:</strong> ${escapeHtml(expirationText)}</p>` : ""}
+        ${safeMessage ? `<p>${safeMessage}</p>` : ""}
+        ${safeShareUrl ? `<p>Review and respond securely here: <a href="${safeShareUrl}">${safeShareUrl}</a></p>` : ""}
+        <p>Best,<br />${safeCompany}</p>
+      </body>
+    </html>
+  `;
+
+  const textContent = [
+    `Hi ${candidate.name || "Candidate"},`,
+    `We are pleased to share your offer for ${offer?.title || job?.title || "your role"} at ${settings.companyName}.`,
+    `Role: ${job?.title || offer?.title || "your role"}`,
+    `Compensation: ${compensation}`,
+    startDateText ? `Proposed start date: ${startDateText}` : "",
+    expirationText ? `Offer expires on: ${expirationText}` : "",
+    message ? message : "",
+    shareUrl ? `Review and respond securely here: ${shareUrl}` : "",
+    `Best, ${settings.companyName}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return safeSendTransactionalEmail(
+    {
+      to: [{ email: candidate.email, name: candidate.name }],
+      subject: `Offer letter: ${offer?.title || job?.title || "HireFlow"}`,
+      htmlContent,
+      textContent,
+      tags: ["offer-letter", "candidate"],
+    },
+    "offer-letter-candidate"
+  );
+};
+
 const sendInterviewInviteEmails = async ({ interview, candidate, job, panelUsers = [] }) => {
   const settings = await getWorkspaceEmailSettings();
   if (!settings.notifications.email || !settings.notifications.interviewReminders) {
@@ -484,6 +562,7 @@ module.exports = {
   sendCandidateStageChangeEmail,
   sendInterviewInviteEmails,
   sendInterviewReminderEmails,
+  sendOfferLetterEmail,
   sendTransactionalEmail,
   safeSendTransactionalEmail,
 };

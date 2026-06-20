@@ -59,7 +59,7 @@ const defaultWorkspaceSettings: WorkspaceSettings = {
     defaultCandidateSource: "manual",
     defaultJobStatus: "draft",
     resumeFileSizeLimitMb: 5,
-    allowedResumeFormats: ["PDF", "DOC", "DOCX"],
+    allowedResumeFormats: ["PDF", "DOCX"],
     duplicateApplicationWarning: true,
   },
   security: {
@@ -90,11 +90,7 @@ const defaultWorkspaceSettings: WorkspaceSettings = {
 };
 
 const currencyOptions = ["USD", "EUR", "GBP", "INR", "AED", "CAD", "AUD", "SGD"];
-const resumeFormatOptions: Array<WorkspaceSettings["hiringPreferences"]["allowedResumeFormats"][number]> = [
-  "PDF",
-  "DOC",
-  "DOCX",
-];
+const resumeFormatOptions: Array<WorkspaceSettings["hiringPreferences"]["allowedResumeFormats"][number]> = ["PDF", "DOCX"];
 const officeDayOptions: Array<{ value: WorkspaceSettings["officeWeek"][number]; label: string }> = [
   { value: "sunday", label: "Sun" },
   { value: "monday", label: "Mon" },

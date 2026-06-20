@@ -57,7 +57,7 @@ export function ResumeViewer({ resumeUrl, resumeMeta, uploadedAt }: ResumeViewer
           <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-10 text-center">
             <p className="font-medium">Preview unavailable for this file type</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              DOC and DOCX files can still be downloaded securely for local review.
+              DOCX files can still be downloaded securely for local review.
             </p>
           </div>
         )}

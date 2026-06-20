@@ -56,10 +56,9 @@ const resumeMetaSchema = z.object({
         value === "" ||
         [
           "application/pdf",
-          "application/msword",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ].includes(value),
-      "Resume must be PDF, DOC, or DOCX"
+      "Resume must be PDF or DOCX"
     ),
 });
 
@@ -206,10 +205,9 @@ const resumeUploadRequestSchema = z.object({
       (value) =>
         [
           "application/pdf",
-          "application/msword",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ].includes(value),
-      "Resume must be PDF, DOC, or DOCX"
+      "Resume must be PDF or DOCX"
     ),
   size: z.preprocess((value) => Number(value ?? 0), z.number().positive().max(5 * 1024 * 1024)),
 });

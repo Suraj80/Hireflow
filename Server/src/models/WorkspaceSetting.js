@@ -101,7 +101,7 @@ const workspaceSettingSchema = new mongoose.Schema(
       },
       allowedResumeFormats: {
         type: [String],
-        default: ["PDF", "DOC", "DOCX"],
+        default: ["PDF", "DOCX"],
       },
       duplicateApplicationWarning: {
         type: Boolean,

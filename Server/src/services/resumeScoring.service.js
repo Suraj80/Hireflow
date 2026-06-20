@@ -12,6 +12,11 @@ const RESUME_UPLOADS_DIRECTORY = path.join(__dirname, "..", "..", "uploads", "re
 const AI_SCORING_LOG_DIRECTORY = path.join(__dirname, "..", "..", "logs");
 const AI_SCORING_LOG_FILE = path.join(AI_SCORING_LOG_DIRECTORY, "ai-scoring.log");
 const MAX_AI_SCORING_ATTEMPTS = 2;
+const SUPPORTED_SCORING_RESUME_EXTENSIONS = new Set([".pdf", ".docx"]);
+const SUPPORTED_SCORING_RESUME_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
 const STOP_WORDS = new Set([
   "a",
   "an",
@@ -184,6 +189,35 @@ const resolveResumePath = (resumeUrl) => {
   }
 };
 
+const getCandidateResumeFileDescriptor = (candidate) => {
+  const filename = candidate?.resumeMeta?.filename || "";
+  const mimeType = candidate?.resumeMeta?.mimeType || "";
+  const extension = path.extname(filename).toLowerCase();
+
+  return {
+    filename,
+    mimeType,
+    extension,
+  };
+};
+
+const getResumeScoringValidationError = (candidate) => {
+  const { mimeType, extension } = getCandidateResumeFileDescriptor(candidate);
+
+  if (
+    (mimeType && SUPPORTED_SCORING_RESUME_MIME_TYPES.has(mimeType)) ||
+    (extension && SUPPORTED_SCORING_RESUME_EXTENSIONS.has(extension))
+  ) {
+    return null;
+  }
+
+  if (mimeType === "application/msword" || extension === ".doc") {
+    return "AI scoring supports PDF and DOCX resumes only. Please re-upload this resume as PDF or DOCX.";
+  }
+
+  return "AI scoring supports PDF and DOCX resumes only.";
+};
+
 const extractResumeText = async (candidate) => {
   const resolvedPath = resolveResumePath(candidate.resumeUrl);
   if (!resolvedPath) {
@@ -215,7 +249,7 @@ const extractResumeText = async (candidate) => {
   }
 
   if (mimeType === "application/msword" || extension === ".doc") {
-    throw new Error("Legacy DOC resumes are uploaded successfully, but AI parsing currently supports PDF and DOCX only");
+    throw new Error("Legacy DOC resumes are not supported for AI scoring. Please re-upload this resume as PDF or DOCX.");
   }
 
   throw new Error("Unsupported resume file type for AI scoring");
@@ -475,7 +509,7 @@ const scoreCandidateResume = async (candidateId) => {
 };
 
 const queueCandidateResumeScoring = async (candidateId) => {
-  const candidate = await Candidate.findById(candidateId).select("resumeUrl");
+  const candidate = await Candidate.findById(candidateId).select("resumeUrl resumeMeta");
   if (!candidate?.resumeUrl) {
     await updateCandidateScoreState(candidateId, {
       aiScore: null,
@@ -488,6 +522,12 @@ const queueCandidateResumeScoring = async (candidateId) => {
       aiInputHash: "",
       aiModel: "",
     });
+    return;
+  }
+
+  const resumeScoringValidationError = getResumeScoringValidationError(candidate);
+  if (resumeScoringValidationError) {
+    await markUnavailable(candidateId, resumeScoringValidationError);
     return;
   }
 
@@ -569,6 +609,7 @@ const queueCandidateResumeScoring = async (candidateId) => {
 module.exports = {
   EMBEDDING_MODEL,
   AI_SCORING_LOG_FILE,
+  getResumeScoringValidationError,
   queueCandidateResumeScoring,
   scoreCandidateResume,
 };

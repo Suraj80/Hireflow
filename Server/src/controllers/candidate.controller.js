@@ -32,7 +32,10 @@ const {
   extractResumeTextFromFile,
   parseResumeCandidateData,
 } = require("../services/resumeImport.service");
-const { queueCandidateResumeScoring } = require("../services/resumeScoring.service");
+const {
+  getResumeScoringValidationError,
+  queueCandidateResumeScoring,
+} = require("../services/resumeScoring.service");
 const {
   getHiringPreferences,
   getResumeUploadPolicy,
@@ -1617,6 +1620,11 @@ const rescoreCandidate = async (req, res) => {
       return res.status(400).json({ message: "Upload a resume before requesting AI scoring" });
     }
 
+    const resumeScoringValidationError = getResumeScoringValidationError(candidate);
+    if (resumeScoringValidationError) {
+      return res.status(400).json({ message: resumeScoringValidationError });
+    }
+
     await queueCandidateResumeScoring(candidate._id.toString());
 
     const refreshedCandidate = await Candidate.findById(candidate._id)
@@ -1629,6 +1637,82 @@ const rescoreCandidate = async (req, res) => {
     return res.status(202).json(
       await normalizeCandidateResponse(refreshedCandidate, { includeNotes: true, viewerUser: req.user })
     );
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const rescoreCandidatesForJob = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.jobId).select("title archived");
+    if (!job || job.archived) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    const candidates = await Candidate.find({
+      jobId: job._id,
+      archived: false,
+    }).select("name resumeUrl resumeMeta recruiterAssigned createdBy");
+
+    const manageableCandidates = candidates.filter((candidate) => canManageCandidate(candidate, req.user));
+
+    const queuedCandidates = [];
+    const skipped = [];
+
+    for (const candidate of manageableCandidates) {
+      if (!candidate.resumeUrl) {
+        skipped.push({
+          candidateId: candidate._id.toString(),
+          candidateName: candidate.name,
+          reason: "missing-resume",
+        });
+        continue;
+      }
+
+      const resumeScoringValidationError = getResumeScoringValidationError(candidate);
+      if (resumeScoringValidationError) {
+        skipped.push({
+          candidateId: candidate._id.toString(),
+          candidateName: candidate.name,
+          reason: "unsupported-resume",
+        });
+        continue;
+      }
+
+      queuedCandidates.push(candidate);
+    }
+
+    await Promise.all(queuedCandidates.map((candidate) => queueCandidateResumeScoring(candidate._id.toString())));
+
+    await createAuditLog({
+      req,
+      action: "job-candidates-rescored",
+      category: "candidates",
+      entity: {
+        type: "job",
+        id: job._id,
+        label: job.title,
+      },
+      description: `Queued AI scoring for ${queuedCandidates.length} candidates on ${job.title}`,
+      meta: {
+        jobId: job._id,
+        queuedCount: queuedCandidates.length,
+        skippedCount: skipped.length,
+        skipped,
+      },
+    });
+
+    return res.status(202).json({
+      message:
+        queuedCandidates.length > 0
+          ? `Queued AI scoring for ${queuedCandidates.length} candidate${queuedCandidates.length === 1 ? "" : "s"}`
+          : "No candidates were eligible for AI scoring",
+      jobId: job._id,
+      jobTitle: job.title,
+      queuedCount: queuedCandidates.length,
+      skippedCount: skipped.length,
+      skipped,
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -1650,6 +1734,7 @@ module.exports = {
   getCandidates,
   requestResumeUploadUrl,
   rescoreCandidate,
+  rescoreCandidatesForJob,
   updateCandidate,
   updateCandidateNote,
   updateCandidateStage,
