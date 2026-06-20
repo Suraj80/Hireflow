@@ -1,4 +1,5 @@
 const WorkspaceSetting = require("../models/WorkspaceSetting");
+const { buildCalendarIntegrationStatus } = require("./calendar.service");
 
 const DEFAULT_WORKSPACE_SETTINGS = {
   workspaceName: "HireFlow Workspace",
@@ -267,35 +268,7 @@ const buildAiScoringStatus = (settings) => {
 };
 
 const buildCalendarStatus = (settings) => {
-  const provider = settings.integrations.calendar.provider;
-  const enabled = settings.integrations.calendar.enabled;
-  const organizerEmail = settings.integrations.calendar.organizerEmail || "";
-
-  if (!enabled || provider === "none") {
-    return {
-      provider: "none",
-      enabled: false,
-      configured: true,
-      ready: false,
-      mode: "disabled",
-      organizerEmail,
-      message: "Calendar sync is turned off for this workspace.",
-    };
-  }
-
-  const hasOrganizer = Boolean(organizerEmail);
-
-  return {
-    provider,
-    enabled: true,
-    configured: hasOrganizer,
-    ready: false,
-    mode: hasOrganizer ? "manual" : "needs-config",
-    organizerEmail,
-    message: hasOrganizer
-      ? "Calendar provider and organizer are saved. Live calendar sync still needs provider OAuth wiring."
-      : "Add the organizer email to finish the saved calendar configuration.",
-  };
+  return buildCalendarIntegrationStatus(settings.integrations.calendar);
 };
 
 const buildIntegrationStatuses = async () => {

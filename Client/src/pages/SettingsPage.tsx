@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { departmentsApi } from "@/features/departments/api";
+import { timezoneOptions } from "@/features/interviews/helpers";
 import { DepartmentItem } from "@/features/departments/types";
 import { settingsApi } from "@/features/settings/api";
 import {
@@ -579,10 +580,11 @@ export default function SettingsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Asia/Kolkata">Asia/Kolkata</SelectItem>
-                    <SelectItem value="UTC">UTC</SelectItem>
-                    <SelectItem value="America/New_York">America/New_York</SelectItem>
-                    <SelectItem value="Europe/London">Europe/London</SelectItem>
+                    {Array.from(new Set([...timezoneOptions, workspaceSettings.defaultTimezone].filter(Boolean))).map((timezone) => (
+                      <SelectItem key={timezone} value={timezone}>
+                        {timezone}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1327,7 +1329,7 @@ export default function SettingsPage() {
                   <div className="space-y-1">
                     <p className="font-medium">Calendar integration</p>
                     <p className="text-sm text-muted-foreground">
-                      Save which calendar provider this workspace intends to use and who should appear as the organizer for invites.
+                      Choose the calendar provider, organizer, and let the backend report whether live provider credentials are ready.
                     </p>
                   </div>
                   <div className="grid gap-4 lg:grid-cols-[220px_220px_minmax(0,1fr)]">

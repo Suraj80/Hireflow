@@ -90,7 +90,7 @@ export type SettingsIntegrationStatuses = {
     enabled: boolean;
     configured: boolean;
     ready: boolean;
-    mode: "disabled" | "manual" | "needs-config";
+    mode: "active" | "disabled" | "needs-config" | "needs-credentials";
     organizerEmail: string;
     message: string;
   };

@@ -3,13 +3,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { timezoneOptions } from "@/features/interviews/helpers";
 import { interviewFormSchema } from "@/features/interviews/schema";
 import { Interview, InterviewFormValues, InterviewMeta } from "@/features/interviews/types";
 
@@ -25,6 +33,8 @@ const reminderOptions = [
   { label: "1h", value: 60 },
   { label: "15m", value: 15 },
 ];
+
+const roundOptions = ["Screening", "Round 1", "Round 2", "Round 3", "Technical", "Panel", "Final"];
 
 export function InterviewForm({ meta, mode = "create", interview, onSubmit }: InterviewFormProps) {
   const navigate = useNavigate();
@@ -71,6 +81,18 @@ export function InterviewForm({ meta, mode = "create", interview, onSubmit }: In
   });
 
   const selectedCandidateId = form.watch("candidateId");
+  const selectedInterviewerIds = form.watch("interviewers");
+  const selectedInterviewerNames = useMemo(
+    () =>
+      meta.interviewers
+        .filter((entry) => selectedInterviewerIds.includes(entry.id))
+        .map((entry) => entry.name),
+    [meta.interviewers, selectedInterviewerIds]
+  );
+  const timezoneChoices = useMemo(() => {
+    const currentTimezone = form.getValues("timezone");
+    return Array.from(new Set([...timezoneOptions, currentTimezone].filter(Boolean)));
+  }, [form]);
 
   useEffect(() => {
     if (!selectedCandidateId) {
@@ -82,6 +104,13 @@ export function InterviewForm({ meta, mode = "create", interview, onSubmit }: In
       form.setValue("jobId", candidate.job.id, { shouldValidate: true });
     }
   }, [candidateOptions, form, selectedCandidateId]);
+
+  useEffect(() => {
+    const leadInterviewer = form.getValues("leadInterviewer");
+    if (leadInterviewer && !selectedInterviewerIds.includes(leadInterviewer)) {
+      form.setValue("leadInterviewer", "", { shouldValidate: true });
+    }
+  }, [form, selectedInterviewerIds]);
 
   return (
     <Form {...form}>
@@ -137,9 +166,20 @@ export function InterviewForm({ meta, mode = "create", interview, onSubmit }: In
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Round</FormLabel>
-                  <FormControl>
-                    <Input {...field} className="h-11 rounded-2xl" />
-                  </FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="h-11 rounded-2xl">
+                        <SelectValue placeholder="Select round" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {roundOptions.map((round) => (
+                        <SelectItem key={round} value={round}>
+                          {round}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -213,9 +253,20 @@ export function InterviewForm({ meta, mode = "create", interview, onSubmit }: In
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Timezone</FormLabel>
-                  <FormControl>
-                    <Input {...field} className="h-11 rounded-2xl" />
-                  </FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="h-11 rounded-2xl">
+                        <SelectValue placeholder="Select timezone" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {timezoneChoices.map((timezone) => (
+                        <SelectItem key={timezone} value={timezone}>
+                          {timezone}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -252,25 +303,47 @@ export function InterviewForm({ meta, mode = "create", interview, onSubmit }: In
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel>Interviewers</FormLabel>
-                  <div className="grid gap-2 rounded-2xl border border-border p-4 md:grid-cols-2">
-                    {meta.interviewers.map((interviewer) => {
-                      const checked = field.value.includes(interviewer.id);
-                      return (
-                        <label key={interviewer.id} className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2">
-                          <Checkbox
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-auto min-h-11 w-full justify-between rounded-2xl px-4 py-3 text-left font-normal"
+                        >
+                          <span className="truncate">
+                            {selectedInterviewerNames.length
+                              ? selectedInterviewerNames.join(", ")
+                              : "Select interviewers"}
+                          </span>
+                          <ChevronDown className="ml-3 h-4 w-4 shrink-0 opacity-60" />
+                        </Button>
+                      </FormControl>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] rounded-2xl" align="start">
+                      {meta.interviewers.map((interviewer) => {
+                        const checked = field.value.includes(interviewer.id);
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={interviewer.id}
                             checked={checked}
                             onCheckedChange={(nextValue) => {
                               const set = new Set(field.value);
-                              if (nextValue) set.add(interviewer.id);
-                              else set.delete(interviewer.id);
+                              if (nextValue) {
+                                set.add(interviewer.id);
+                              } else {
+                                set.delete(interviewer.id);
+                              }
                               field.onChange(Array.from(set));
                             }}
-                          />
-                          <span className="text-sm">{interviewer.name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                            onSelect={(event) => event.preventDefault()}
+                          >
+                            {interviewer.name}
+                          </DropdownMenuCheckboxItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <FormMessage />
                 </FormItem>
               )}

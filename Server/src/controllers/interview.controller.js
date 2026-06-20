@@ -9,6 +9,10 @@ const {
   sendInterviewReminderEmails,
 } = require("../services/email.service");
 const {
+  removeInterviewCalendarEvent,
+  syncInterviewCalendarEvent,
+} = require("../services/calendar.service");
+const {
   notifyCandidateStageChange,
   notifyInterviewEvent,
 } = require("../services/notification.service");
@@ -273,6 +277,15 @@ const mapInterview = (interview, user) => {
     notes: interview.notes,
     reminderSettings: interview.reminderSettings || [],
     sendInvite: interview.sendInvite,
+    calendarSync: {
+      provider: interview.calendarSync?.provider || "none",
+      eventId: interview.calendarSync?.eventId || "",
+      calendarId: interview.calendarSync?.calendarId || "",
+      eventUrl: interview.calendarSync?.eventUrl || "",
+      status: interview.calendarSync?.status || "disabled",
+      lastSyncedAt: interview.calendarSync?.lastSyncedAt || null,
+      lastError: interview.calendarSync?.lastError || "",
+    },
     feedback: (interview.feedback || []).map((entry) => ({
       id: entry._id,
       interviewer: normalizeUser(entry.interviewerId),
@@ -653,6 +666,14 @@ const createInterview = async (req, res) => {
       });
     }
 
+    await syncInterviewCalendarEvent({
+      interview,
+      candidate: dependencyState.candidate,
+      job: dependencyState.job,
+      panelUsers: dependencyState.users,
+      notifyAttendees: payload.sendInvite,
+    });
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(201).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -778,6 +799,14 @@ const updateInterview = async (req, res) => {
       });
     }
 
+    await syncInterviewCalendarEvent({
+      interview,
+      candidate: dependencyState.candidate,
+      job: dependencyState.job,
+      panelUsers: dependencyState.users,
+      notifyAttendees: nextValues.sendInvite,
+    });
+
     const hydrated = await ensureInterviewShape(interview);
     return res.status(200).json(mapInterview(hydrated, req.user));
   } catch (error) {
@@ -871,6 +900,24 @@ const rescheduleInterview = async (req, res) => {
         kind: "rescheduled",
         reason: parsedBody.data.reason,
       });
+
+      await syncInterviewCalendarEvent({
+        interview,
+        candidate,
+        job,
+        panelUsers,
+        notifyAttendees: Boolean(parsedBody.data.sendNotification && interview.sendInvite),
+      });
+    } else {
+      const { candidate, job, panelUsers } = await loadInterviewEmailContext(interview);
+
+      await syncInterviewCalendarEvent({
+        interview,
+        candidate,
+        job,
+        panelUsers,
+        notifyAttendees: false,
+      });
     }
 
     const hydrated = await ensureInterviewShape(interview);
@@ -958,6 +1005,29 @@ const updateInterviewStatus = async (req, res) => {
         panelUsers,
         kind: reminderKind,
         reason: parsedBody.data.reason,
+      });
+
+      await syncInterviewCalendarEvent({
+        interview,
+        candidate,
+        job,
+        panelUsers,
+        notifyAttendees: Boolean(parsedBody.data.sendNotification && interview.sendInvite),
+      });
+    } else if (parsedBody.data.status === "Cancelled") {
+      await removeInterviewCalendarEvent({
+        interview,
+        notifyAttendees: false,
+      });
+    } else {
+      const { candidate, job, panelUsers } = await loadInterviewEmailContext(interview);
+
+      await syncInterviewCalendarEvent({
+        interview,
+        candidate,
+        job,
+        panelUsers,
+        notifyAttendees: false,
       });
     }
 
@@ -1086,6 +1156,11 @@ const deleteInterview = async (req, res) => {
       type: "interview-deleted",
       title: "Interview deleted",
       message: `${candidate?.name || "Candidate"}'s ${interview.round} interview was removed from active schedules.`,
+    });
+
+    await removeInterviewCalendarEvent({
+      interview,
+      notifyAttendees: Boolean(interview.sendInvite),
     });
 
     return res.status(200).json({ message: "Interview deleted" });

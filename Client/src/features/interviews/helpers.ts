@@ -24,6 +24,20 @@ export const defaultOfficeHours: WorkspaceSettings["officeHours"] = {
   end: "18:00",
 };
 
+export const timezoneOptions = [
+  "UTC",
+  "Asia/Kolkata",
+  "Asia/Dubai",
+  "Asia/Singapore",
+  "Europe/London",
+  "Europe/Berlin",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "Australia/Sydney",
+] as const;
+
 export const weekdayOrder: Array<WorkspaceSettings["officeWeek"][number]> = [
   "sunday",
   "monday",
@@ -148,6 +162,22 @@ export const buildTimeSlots = (officeHours?: WorkspaceSettings["officeHours"]) =
       minute,
     };
   });
+};
+
+export const buildTimeLabels = (officeHours?: WorkspaceSettings["officeHours"]) => {
+  const hours = officeHours || defaultOfficeHours;
+  const end = parseOfficeHour(hours.end);
+  const labels = [...buildTimeSlots(hours)];
+  const endSlot = new Date();
+  endSlot.setHours(end.hour, end.minute, 0, 0);
+
+  labels.push({
+    label: format(endSlot, "h:mm a"),
+    hour: end.hour,
+    minute: end.minute,
+  });
+
+  return labels;
 };
 
 export const getCalendarHourRowHeight = () => pixelsPerHalfHour * 2;

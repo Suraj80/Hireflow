@@ -6,6 +6,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { WorkspaceSettings } from "@/features/settings/types";
 import {
   buildRescheduleTimestamp,
+  buildTimeLabels,
   buildTimeSlots,
   buildWeekDays,
   formatInterviewTime,
@@ -44,6 +45,7 @@ export function InterviewCalendarView({
   const [resizing, setResizing] = useState<{ id: string; originY: number; duration: number } | null>(null);
   const days = useMemo(() => buildWeekDays(weekStart, officeWeek), [officeWeek, weekStart]);
   const slots = useMemo(() => buildTimeSlots(officeHours), [officeHours]);
+  const labels = useMemo(() => buildTimeLabels(officeHours), [officeHours]);
   const hourRowHeight = useMemo(() => getCalendarHourRowHeight(), []);
 
   useEffect(() => {
@@ -95,11 +97,11 @@ export function InterviewCalendarView({
           >
             <div className="border-r border-border">
               <div className="h-12" />
-              {slots.map((slot) => (
+              {labels.map((slot, index) => (
                 <div
-                  key={slot.label}
+                  key={`${slot.label}-${index}`}
                   className="border-b border-border/40 pr-3 pt-1 text-right text-xs text-muted-foreground"
-                  style={{ height: hourRowHeight }}
+                  style={{ height: index === labels.length - 1 ? 0 : hourRowHeight }}
                 >
                   {slot.label}
                 </div>

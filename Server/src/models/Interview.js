@@ -207,6 +207,42 @@ const interviewSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    calendarSync: {
+      provider: {
+        type: String,
+        enum: ["none", "google", "outlook"],
+        default: "none",
+      },
+      eventId: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      calendarId: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      eventUrl: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      status: {
+        type: String,
+        enum: ["disabled", "pending", "synced", "deleted", "error"],
+        default: "disabled",
+      },
+      lastSyncedAt: {
+        type: Date,
+        default: null,
+      },
+      lastError: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+    },
     deletedAt: {
       type: Date,
       default: null,
