@@ -49,6 +49,10 @@ export function InterviewCalendarView({
   const labels = useMemo(() => buildTimeLabels(officeHours), [officeHours]);
   const hourRowHeight = useMemo(() => getCalendarHourRowHeight(), []);
   const halfHourRowHeight = useMemo(() => getCalendarHalfHourRowHeight(), []);
+  const calendarMinHeight = useMemo(() => {
+    const totalRows = Math.max(1, slots.length);
+    return totalRows * hourRowHeight + 48;
+  }, [hourRowHeight, slots.length]);
 
   useEffect(() => {
     if (!resizing) {
@@ -95,7 +99,10 @@ export function InterviewCalendarView({
         <div className="overflow-x-auto">
           <div
             className="grid min-w-[980px]"
-            style={{ gridTemplateColumns: `84px repeat(${days.length}, minmax(0, 1fr))` }}
+            style={{
+              gridTemplateColumns: `84px repeat(${days.length}, minmax(0, 1fr))`,
+              minHeight: `${calendarMinHeight}px`,
+            }}
           >
             <div className="border-r border-border">
               <div className="h-12" />

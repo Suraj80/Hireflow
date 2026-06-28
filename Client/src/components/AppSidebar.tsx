@@ -78,14 +78,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="p-4">
-        <NavLink to="/dashboard" className="flex items-center gap-2.5">
+      <SidebarHeader className="p-4 group-data-[collapsible=icon]:p-2">
+        <NavLink
+          to="/dashboard"
+          className="flex w-full items-center gap-2.5 transition-all group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
+        >
           {workspaceLogo ? (
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
               <img src={workspaceLogo} alt={`${workspaceName} logo`} className="h-full w-full object-cover" />
             </div>
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg gradient-primary">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
           )}

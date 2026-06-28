@@ -26,7 +26,12 @@ type AuthContextValue = {
   login: (payload: { email: string; password: string }) => Promise<void>;
   register: (payload: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (payload: { name: string; currentPassword?: string; newPassword?: string }) => Promise<AuthUser>;
+  updateProfile: (payload: {
+    name: string;
+    email: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => Promise<AuthUser>;
   refreshSession: () => Promise<string>;
   loadCurrentUser: () => Promise<AuthUser>;
 };
@@ -92,7 +97,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateProfile = async (payload: { name: string; currentPassword?: string; newPassword?: string }) => {
+  const updateProfile = async (payload: {
+    name: string;
+    email: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => {
     const { data } = await authApi.updateMe(payload);
     setUser(data.user);
     return data.user;

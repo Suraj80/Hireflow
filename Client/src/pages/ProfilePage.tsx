@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, Clock3, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
+import { AxiosError } from "axios";
+import { CalendarDays, CheckCircle2, Clock3, Eye, EyeOff, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -19,6 +20,15 @@ const roleLabel: Record<"admin" | "recruiter" | "viewer", string> = {
   admin: "Admin",
   recruiter: "Recruiter",
   viewer: "Viewer",
+};
+
+const getFriendlyError = (error: unknown) => {
+  const axiosError = error as AxiosError<{ message?: string; errors?: { message?: string }[] }>;
+  return (
+    axiosError.response?.data?.errors?.[0]?.message ||
+    axiosError.response?.data?.message ||
+    (error instanceof Error ? error.message : "Unable to update profile")
+  );
 };
 
 function LoadingState() {
@@ -43,10 +53,15 @@ function LoadingState() {
 export default function ProfilePage() {
   const { user, isLoading, updateProfile } = useAuth();
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentPasswordError, setCurrentPasswordError] = useState("");
 
   useEffect(() => {
     if (!user) {
@@ -54,12 +69,15 @@ export default function ProfilePage() {
     }
 
     setName(user.name);
+    setEmail(user.email);
   }, [user]);
 
   const normalizedName = name.trim();
+  const normalizedEmail = email.trim().toLowerCase();
   const hasNameChange = Boolean(user) && normalizedName !== user.name;
+  const hasEmailChange = Boolean(user) && normalizedEmail !== user.email;
   const hasPasswordChange = Boolean(currentPassword || newPassword || confirmPassword);
-  const isDirty = hasNameChange || hasPasswordChange;
+  const isDirty = hasNameChange || hasEmailChange || hasPasswordChange;
   const passwordStrength = useMemo(() => getPasswordStrength(newPassword), [newPassword]);
 
   if (isLoading) {
@@ -101,9 +119,11 @@ export default function ProfilePage() {
     }
 
     try {
+      setCurrentPasswordError("");
       setSaving(true);
       await updateProfile({
         name: normalizedName,
+        email: normalizedEmail,
         currentPassword: currentPassword || undefined,
         newPassword: newPassword || undefined,
       });
@@ -112,7 +132,13 @@ export default function ProfilePage() {
       setConfirmPassword("");
       toast.success("Profile updated");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to update profile");
+      const friendlyError = getFriendlyError(error);
+
+      if (/current password/i.test(friendlyError)) {
+        setCurrentPasswordError(friendlyError);
+      }
+
+      toast.error(friendlyError);
     } finally {
       setSaving(false);
     }
@@ -205,12 +231,16 @@ export default function ProfilePage() {
                 <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="profile-email"
-                  value={user.email}
-                  disabled
-                  className="h-12 rounded-2xl border-border/70 bg-muted/30 pl-11 text-muted-foreground opacity-100"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="h-12 rounded-2xl border-border/70 bg-background/80 pl-11 shadow-sm transition-all focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10"
+                  placeholder="you@example.com"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Managed by your workspace administrator.</p>
+              <p className="text-xs text-muted-foreground">
+                Used for sign-in and profile visibility across the workspace.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -251,42 +281,78 @@ export default function ProfilePage() {
                 <Label htmlFor="profile-current-password" className="text-sm font-medium text-foreground/90">
                   Current password
                 </Label>
-                <Input
-                  id="profile-current-password"
-                  type="password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  className="h-12 rounded-2xl border-border/70 bg-background/80 shadow-sm transition-all focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10"
-                  placeholder="Enter your current password"
-                />
+                <div className="relative">
+                  <Input
+                    id="profile-current-password"
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(event) => {
+                      setCurrentPassword(event.target.value);
+                      if (currentPasswordError) {
+                        setCurrentPasswordError("");
+                      }
+                    }}
+                    className="h-12 rounded-2xl border-border/70 bg-background/80 pr-10 shadow-sm transition-all focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10"
+                    placeholder="Enter your current password"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowCurrentPassword((current) => !current)}
+                  >
+                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {currentPasswordError ? <p className="text-xs text-destructive">{currentPasswordError}</p> : null}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="profile-new-password" className="text-sm font-medium text-foreground/90">
                   New password
                 </Label>
-                <Input
-                  id="profile-new-password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  className="h-12 rounded-2xl border-border/70 bg-background/80 shadow-sm transition-all focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10"
-                  placeholder="Enter a new password"
-                />
+                <div className="relative">
+                  <Input
+                    id="profile-new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    className="h-12 rounded-2xl border-border/70 bg-background/80 pr-10 shadow-sm transition-all focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10"
+                    placeholder="Enter a new password"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowNewPassword((current) => !current)}
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="profile-confirm-password" className="text-sm font-medium text-foreground/90">
                   Confirm new password
                 </Label>
-                <Input
-                  id="profile-confirm-password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="h-12 rounded-2xl border-border/70 bg-background/80 shadow-sm transition-all focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10"
-                  placeholder="Re-enter the new password"
-                />
+                <div className="relative">
+                  <Input
+                    id="profile-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    className="h-12 rounded-2xl border-border/70 bg-background/80 pr-10 shadow-sm transition-all focus-visible:border-primary/60 focus-visible:ring-4 focus-visible:ring-primary/10"
+                    placeholder="Re-enter the new password"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowConfirmPassword((current) => !current)}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -333,6 +399,7 @@ export default function ProfilePage() {
                   saving ||
                   !isDirty ||
                   !normalizedName ||
+                  !normalizedEmail ||
                   Boolean(confirmPassword && newPassword !== confirmPassword)
                 }
                 onClick={() => void handleSave()}

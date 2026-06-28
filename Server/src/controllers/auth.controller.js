@@ -86,6 +86,10 @@ const register = async (req, res) => {
       user: sanitizeUser(user),
     });
   } catch (error) {
+    if (error?.code === 11000 && error?.keyValue?.email) {
+      return res.status(409).json({ message: "A user with this email already exists" });
+    }
+
     return res.status(500).json({ message: error.message });
   }
 };
@@ -267,7 +271,10 @@ const updateMe = async (req, res) => {
       return res.status(403).json({ message: "This account has been deactivated. Contact your administrator." });
     }
 
+    const previousEmail = user.email;
     const nextName = typeof req.body.name === "string" ? req.body.name.trim() : user.name;
+    const nextEmail =
+      typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : previousEmail;
     const currentPassword = typeof req.body.currentPassword === "string" ? req.body.currentPassword : "";
     const newPassword = typeof req.body.newPassword === "string" ? req.body.newPassword : "";
 
@@ -275,7 +282,19 @@ const updateMe = async (req, res) => {
       return res.status(400).json({ message: "Name is required" });
     }
 
+    if (!nextEmail) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    if (nextEmail !== previousEmail) {
+      const existingUser = await User.findOne({ email: nextEmail, _id: { $ne: user._id } });
+      if (existingUser) {
+        return res.status(409).json({ message: "A user with this email already exists" });
+      }
+    }
+
     user.name = nextName;
+    user.email = nextEmail;
 
     if (newPassword) {
       const passwordPolicyError = validatePasswordAgainstPolicy(newPassword, securitySettings);
@@ -309,6 +328,7 @@ const updateMe = async (req, res) => {
       },
       description: `Updated profile for ${user.email}`,
       meta: {
+        emailChanged: nextEmail !== previousEmail,
         passwordChanged: Boolean(newPassword),
       },
     });

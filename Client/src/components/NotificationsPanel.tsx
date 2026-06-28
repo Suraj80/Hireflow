@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NotificationItem } from "@/features/notifications/types";
-import { Bell, Calendar, CheckCircle2, CircleDollarSign, Clock3, RefreshCw, UserPlus, X } from "lucide-react";
+import { Bell, Calendar, CheckCircle2, CircleDollarSign, Clock3, UserPlus, X } from "lucide-react";
 
 const getNotificationIcon = (type: string) => {
   if (type.includes("application")) {
@@ -73,9 +73,6 @@ export function NotificationsPanel({
           {unreadCount > 0 ? <Badge variant="secondary">{unreadCount} new</Badge> : null}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRefresh}>
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
             <X className="h-3.5 w-3.5" />
           </Button>
