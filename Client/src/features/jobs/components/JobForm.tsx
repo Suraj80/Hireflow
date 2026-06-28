@@ -31,9 +31,6 @@ import { Job, JobDepartmentOption, UserSummary } from "@/features/jobs/types";
 import { settingsApi } from "@/features/settings/api";
 import { cn } from "@/lib/utils";
 
-const defaultSkillsSuggestions = ["react", "typescript", "node.js", "communication", "figma", "mongodb"];
-const defaultCertificationSuggestions = ["aws", "gcp", "azure", "pmp", "scrum", "csm"];
-
 type JobFormProps = {
   mode: "create" | "edit";
   job?: Job | null;
@@ -155,8 +152,14 @@ export function JobForm({ mode, job = null }: JobFormProps) {
 
     try {
       const parsedDraft = JSON.parse(savedDraft) as AutosavedValues;
-      const { _savedAt, ...values } = parsedDraft;
-      form.reset({ ...defaultJobFormValues, ...values });
+      const { _savedAt, requirements, ...values } = parsedDraft as AutosavedValues & {
+        requirements?: { skills?: string[] };
+      };
+      form.reset({
+        ...defaultJobFormValues,
+        ...values,
+        skills: values.skills?.length ? values.skills : requirements?.skills || [],
+      });
       if (_savedAt) {
         setAutosaveStamp(_savedAt);
       }
@@ -289,7 +292,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
               <ShieldAlert className="h-4 w-4 text-primary" />
               <AlertTitle>Publish checklist</AlertTitle>
               <AlertDescription>
-                Open jobs should include a deadline, description, and enough requirements for candidates to self-qualify.
+                Open jobs should include a deadline, description, and enough context for candidates to self-qualify.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -513,75 +516,45 @@ export function JobForm({ mode, job = null }: JobFormProps) {
         <Card className="rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Requirements</CardTitle>
-            <CardDescription>Capture structured qualification signals for the hiring team.</CardDescription>
+            <CardDescription>Use the same rich text editor as the description to capture freeform requirements.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <FormField
               control={form.control}
-              name="requirements.skills"
+              name="requirementsHTML"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Skills</FormLabel>
+                  <FormLabel>Requirements</FormLabel>
                   <FormControl>
-                    <TagSelector
-                      values={field.value}
-                      onChange={field.onChange}
-                      placeholder="Add skill tags"
-                      limit={20}
-                      inputClassName="w-[220px] min-w-[220px] flex-none"
-                    />
+                    <RichTextEditor value={field.value} onChange={field.onChange} />
                   </FormControl>
+                  <FormDescription>Write the actual expectations, nice-to-haves, and any internal notes you want to capture.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="grid gap-5 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="requirements.yearsOfExperience"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Years of Experience</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={field.value ?? ""}
-                        onChange={(event) => field.onChange(event.target.value === "" ? null : Number(event.target.value))}
-                        className="h-11 rounded-2xl"
-                        placeholder="5"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="requirements.qualification"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Qualification</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Bachelor's degree in Computer Science" className="h-11 rounded-2xl" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[28px] border border-border/80 shadow-sm">
+          <CardHeader>
+            <CardTitle>Skills</CardTitle>
+            <CardDescription>Capture the concrete skills you want the AI and filters to understand.</CardDescription>
+          </CardHeader>
+          <CardContent>
             <FormField
               control={form.control}
-              name="requirements.certifications"
+              name="skills"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Certifications</FormLabel>
                   <FormControl>
                     <TagSelector
                       values={field.value}
                       onChange={field.onChange}
-                      placeholder="Add certifications"
-                      limit={15}
+                      placeholder="Add skills"
+                      limit={20}
+                      inputClassName="w-[220px] min-w-[220px] flex-none"
+                      rounded={false}
                     />
                   </FormControl>
                   <FormMessage />
@@ -597,7 +570,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
             <CardDescription>Define the lifecycle and public exposure of this role.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2 items-start">
               <FormField
                 control={form.control}
                 name="deadline"
@@ -635,7 +608,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                 control={form.control}
                 name="maxApplicants"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Max Applicants</FormLabel>
                     <FormControl>
                       <Input
@@ -691,30 +664,32 @@ export function JobForm({ mode, job = null }: JobFormProps) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>SEO / Public Apply</CardTitle>
-            <CardDescription>Use this shareable link when the role is set to public and published.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-2xl border border-border bg-muted/20 p-4">
-              <p className="text-sm font-medium text-foreground">Public apply route preview</p>
-              <p className="mt-2 break-all text-sm text-muted-foreground">{publicUrl}</p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-2xl"
-              onClick={async () => {
-                await navigator.clipboard.writeText(publicUrl);
-                toast.success("Apply URL copied");
-              }}
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              Copy apply URL
-            </Button>
-          </CardContent>
-        </Card>
+        {mode === "edit" && job?.status === "open" ? (
+          <Card className="rounded-[28px] border border-border/80 shadow-sm">
+            <CardHeader>
+              <CardTitle>SEO / Public Apply</CardTitle>
+              <CardDescription>Use this shareable link when the role is set to public and published.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                <p className="text-sm font-medium text-foreground">Public apply route preview</p>
+                <p className="mt-2 break-all text-sm text-muted-foreground">{publicUrl}</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-2xl"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(publicUrl);
+                  toast.success("Apply URL copied");
+                }}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy apply URL
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Separator />
 

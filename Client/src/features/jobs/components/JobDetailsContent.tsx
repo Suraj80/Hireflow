@@ -17,6 +17,7 @@ type JobDetailsContentProps = {
 };
 
 export function JobDetailsContent({ job }: JobDetailsContentProps) {
+  const skills = Array.isArray(job.skills) ? job.skills : [];
   const applyUrl = `${window.location.origin}/apply/${job.id}`;
 
   return (
@@ -59,25 +60,11 @@ export function JobDetailsContent({ job }: JobDetailsContentProps) {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Tags</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {job.tags.length ? (
-            job.tags.map((tag) => (
-              <Badge key={tag} variant="secondary">
-                {tag}
-              </Badge>
-            ))
-          ) : (
-            <Badge variant="outline">No tags</Badge>
-          )}
-        </div>
-      </div>
-
-      <Separator />
-
-      <div>
         <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Description</h2>
-        <div className="prose prose-sm mt-4 max-w-none" dangerouslySetInnerHTML={{ __html: job.descriptionHTML }} />
+        <div
+          className="prose prose-sm mt-4 max-w-none [&>p]:my-0 [&>p]:leading-6 [&>ul]:my-0 [&>ol]:my-0"
+          dangerouslySetInnerHTML={{ __html: job.descriptionHTML }}
+        />
       </div>
 
       <Separator />
@@ -85,66 +72,45 @@ export function JobDetailsContent({ job }: JobDetailsContentProps) {
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Requirements</h2>
-          <div className="mt-4 space-y-4 text-sm">
-            <div>
-              <p className="font-medium">Skills</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {job.requirements.skills.length ? (
-                  job.requirements.skills.map((skill) => (
-                    <Badge key={skill} variant="secondary">
-                      {skill}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-muted-foreground">No skills added</span>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="font-medium">Experience</p>
-              <p className="mt-1 text-muted-foreground">
-                {job.requirements.yearsOfExperience ?? "Not specified"} years
-              </p>
-            </div>
-            <div>
-              <p className="font-medium">Qualification</p>
-              <p className="mt-1 text-muted-foreground">{job.requirements.qualification || "Not specified"}</p>
-            </div>
-            <div>
-              <p className="font-medium">Certifications</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {job.requirements.certifications.length ? (
-                  job.requirements.certifications.map((certification) => (
-                    <Badge key={certification} variant="outline">
-                      {certification}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-muted-foreground">No certifications added</span>
-                )}
-              </div>
+          <div
+            className="prose prose-sm mt-4 max-w-none [&>p]:my-0 [&>p]:leading-6 [&>ul]:my-0 [&>ol]:my-0"
+            dangerouslySetInnerHTML={{ __html: job.requirementsHTML || "<p>No requirements added</p>" }}
+          />
+          <div className="mt-5">
+            <p className="text-sm font-medium">Skills</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {skills.length ? (
+                skills.map((skill) => (
+                  <Badge key={skill} variant="secondary">
+                    {skill}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">No skills added</span>
+              )}
             </div>
           </div>
         </div>
-        <div className="rounded-3xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Globe className="h-4 w-4 text-primary" />
-            Public apply URL
-          </div>
-          <p className="mt-3 break-all text-sm text-muted-foreground">{applyUrl}</p>
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-4 w-full rounded-2xl"
-            onClick={async () => {
-              await navigator.clipboard.writeText(applyUrl);
-              toast.success("Public URL copied");
-            }}
-          >
-            <Copy className="mr-2 h-4 w-4" />
-            Copy apply link
-          </Button>
+      </div>
+
+      <div className="rounded-3xl border border-border bg-card p-4">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Globe className="h-4 w-4 text-primary" />
+          Public apply URL
         </div>
+        <p className="mt-3 break-all text-sm text-muted-foreground">{applyUrl}</p>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-4 w-full rounded-2xl"
+          onClick={async () => {
+            await navigator.clipboard.writeText(applyUrl);
+            toast.success("Public URL copied");
+          }}
+        >
+          <Copy className="mr-2 h-4 w-4" />
+          Copy apply link
+        </Button>
       </div>
     </div>
   );

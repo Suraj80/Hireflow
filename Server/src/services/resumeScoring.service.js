@@ -262,15 +262,10 @@ const buildJobText = (job) => {
     job.location,
     job.type,
     stripHtml(job.descriptionHTML),
-    job.requirements?.qualification,
-    ...(job.requirements?.skills || []),
-    ...(job.requirements?.certifications || []),
+    stripHtml(job.requirementsHTML || ""),
+    ...(job.skills || []),
     ...(job.tags || []),
   ];
-
-  if (typeof job.requirements?.yearsOfExperience === "number") {
-    sections.push(`${job.requirements.yearsOfExperience} years experience`);
-  }
 
   return normalizeWhitespace(sections.filter(Boolean).join("\n"));
 };
@@ -355,39 +350,7 @@ const computeKeywordCoverage = (candidateTokens, jobSkills = [], jobTags = []) =
   };
 };
 
-const computeExperienceAlignment = (candidate, job) => {
-  const expectedYears = job.requirements?.yearsOfExperience;
-  if (typeof expectedYears !== "number") {
-    return {
-      score: 0.5,
-      message: "",
-    };
-  }
-
-  const candidateYears =
-    Number(candidate.experience?.years || 0) + Number(candidate.experience?.months || 0) / 12;
-
-  if (candidateYears >= expectedYears) {
-    return {
-      score: 1,
-      message: `Experience appears aligned with the ${expectedYears}+ year expectation.`,
-    };
-  }
-
-  if (candidateYears >= Math.max(0, expectedYears - 1)) {
-    return {
-      score: 0.7,
-      message: `Experience is slightly below the ${expectedYears}+ year target.`,
-    };
-  }
-
-  return {
-    score: 0.3,
-    message: `Experience looks below the ${expectedYears}+ year target.`,
-  };
-};
-
-const buildReasoning = ({ matched, missing, experienceMessage, resumeTextAvailable }) => {
+const buildReasoning = ({ matched, missing, resumeTextAvailable }) => {
   const parts = [];
 
   if (matched.length) {
@@ -398,10 +361,6 @@ const buildReasoning = ({ matched, missing, experienceMessage, resumeTextAvailab
 
   if (missing.length) {
     parts.push(`Lower coverage around: ${missing.join(", ")}.`);
-  }
-
-  if (experienceMessage) {
-    parts.push(experienceMessage);
   }
 
   if (!resumeTextAvailable) {
@@ -481,17 +440,15 @@ const scoreCandidateResume = async (candidateId) => {
 
   const similarity = clamp(cosineSimilarity(candidateEmbedding, jobEmbedding), 0, 1);
   const candidateTokens = tokenize(candidateText);
-  const keywordCoverage = computeKeywordCoverage(candidateTokens, job.requirements?.skills, job.tags);
-  const experienceAlignment = computeExperienceAlignment(candidate, job);
+  const keywordCoverage = computeKeywordCoverage(candidateTokens, job.skills, job.tags);
 
   const score = Math.round(
-    clamp(similarity * 0.65 + keywordCoverage.coverage * 0.25 + experienceAlignment.score * 0.1, 0, 1) * 100
+    clamp(similarity * 0.75 + keywordCoverage.coverage * 0.25, 0, 1) * 100
   );
 
   const reasoning = buildReasoning({
     matched: keywordCoverage.matched,
     missing: keywordCoverage.missing,
-    experienceMessage: experienceAlignment.message,
     resumeTextAvailable: Boolean(resumeText),
   });
 

@@ -1,29 +1,5 @@
 const mongoose = require("mongoose");
 
-const requirementSchema = new mongoose.Schema(
-  {
-    skills: {
-      type: [String],
-      default: [],
-    },
-    yearsOfExperience: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    qualification: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-    certifications: {
-      type: [String],
-      default: [],
-    },
-  },
-  { _id: false }
-);
-
 const aiEmbeddingSchema = new mongoose.Schema(
   {
     values: {
@@ -113,14 +89,14 @@ const jobSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    requirements: {
-      type: requirementSchema,
-      default: () => ({
-        skills: [],
-        yearsOfExperience: null,
-        qualification: "",
-        certifications: [],
-      }),
+    requirementsHTML: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    skills: {
+      type: [String],
+      default: [],
     },
     tags: {
       type: [String],

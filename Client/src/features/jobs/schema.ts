@@ -38,12 +38,8 @@ export const jobFormSchema = z
     currency: z.string().trim().min(3, "Currency is required").max(5).default("USD"),
     showSalary: z.boolean().default(false),
     descriptionHTML: z.string().trim().min(30, "Description should be at least 30 characters"),
-    requirements: z.object({
-      skills: z.array(z.string().trim().min(1).max(40)).max(20),
-      yearsOfExperience: optionalNumber.optional().default(null),
-      qualification: z.string().trim().max(120).default(""),
-      certifications: z.array(z.string().trim().min(1).max(60)).max(15),
-    }),
+    requirementsHTML: z.string().trim().max(50000).default(""),
+    skills: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
     tags: z.array(z.string().trim().min(1).max(24)).max(10, "Use up to 10 tags"),
     deadline: z
       .string()
@@ -95,12 +91,8 @@ export const defaultJobFormValues: JobFormValues = {
   currency: "USD",
   showSalary: false,
   descriptionHTML: "",
-  requirements: {
-    skills: [],
-    yearsOfExperience: null,
-    qualification: "",
-    certifications: [],
-  },
+  requirementsHTML: "",
+  skills: [],
   tags: [],
   deadline: null,
   maxApplicants: null,
@@ -118,10 +110,8 @@ export const formatJobPayload = (values: JobFormValues) => ({
   location: values.location.trim(),
   currency: values.currency.trim().toUpperCase(),
   descriptionHTML: values.descriptionHTML.trim(),
-  requirements: {
-    ...values.requirements,
-    qualification: values.requirements.qualification.trim(),
-  },
+  requirementsHTML: values.requirementsHTML.trim(),
+  skills: values.skills.map((skill) => skill.trim().toLowerCase()),
   tags: values.tags.map((tag) => tag.trim().toLowerCase()),
 });
 
@@ -138,12 +128,8 @@ export const toJobFormValues = (job: Job): JobFormValues => ({
   currency: job.currency,
   showSalary: job.showSalary,
   descriptionHTML: job.descriptionHTML,
-  requirements: {
-    skills: job.requirements.skills || [],
-    yearsOfExperience: job.requirements.yearsOfExperience ?? null,
-    qualification: job.requirements.qualification || "",
-    certifications: job.requirements.certifications || [],
-  },
+  requirementsHTML: job.requirementsHTML || "",
+  skills: job.skills || [],
   tags: job.tags || [],
   deadline: job.deadline,
   maxApplicants: job.maxApplicants,

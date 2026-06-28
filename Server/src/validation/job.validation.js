@@ -12,15 +12,6 @@ const trimString = (min, max) =>
     .min(min)
     .max(max);
 
-const nullableNumber = z.preprocess((value) => {
-  if (value === "" || value === null || typeof value === "undefined") {
-    return null;
-  }
-
-  const numericValue = Number(value);
-  return Number.isNaN(numericValue) ? value : numericValue;
-}, z.number().nonnegative().nullable());
-
 const nullableInteger = z.preprocess((value) => {
   if (value === "" || value === null || typeof value === "undefined") {
     return null;
@@ -35,19 +26,7 @@ const tagsSchema = z
   .max(10, "A maximum of 10 tags is allowed")
   .default([]);
 
-const jobRequirementsSchema = z
-  .object({
-    skills: z.array(trimString(1, 40)).max(20).default([]),
-    yearsOfExperience: nullableNumber,
-    qualification: z.string().trim().max(120).default(""),
-    certifications: z.array(trimString(1, 60)).max(15).default([]),
-  })
-  .default({
-    skills: [],
-    yearsOfExperience: null,
-    qualification: "",
-    certifications: [],
-  });
+const skillsSchema = z.array(trimString(1, 40)).max(20).default([]);
 
 const jobPayloadBaseSchema = z.object({
   title: trimString(3, 120),
@@ -58,11 +37,26 @@ const jobPayloadBaseSchema = z.object({
   type: z.enum(employmentTypes),
   location: trimString(2, 120),
   workMode: z.enum(workModes).default("onsite"),
-  salaryMin: nullableNumber.optional().default(null),
-  salaryMax: nullableNumber.optional().default(null),
+  salaryMin: z.preprocess((value) => {
+    if (value === "" || value === null || typeof value === "undefined") {
+      return null;
+    }
+
+    const numericValue = Number(value);
+    return Number.isNaN(numericValue) ? value : numericValue;
+  }, z.number().nonnegative().nullable()).optional().default(null),
+  salaryMax: z.preprocess((value) => {
+    if (value === "" || value === null || typeof value === "undefined") {
+      return null;
+    }
+
+    const numericValue = Number(value);
+    return Number.isNaN(numericValue) ? value : numericValue;
+  }, z.number().nonnegative().nullable()).optional().default(null),
   currency: trimString(3, 5).transform((value) => value.toUpperCase()).default("USD"),
   showSalary: z.boolean().default(false),
-  requirements: jobRequirementsSchema,
+  requirementsHTML: z.string().trim().max(50000).default(""),
+  skills: skillsSchema,
   tags: tagsSchema,
   deadline: z.preprocess((value) => {
     if (!value) {

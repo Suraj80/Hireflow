@@ -49,6 +49,8 @@ export default function JobApplicationPage() {
     statusToken: string;
   } | null>(null);
   const [form, setForm] = useState<ApplyFormState>(defaultFormState);
+  const tags = Array.isArray(job?.tags) ? job.tags : [];
+  const skills = Array.isArray(job?.skills) ? job.skills : [];
 
   useEffect(() => {
     const loadJob = async () => {
@@ -186,7 +188,7 @@ export default function JobApplicationPage() {
               <CardContent className="p-6">
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">{job.department}</Badge>
-                  {job.tags?.slice(0, 3).map((tag) => (
+                  {tags.slice(0, 3).map((tag) => (
                     <Badge key={tag} variant="outline">
                       {tag}
                     </Badge>
@@ -205,7 +207,33 @@ export default function JobApplicationPage() {
                   </span>
                 </div>
                 <p className="mt-4 text-sm font-medium text-foreground">{formatJobSalary(job)}</p>
-                <div className="prose prose-sm mt-5 max-w-none" dangerouslySetInnerHTML={{ __html: job.descriptionHTML }} />
+                <div
+                  className="prose prose-sm mt-5 max-w-none [&>p]:my-0 [&>p]:leading-6 [&>ul]:my-0 [&>ol]:my-0"
+                  dangerouslySetInnerHTML={{ __html: job.descriptionHTML }}
+                />
+                <div className="mt-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Requirements</p>
+                  <div
+                    className="prose prose-sm mt-3 max-w-none [&>p]:my-0 [&>p]:leading-6 [&>ul]:my-0 [&>ol]:my-0"
+                    dangerouslySetInnerHTML={{
+                      __html: job.requirementsHTML || "<p>No requirements added.</p>",
+                    }}
+                  />
+                </div>
+                <div className="mt-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Skills</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {skills.length ? (
+                      skills.map((skill) => (
+                        <Badge key={skill} variant="secondary">
+                          {skill}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No skills added</span>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

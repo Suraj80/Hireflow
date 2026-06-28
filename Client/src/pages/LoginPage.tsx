@@ -148,9 +148,6 @@ export default function LoginPage() {
                 >
                   {isSubmitting ? "Please wait..." : "Sign In"}
                 </Button>
-                <p className="text-center text-sm text-muted-foreground">
-                  Need access? Contact your organization administrator.
-                </p>
               </form>
             </CardContent>
           </Card>

@@ -1,15 +1,12 @@
 import { useEffect } from "react";
-import Link from "@tiptap/extension-link";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Bold,
-  Code2,
   Heading1,
   Heading2,
-  Link2,
   List,
   ListOrdered,
   Redo2,
@@ -26,20 +23,13 @@ export function RichTextEditor({ value, onChange, disabled = false }: RichTextEd
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        HTMLAttributes: {
-          class: "text-primary underline underline-offset-2",
-        },
-      }),
     ],
     content: value,
     editable: !disabled,
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm max-w-none min-h-[260px] px-4 py-4 focus:outline-none prose-headings:font-semibold prose-p:text-foreground prose-li:text-foreground",
+          "prose prose-sm max-w-none min-h-[260px] px-4 py-4 focus:outline-none prose-headings:font-semibold prose-p:my-0 prose-p:text-foreground prose-li:my-0 prose-li:text-foreground prose-ul:my-0 prose-ol:my-0",
       },
     },
     onUpdate: ({ editor: nextEditor }) => {
@@ -62,7 +52,6 @@ export function RichTextEditor({ value, onChange, disabled = false }: RichTextEd
           { icon: Bold, action: () => editor?.chain().focus().toggleBold().run(), active: editor?.isActive("bold") },
           { icon: List, action: () => editor?.chain().focus().toggleBulletList().run(), active: editor?.isActive("bulletList") },
           { icon: ListOrdered, action: () => editor?.chain().focus().toggleOrderedList().run(), active: editor?.isActive("orderedList") },
-          { icon: Code2, action: () => editor?.chain().focus().toggleCodeBlock().run(), active: editor?.isActive("codeBlock") },
         ].map((item, index) => (
           <Button
             key={index}
@@ -76,20 +65,6 @@ export function RichTextEditor({ value, onChange, disabled = false }: RichTextEd
             <item.icon className="h-4 w-4" />
           </Button>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          disabled={!editor || disabled}
-          onClick={() => {
-            const url = window.prompt("Enter a URL");
-            if (!url) return;
-            editor?.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-          }}
-          className={cn("h-9 w-9 rounded-xl", editor?.isActive("link") && "border-primary text-primary")}
-        >
-          <Link2 className="h-4 w-4" />
-        </Button>
         <div className="ml-auto flex gap-2">
           <Button type="button" variant="ghost" size="icon" disabled={!editor || disabled} onClick={() => editor?.chain().focus().undo().run()}>
             <Undo2 className="h-4 w-4" />

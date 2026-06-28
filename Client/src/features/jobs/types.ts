@@ -11,13 +11,6 @@ export type UserSummary = {
   role: "admin" | "recruiter" | "viewer";
 };
 
-export type JobRequirements = {
-  skills: string[];
-  yearsOfExperience: number | null;
-  qualification: string;
-  certifications: string[];
-};
-
 export type Job = {
   id: string;
   title: string;
@@ -26,6 +19,7 @@ export type Job = {
   hiringManagerId: string | null;
   hiringManagerUser: UserSummary | null;
   descriptionHTML: string;
+  requirementsHTML: string;
   type: EmploymentType;
   location: string;
   workMode: WorkMode;
@@ -34,7 +28,7 @@ export type Job = {
   salaryMax: number | null;
   currency: string;
   showSalary: boolean;
-  requirements: JobRequirements;
+  skills: string[];
   tags: string[];
   deadline: string | null;
   maxApplicants: number | null;

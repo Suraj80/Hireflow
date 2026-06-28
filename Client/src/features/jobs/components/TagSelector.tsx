@@ -13,6 +13,7 @@ type TagSelectorProps = {
   limit?: number;
   disabled?: boolean;
   inputClassName?: string;
+  rounded?: boolean;
 };
 
 export function TagSelector({
@@ -23,6 +24,7 @@ export function TagSelector({
   limit = 10,
   disabled = false,
   inputClassName,
+  rounded = true,
 }: TagSelectorProps) {
   const [inputValue, setInputValue] = useState("");
 
@@ -56,16 +58,20 @@ export function TagSelector({
   const remainingSuggestions = suggestions.filter((suggestion) => !values.includes(suggestion.toLowerCase()));
 
   return (
-    <div className="rounded-2xl border border-border bg-background/70 p-3">
+    <div className={cn("border border-border bg-background/70 p-3", rounded ? "rounded-2xl" : "rounded-none")}>
       <div className="flex flex-wrap gap-2">
         {values.map((value) => (
-          <Badge key={value} variant="secondary" className="gap-1 rounded-full px-3 py-1">
+          <Badge
+            key={value}
+            variant="secondary"
+            className={cn("gap-1 px-3 py-1", rounded ? "rounded-full" : "rounded-none")}
+          >
             <span>{value}</span>
             {!disabled && (
               <button
                 type="button"
                 onClick={() => removeValue(value)}
-                className="rounded-full text-muted-foreground transition hover:text-foreground"
+                className={cn("text-muted-foreground transition hover:text-foreground", rounded ? "rounded-full" : "rounded-none")}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -84,7 +90,13 @@ export function TagSelector({
           )}
         />
         {!disabled && inputValue.trim() && values.length < limit && (
-          <Button type="button" size="sm" variant="outline" onClick={() => addValue(inputValue)} className="rounded-full">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => addValue(inputValue)}
+            className={cn(rounded ? "rounded-full" : "rounded-none")}
+          >
             <Plus className="mr-1 h-3.5 w-3.5" />
             Add
           </Button>
@@ -99,7 +111,8 @@ export function TagSelector({
               disabled={disabled}
               onClick={() => addValue(suggestion)}
               className={cn(
-                "rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-foreground",
+                "border border-border px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-foreground",
+                rounded ? "rounded-full" : "rounded-none",
                 disabled && "cursor-not-allowed opacity-60",
               )}
             >

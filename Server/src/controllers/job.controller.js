@@ -23,14 +23,52 @@ const buildValidationError = (issues) => ({
 const canManageJob = (job, user) =>
   user && (user.role === "admin" || job.createdBy.toString() === user.id);
 
+const buildLegacyRequirementsHTML = (requirements = {}) => {
+  const pieces = [];
+
+  if (requirements.qualification) {
+    pieces.push(`<p><strong>Qualification:</strong> ${String(requirements.qualification)}</p>`);
+  }
+
+  if (typeof requirements.yearsOfExperience === "number") {
+    pieces.push(`<p><strong>Experience:</strong> ${requirements.yearsOfExperience}+ years</p>`);
+  }
+
+  if (Array.isArray(requirements.certifications) && requirements.certifications.length) {
+    pieces.push(`<p><strong>Certifications:</strong> ${requirements.certifications.join(", ")}</p>`);
+  }
+
+  return pieces.join("");
+};
+
+const normalizeRequirementsFields = (job) => ({
+  requirementsHTML: job.requirementsHTML || buildLegacyRequirementsHTML(job.requirements),
+  skills: job.skills || job.requirements?.skills || [],
+});
+
+const normalizeJobInputRequirements = (body = {}, fallbackJob = null) => ({
+  requirementsHTML:
+    body.requirementsHTML ??
+    buildLegacyRequirementsHTML(body.requirements) ??
+    fallbackJob?.requirementsHTML ??
+    "",
+  skills:
+    body.skills ??
+    body.requirements?.skills ??
+    fallbackJob?.skills ??
+    [],
+});
+
 const sanitizePublicJob = (job) => {
   const normalizedWorkMode = job.workMode || (job.remote ? "remote" : "onsite");
+  const requirements = normalizeRequirementsFields(job);
 
   return {
     id: job._id,
     title: job.title,
     department: job.department,
     descriptionHTML: job.descriptionHTML,
+    requirementsHTML: requirements.requirementsHTML,
     type: job.type,
     location: job.location,
     workMode: normalizedWorkMode,
@@ -39,7 +77,7 @@ const sanitizePublicJob = (job) => {
     salaryMax: job.showSalary ? job.salaryMax : null,
     currency: job.showSalary ? job.currency : null,
     showSalary: job.showSalary,
-    requirements: job.requirements,
+    skills: requirements.skills,
     tags: job.tags,
     deadline: job.deadline,
     visibility: job.visibility,
@@ -50,6 +88,7 @@ const sanitizePublicJob = (job) => {
 
 const normalizeJobResponse = (job, applicantsCount = 0) => {
   const normalizedWorkMode = job.workMode || (job.remote ? "remote" : "onsite");
+  const requirements = normalizeRequirementsFields(job);
 
   return {
     id: job._id,
@@ -64,8 +103,9 @@ const normalizeJobResponse = (job, applicantsCount = 0) => {
           email: job.hiringManagerId.email,
           role: job.hiringManagerId.role,
         }
-      : null,
+    : null,
     descriptionHTML: job.descriptionHTML,
+    requirementsHTML: requirements.requirementsHTML,
     type: job.type,
     location: job.location,
     workMode: normalizedWorkMode,
@@ -74,7 +114,7 @@ const normalizeJobResponse = (job, applicantsCount = 0) => {
     salaryMax: job.salaryMax,
     currency: job.currency,
     showSalary: job.showSalary,
-    requirements: job.requirements,
+    skills: requirements.skills,
     tags: job.tags,
     deadline: job.deadline,
     maxApplicants: job.maxApplicants,
@@ -275,7 +315,13 @@ const getJobById = async (req, res) => {
 };
 
 const createJob = async (req, res) => {
-  const parsedBody = jobCreateSchema.safeParse(req.body);
+  const normalizedRequirements = normalizeJobInputRequirements(req.body);
+  const normalizedBody = {
+    ...req.body,
+    requirementsHTML: normalizedRequirements.requirementsHTML,
+    skills: Array.isArray(normalizedRequirements.skills) ? normalizedRequirements.skills : [],
+  };
+  const parsedBody = jobCreateSchema.safeParse(normalizedBody);
 
   if (!parsedBody.success) {
     return res.status(400).json(buildValidationError(parsedBody.error.issues));
@@ -351,6 +397,7 @@ const updateJob = async (req, res) => {
       return res.status(403).json({ message: "Forbidden" });
     }
 
+    const normalizedRequirements = normalizeJobInputRequirements(req.body, job);
     const mergedPayload = {
       title: req.body.title ?? job.title,
       department: req.body.department ?? job.department,
@@ -364,7 +411,8 @@ const updateJob = async (req, res) => {
       salaryMax: typeof req.body.salaryMax === "undefined" ? job.salaryMax : req.body.salaryMax,
       currency: req.body.currency ?? job.currency,
       showSalary: req.body.showSalary ?? job.showSalary,
-      requirements: req.body.requirements ?? job.requirements,
+      requirementsHTML: normalizedRequirements.requirementsHTML,
+      skills: normalizedRequirements.skills,
       tags: req.body.tags ?? job.tags,
       deadline: typeof req.body.deadline === "undefined" ? job.deadline : req.body.deadline,
       maxApplicants: typeof req.body.maxApplicants === "undefined" ? job.maxApplicants : req.body.maxApplicants,
