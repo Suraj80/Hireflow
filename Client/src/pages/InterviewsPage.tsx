@@ -6,6 +6,10 @@ import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { InterviewCalendarView } from "@/features/interviews/components/InterviewCalendarView";
 import { InterviewDrawer } from "@/features/interviews/components/InterviewDrawer";
 import { InterviewListView } from "@/features/interviews/components/InterviewListView";
@@ -46,7 +50,7 @@ export default function InterviewsPage() {
     openDrawer,
     closeDrawer,
     updateInterview,
-    rescheduleInterview,
+    rescheduleInterview: rescheduleInterviewApi,
     updateStatus,
     deleteInterview,
     addFeedback,
@@ -55,6 +59,13 @@ export default function InterviewsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [officeHours, setOfficeHours] = useState<WorkspaceSettings["officeHours"]>(defaultOfficeHours);
   const [officeWeek, setOfficeWeek] = useState<WorkspaceSettings["officeWeek"]>(defaultOfficeWeek);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleInterview, setRescheduleInterview] = useState<Interview | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleDuration, setRescheduleDuration] = useState<number>(30);
+  const [rescheduleReason, setRescheduleReason] = useState("");
+  const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
 
   useEffect(() => {
     void fetchCalendar();
@@ -82,17 +93,51 @@ export default function InterviewsPage() {
     void loadWorkspacePreferences();
   }, [setWeekStart]);
 
-  const handleReschedulePrompt = async (interview: Interview) => {
-    const next = window.prompt("New interview time in ISO format", interview.scheduledAt);
-    if (!next) {
+  const openRescheduleModal = (interview: Interview) => {
+    const current = new Date(interview.scheduledAt);
+    const pad = (value: number) => String(value).padStart(2, "0");
+
+    setRescheduleInterview(interview);
+    setRescheduleDate(`${current.getFullYear()}-${pad(current.getMonth() + 1)}-${pad(current.getDate())}`);
+    setRescheduleTime(`${pad(current.getHours())}:${pad(current.getMinutes())}`);
+    setRescheduleDuration(interview.duration);
+    setRescheduleReason("");
+    setRescheduleOpen(true);
+  };
+
+  const closeRescheduleModal = () => {
+    setRescheduleOpen(false);
+    setRescheduleInterview(null);
+    setRescheduleReason("");
+    setRescheduleSubmitting(false);
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!rescheduleInterview || !rescheduleDate || !rescheduleTime) {
+      toast.error("Pick a date and time for the reschedule");
       return;
     }
+
+    const nextTimestamp = new Date(`${rescheduleDate}T${rescheduleTime}:00`);
+    if (Number.isNaN(nextTimestamp.getTime())) {
+      toast.error("Please enter a valid date and time");
+      return;
+    }
+
     try {
-      await rescheduleInterview(interview.id, { scheduledAt: next, reason: "Rescheduled from interviews workspace" });
+      setRescheduleSubmitting(true);
+      await rescheduleInterviewApi(rescheduleInterview.id, {
+        scheduledAt: nextTimestamp.toISOString(),
+        duration: rescheduleDuration,
+        reason: rescheduleReason || "Rescheduled from interviews workspace",
+      });
       toast.success("Interview rescheduled");
       setRefreshKey((value) => value + 1);
+      closeRescheduleModal();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to reschedule interview");
+    } finally {
+      setRescheduleSubmitting(false);
     }
   };
 
@@ -103,20 +148,6 @@ export default function InterviewsPage() {
       setRefreshKey((value) => value + 1);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to cancel interview");
-    }
-  };
-
-  const handleReminder = async (interview: Interview) => {
-    try {
-      await updateStatus(interview.id, {
-        status: interview.status,
-        reason: "Reminder sent to interview panel",
-        sendNotification: true,
-      });
-      toast.success("Reminder recorded");
-      setRefreshKey((value) => value + 1);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to send reminder");
     }
   };
 
@@ -226,7 +257,7 @@ export default function InterviewsPage() {
             officeWeek={officeWeek}
             onOpen={(id) => void openDrawer(id)}
             onReschedule={async (id, payload) => {
-              await rescheduleInterview(id, payload);
+              await rescheduleInterviewApi(id, payload);
               setRefreshKey((value) => value + 1);
             }}
           />
@@ -247,7 +278,7 @@ export default function InterviewsPage() {
           onToggleAll={toggleSelectAll}
           onOpen={(id) => void openDrawer(id)}
           onEdit={(interview) => void openDrawer(interview.id)}
-          onReschedule={(interview) => void handleReschedulePrompt(interview)}
+          onReschedule={(interview) => openRescheduleModal(interview)}
           onCancel={(interview) => void handleCancel(interview)}
           onDelete={(interview) => void handleDelete(interview)}
           onAddFeedback={(id) => void openDrawer(id)}
@@ -272,11 +303,7 @@ export default function InterviewsPage() {
           setRefreshKey((value) => value + 1);
           return next;
         }}
-        onReschedule={async (id, payload) => {
-          const next = await rescheduleInterview(id, payload);
-          setRefreshKey((value) => value + 1);
-          return next;
-        }}
+        onRequestReschedule={(interview) => openRescheduleModal(interview)}
         onUpdateStatus={async (id, payload) => {
           const next = await updateStatus(id, payload);
           setRefreshKey((value) => value + 1);
@@ -292,6 +319,87 @@ export default function InterviewsPage() {
           return next;
         }}
       />
+
+      <Dialog open={rescheduleOpen} onOpenChange={(open) => (open ? setRescheduleOpen(true) : closeRescheduleModal())}>
+        <DialogContent className="rounded-[28px] sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>Reschedule interview</DialogTitle>
+            <DialogDescription>
+              Update the date, time, or duration for {rescheduleInterview?.candidate?.name || "this interview"}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-date">Date</Label>
+                <Input
+                  id="reschedule-date"
+                  type="date"
+                  className="h-11 rounded-2xl"
+                  value={rescheduleDate}
+                  onChange={(event) => setRescheduleDate(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-time">Time</Label>
+                <Input
+                  id="reschedule-time"
+                  type="time"
+                  className="h-11 rounded-2xl"
+                  value={rescheduleTime}
+                  onChange={(event) => setRescheduleTime(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-duration">Duration (minutes)</Label>
+                <Input
+                  id="reschedule-duration"
+                  type="number"
+                  min={15}
+                  step={15}
+                  className="h-11 rounded-2xl"
+                  value={rescheduleDuration}
+                  onChange={(event) => setRescheduleDuration(Number(event.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-timezone">Timezone</Label>
+                <Input
+                  id="reschedule-timezone"
+                  className="h-11 rounded-2xl"
+                  value={rescheduleInterview?.timezone || ""}
+                  readOnly
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-reason">Reason</Label>
+              <Textarea
+                id="reschedule-reason"
+                rows={4}
+                className="rounded-2xl"
+                value={rescheduleReason}
+                onChange={(event) => setRescheduleReason(event.target.value)}
+                placeholder="Optional reason for the change"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button type="button" variant="outline" className="rounded-2xl" onClick={closeRescheduleModal} disabled={rescheduleSubmitting}>
+              Cancel
+            </Button>
+            <Button type="button" className="rounded-2xl" onClick={() => void handleRescheduleSubmit()} disabled={rescheduleSubmitting}>
+              {rescheduleSubmitting ? "Saving..." : "Save reschedule"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

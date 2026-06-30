@@ -1,3 +1,4 @@
+const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 
 const toPlainId = (value) => {
@@ -21,6 +22,37 @@ const deriveRequestDetails = (req) => ({
   userAgent: String(req?.get?.("user-agent") || req?.headers?.["user-agent"] || "").trim(),
 });
 
+const resolveActor = async ({ actor = null, req = null }) => {
+  const actorPayload = actor || req?.user || null;
+
+  if (!actorPayload) {
+    return {
+      id: null,
+      name: "",
+      email: "",
+      role: "",
+    };
+  }
+
+  const resolved = {
+    id: actorPayload.id || actorPayload._id || null,
+    name: actorPayload.name || "",
+    email: actorPayload.email || "",
+    role: actorPayload.role || "",
+  };
+
+  if (resolved.id && (!resolved.name || !resolved.email)) {
+    const user = await User.findById(resolved.id).select("name email role").lean();
+    if (user) {
+      resolved.name = resolved.name || user.name || "";
+      resolved.email = resolved.email || user.email || "";
+      resolved.role = resolved.role || user.role || "";
+    }
+  }
+
+  return resolved;
+};
+
 const createAuditLog = async ({
   req = null,
   actor = null,
@@ -35,15 +67,10 @@ const createAuditLog = async ({
   }
 
   const request = deriveRequestDetails(req);
-  const actorPayload = actor || req?.user || null;
+  const actorPayload = await resolveActor({ actor, req });
 
   return AuditLog.create({
-    actor: {
-      id: actorPayload?.id || actorPayload?._id || null,
-      name: actorPayload?.name || "",
-      email: actorPayload?.email || "",
-      role: actorPayload?.role || "",
-    },
+    actor: actorPayload,
     action,
     category,
     entity: {

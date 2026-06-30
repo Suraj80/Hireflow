@@ -1,4 +1,5 @@
 const AuditLog = require("../models/AuditLog");
+const User = require("../models/User");
 
 const allowedActions = [
   "all",
@@ -58,29 +59,34 @@ const buildValidationError = (message, field = null) => ({
     : {}),
 });
 
-const normalizeAuditLog = (item) => ({
-  id: item._id,
-  actor: {
-    id: item.actor?.id || null,
-    name: item.actor?.name || "System",
-    email: item.actor?.email || "",
-    role: item.actor?.role || "",
-  },
-  action: item.action,
-  category: item.category,
-  entity: {
-    type: item.entity?.type || "",
-    id: item.entity?.id || "",
-    label: item.entity?.label || "",
-  },
-  description: item.description,
-  meta: item.meta || null,
-  request: {
-    ip: item.request?.ip || "",
-    userAgent: item.request?.userAgent || "",
-  },
-  createdAt: item.createdAt,
-});
+const normalizeAuditLog = (item, actorLookup = new Map()) => {
+  const actorId = item.actor?.id ? String(item.actor.id) : "";
+  const lookupActor = actorId ? actorLookup.get(actorId) : null;
+
+  return {
+    id: item._id,
+    actor: {
+      id: item.actor?.id || null,
+      name: item.actor?.name || lookupActor?.name || lookupActor?.email || "System",
+      email: item.actor?.email || lookupActor?.email || "",
+      role: item.actor?.role || lookupActor?.role || "",
+    },
+    action: item.action,
+    category: item.category,
+    entity: {
+      type: item.entity?.type || "",
+      id: item.entity?.id || "",
+      label: item.entity?.label || "",
+    },
+    description: item.description,
+    meta: item.meta || null,
+    request: {
+      ip: item.request?.ip || "",
+      userAgent: item.request?.userAgent || "",
+    },
+    createdAt: item.createdAt,
+  };
+};
 
 const getAuditLogs = async (req, res) => {
   try {
@@ -154,8 +160,21 @@ const getAuditLogs = async (req, res) => {
       ]),
     ]);
 
+    const actorIds = Array.from(
+      new Set(
+        items
+          .map((item) => item.actor?.id)
+          .filter(Boolean)
+          .map((id) => String(id))
+      )
+    );
+    const actorUsers = actorIds.length
+      ? await User.find({ _id: { $in: actorIds } }).select("name email role").lean()
+      : [];
+    const actorLookup = new Map(actorUsers.map((user) => [String(user._id), user]));
+
     return res.status(200).json({
-      items: items.map(normalizeAuditLog),
+      items: items.map((item) => normalizeAuditLog(item, actorLookup)),
       pagination: {
         page,
         limit,
@@ -166,12 +185,15 @@ const getAuditLogs = async (req, res) => {
         actions: allowedActions.filter((item) => item !== "all"),
         entityTypes: allowedEntityTypes.filter((item) => item !== "all"),
         categories: allowedCategories.filter((item) => item !== "all"),
-        actors: actors.map((actor) => ({
-          id: actor._id,
-          name: actor.name || "Unknown",
-          email: actor.email || "",
-          role: actor.role || "",
-        })),
+        actors: actors.map((actor) => {
+          const lookupActor = actorLookup.get(String(actor._id));
+          return {
+            id: actor._id,
+            name: actor.name || lookupActor?.name || lookupActor?.email || "Unknown",
+            email: actor.email || lookupActor?.email || "",
+            role: actor.role || lookupActor?.role || "",
+          };
+        }),
       },
     });
   } catch (error) {

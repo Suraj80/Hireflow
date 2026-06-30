@@ -190,7 +190,7 @@ export default function AuditLogPage() {
                     <TableRow key={item.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{item.actor.name || "System"}</p>
+                          <p className="font-medium">{item.actor.name || item.actor.email || "System"}</p>
                           <p className="text-xs text-muted-foreground">
                             {item.actor.email || item.request.ip || "Unknown origin"}
                           </p>

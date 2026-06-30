@@ -20,7 +20,7 @@ type InterviewDrawerProps = {
   meta: InterviewMeta;
   onOpenChange: (open: boolean) => void;
   onUpdate: (id: string, values: InterviewFormValues) => Promise<Interview>;
-  onReschedule: (id: string, payload: { scheduledAt: string; duration?: number; reason?: string }) => Promise<Interview>;
+  onRequestReschedule: (interview: Interview) => void;
   onUpdateStatus: (id: string, payload: { status: Interview["status"]; reason?: string; sendNotification?: boolean }) => Promise<Interview>;
   onDelete: (id: string) => Promise<void>;
   onAddFeedback: (id: string, values: InterviewFeedbackValues) => Promise<Interview>;
@@ -33,13 +33,12 @@ export function InterviewDrawer({
   meta,
   onOpenChange,
   onUpdate,
-  onReschedule,
+  onRequestReschedule,
   onUpdateStatus,
   onDelete,
   onAddFeedback,
 }: InterviewDrawerProps) {
   const [editing, setEditing] = useState(false);
-  const [rescheduleReason, setRescheduleReason] = useState("");
 
   return (
     <>
@@ -69,16 +68,7 @@ export function InterviewDrawer({
                   <Button
                     variant="outline"
                     className="rounded-2xl"
-                    onClick={async () => {
-                      const next = window.prompt("New date/time in ISO format", interview.scheduledAt);
-                      if (!next) return;
-                      try {
-                        await onReschedule(interview.id, { scheduledAt: next, reason: rescheduleReason || "Rescheduled from drawer" });
-                        toast.success("Interview rescheduled");
-                      } catch (error) {
-                        toast.error(error instanceof Error ? error.message : "Unable to reschedule interview");
-                      }
-                    }}
+                    onClick={() => onRequestReschedule(interview)}
                   >
                     <RotateCcw className="mr-2 h-4 w-4" />
                     Reschedule
@@ -250,10 +240,6 @@ export function InterviewDrawer({
                       <div>
                         <p className="text-sm text-muted-foreground">Internal notes</p>
                         <Textarea value={interview.notes} readOnly rows={8} className="mt-2 rounded-2xl" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Reschedule note</p>
-                        <Textarea value={rescheduleReason} onChange={(event) => setRescheduleReason(event.target.value)} rows={3} className="mt-2 rounded-2xl" />
                       </div>
                     </CardContent>
                   </Card>

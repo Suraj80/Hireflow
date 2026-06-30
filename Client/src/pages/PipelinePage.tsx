@@ -30,11 +30,10 @@ import {
   getCandidateInitials,
   groupCandidatesByStage,
   scoreToneClass,
-  sourceLabels,
   stageOrder,
   stageToneClass,
 } from "@/features/candidates/helpers";
-import { Candidate, CandidateBulkActionPayload, CandidateFilters, CandidateStage, CandidateStatus } from "@/features/candidates/types";
+import { Candidate, CandidateBulkActionPayload, CandidateFilters, CandidateJobSummary, CandidateStage } from "@/features/candidates/types";
 import { defaultCandidateFilters } from "@/features/candidates/store";
 import { cn } from "@/lib/utils";
 
@@ -188,13 +187,9 @@ function PipelineCard({ candidate, canManageCandidates, selected, onToggleSelect
                   {candidate.job.department}
                 </Badge>
               ) : null}
-              <Badge variant="outline" className="rounded-full px-2.5 py-1 text-xs">
-                {sourceLabels[candidate.source]}
-              </Badge>
             </div>
 
             <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
-              <p>{candidate.recruiterAssigned?.name || "Unassigned recruiter"}</p>
               <p>{candidate.updatedAt ? `Updated ${formatRelative(candidate.updatedAt)}` : "Recently updated"}</p>
             </div>
           </div>
@@ -283,6 +278,7 @@ export default function PipelinePage() {
     ...defaultCandidateFilters,
     job: jobId || "all",
   });
+  const [jobOptions, setJobOptions] = useState<CandidateJobSummary[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -316,6 +312,7 @@ export default function PipelinePage() {
         const candidatesResponse = await fetchAllCandidates(filters);
         if (!ignore) {
           setCandidates(candidatesResponse.items);
+          setJobOptions(candidatesResponse.filters.jobs || []);
           setSelectedIds((current) =>
             current.filter((candidateId) => candidatesResponse.items.some((candidate) => candidate.id === candidateId))
           );
@@ -349,21 +346,6 @@ export default function PipelinePage() {
   );
   const visibleSelectedCount = visibleSelectedCandidates.length;
   const averageSelectedScore = useMemo(() => averageAiScore(visibleSelectedCandidates), [visibleSelectedCandidates]);
-
-  const summary = useMemo(() => {
-    const scored = candidates.filter((candidate) => typeof candidate.aiScore === "number");
-    const hired = candidates.filter((candidate) => candidate.stage === "Hired").length;
-    const active = candidates.filter((candidate) => candidate.status === ("Active" as CandidateStatus)).length;
-
-    return {
-      total: candidates.length,
-      active,
-      hired,
-      averageAiScore: scored.length
-        ? Math.round(scored.reduce((sum, candidate) => sum + (candidate.aiScore || 0), 0) / scored.length)
-        : null,
-    };
-  }, [candidates]);
 
   const toggleSelected = (candidateId: string, checked: boolean) => {
     setSelectedIds((current) =>
@@ -461,36 +443,21 @@ export default function PipelinePage() {
             Move candidates across the funnel and manage bulk stage updates from one board.
           </p>
         </div>
-        <Badge variant="outline" className="w-fit rounded-full px-3 py-1.5">
-          {canManageCandidates ? "Board actions enabled" : "View only"}
-        </Badge>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardContent className="space-y-1 p-5">
-            <p className="text-sm text-muted-foreground">Visible candidates</p>
-            <p className="text-3xl font-semibold">{summary.total}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardContent className="space-y-1 p-5">
-            <p className="text-sm text-muted-foreground">Active pipeline</p>
-            <p className="text-3xl font-semibold">{summary.active}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardContent className="space-y-1 p-5">
-            <p className="text-sm text-muted-foreground">Hired in view</p>
-            <p className="text-3xl font-semibold">{summary.hired}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardContent className="space-y-1 p-5">
-            <p className="text-sm text-muted-foreground">Average AI score</p>
-            <p className="text-3xl font-semibold">{summary.averageAiScore ?? "--"}</p>
-          </CardContent>
-        </Card>
+        <div className="w-full max-w-xs">
+          <Select value={filters.job} onValueChange={(value) => setFilters({ job: value })}>
+            <SelectTrigger className="h-11 rounded-2xl">
+              <SelectValue placeholder="All jobs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All jobs</SelectItem>
+              {jobOptions.map((job) => (
+                <SelectItem key={job.id} value={job.id}>
+                  {job.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Card className="rounded-[28px] border border-border/80 shadow-sm">
