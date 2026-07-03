@@ -6,7 +6,19 @@ import {
   setAccessToken,
 } from "@/lib/auth-session";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+export const isApiBaseUrlConfigured = Boolean(import.meta.env.VITE_API_BASE_URL);
+
+const resolveApiBaseUrl = () => {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  if (apiBaseUrl) {
+    return apiBaseUrl;
+  }
+
+  return import.meta.env.DEV ? "http://localhost:5000/api" : "/api";
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;

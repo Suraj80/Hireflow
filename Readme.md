@@ -8,7 +8,7 @@ HireFlow is a full-stack applicant tracking system for managing the hiring lifec
 - Authenticated workspace for dashboard, jobs, candidates, pipeline, interviews, offers, analytics, users, audit log, profile, and settings
 - Role-based access for `viewer`, `recruiter`, and `admin`
 - Candidate pipeline with drag-and-drop stage updates and bulk stage moves
-- Dashboard views for KPIs, pipeline summary, recent activity, upcoming interviews, and active jobs
+- Dashboard views for KPIs, pipeline summary, recent activity, upcoming interviews, and active jobs`
 - Candidate and job flows for review, scheduling, offer management, and admin operations
 
 ## Tech Stack

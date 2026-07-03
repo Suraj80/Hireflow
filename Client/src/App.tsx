@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { isApiBaseUrlConfigured } from "@/lib/api";
 
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -35,7 +36,24 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const MissingApiConfig = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background px-6">
+    <div className="max-w-lg rounded-xl border bg-card p-8 text-center shadow-lg">
+      <h1 className="text-2xl font-semibold">Frontend setup incomplete</h1>
+      <p className="mt-3 text-sm text-muted-foreground">
+        Set <span className="font-medium">VITE_API_BASE_URL</span> in your Vercel project settings so the app can reach the AWS backend.
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Example: <span className="font-medium">https://your-backend-domain.com/api</span>
+      </p>
+    </div>
+  </div>
+);
+
 const App = () => (
+  import.meta.env.PROD && !isApiBaseUrlConfigured ? (
+    <MissingApiConfig />
+  ) : (
   <ThemeProvider defaultTheme="light">
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -93,6 +111,7 @@ const App = () => (
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>
+  )
 );
 
 export default App;
