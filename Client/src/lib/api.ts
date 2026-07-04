@@ -6,12 +6,22 @@ import {
   setAccessToken,
 } from "@/lib/auth-session";
 
-export const isApiBaseUrlConfigured = Boolean(import.meta.env.VITE_API_BASE_URL);
+const isLocalhostApiUrl = (value: string) =>
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/api)?\/?$/i.test(value);
+
+export const isApiBaseUrlConfigured = Boolean(
+  import.meta.env.VITE_API_BASE_URL?.trim() &&
+    !(import.meta.env.PROD && isLocalhostApiUrl(import.meta.env.VITE_API_BASE_URL.trim()))
+);
 
 const resolveApiBaseUrl = () => {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
   if (apiBaseUrl) {
+    if (import.meta.env.PROD && isLocalhostApiUrl(apiBaseUrl)) {
+      return "/api";
+    }
+
     return apiBaseUrl;
   }
 
