@@ -1,6 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const compression = require("compression");
+const helmet = require("helmet");
+const morgan = require("morgan");
+const rateLimit = require("express-rate-limit");
 const path = require("path");
 
 const authRoutes = require("./routes/auth.routes");
@@ -23,6 +27,26 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:8080")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+app.use(helmet());
+app.use(compression());
+app.use(
+  morgan(process.env.NODE_ENV === "production" ? "combined" : "dev", {
+    skip: (req) => req.path === "/" && req.method === "GET",
+  })
+);
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many requests, please try again later." },
+  })
+);
+app.use((req, _res, next) => {
+  req.requestId = req.headers["x-request-id"] || `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  next();
+});
 app.use(
   cors({
     origin: allowedOrigins,
@@ -30,7 +54,8 @@ app.use(
   })
 );
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/", (_req, res) => {

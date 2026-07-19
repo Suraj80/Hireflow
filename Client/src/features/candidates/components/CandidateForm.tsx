@@ -34,6 +34,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RichTextEditor } from "@/features/jobs/components/RichTextEditor";
 import { TagSelector } from "@/features/jobs/components/TagSelector";
 import { candidatesApi } from "@/features/candidates/api";
@@ -337,362 +338,234 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
           </Alert>
         )}
 
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Basic information</CardTitle>
-            <CardDescription>Core identity and contact data used across outreach, interview loops, and reporting.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Full name *</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Ariana Brooks" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email *</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="email" placeholder="ariana@domain.com" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <div className="text-xs text-muted-foreground">{checkingDuplicate ? "Checking duplicates..." : "Unique per job is recommended."}</div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="98765 43210" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="altPhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Alternate phone</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="91234 56789" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Current location</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Pune, India" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="linkedin"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>LinkedIn URL</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="https://linkedin.com/in/..." className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="portfolio"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Portfolio URL</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="https://portfolio.site" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="currentCompany"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Current company</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Orbit Labs" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="currentRole"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Current role</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Senior Product Designer" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Job application</CardTitle>
-            <CardDescription>Link the candidate to a real opening so filtering, ownership, and stage reporting stay accurate.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="jobId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Select job *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="h-11 rounded-2xl">
-                        <SelectValue placeholder="Choose a role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {meta.jobs.map((job) => (
-                        <SelectItem key={job.id} value={job.id}>
-                          {job.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="department"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Department</FormLabel>
-                  <FormControl>
-                    <Input {...field} readOnly className="h-11 rounded-2xl bg-muted/20" placeholder="Auto-filled from job" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="source"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Source</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="h-11 rounded-2xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {candidateSourceOptions.map((source) => (
-                        <SelectItem key={source} value={source}>
-                          {source.replace("-", " ")}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="referredBy"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Referred by</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Employee / external referrer" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="expectedSalary"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Expected salary</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={field.value ?? ""}
-                      onChange={(event) => field.onChange(event.target.value === "" ? null : Number(event.target.value))}
-                      placeholder="900000"
-                      className="h-11 rounded-2xl"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="noticePeriod"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notice period</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="30 days" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="workAuthorization"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Work authorization</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Citizen / visa / sponsorship needed" className="h-11 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Resume upload</CardTitle>
-            <CardDescription>Resume files are stored locally for now. Accepted formats: PDF and DOCX up to 5MB.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="font-medium">{watchedResumeMeta.filename || "No resume uploaded yet"}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {watchedResumeMeta.size ? `${Math.round(watchedResumeMeta.size / 1024)} KB` : "Ready for upload"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium">
-                    <UploadCloud className="mr-2 h-4 w-4" />
-                    {isUploadingResume ? "Uploading..." : watchedResumeUrl ? "Replace resume" : "Upload resume"}
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      className="sr-only"
-                      disabled={isUploadingResume}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          void handleResumeUpload(file);
-                        }
-                        event.target.value = "";
-                      }}
-                    />
-                  </Label>
-                  {watchedResumeUrl && (
-                    <Button type="button" variant="outline" className="rounded-2xl" asChild>
-                      <a href={watchedResumeUrl} target="_blank" rel="noreferrer">
-                        <Download className="mr-2 h-4 w-4" />
-                        Preview / download
-                      </a>
-                    </Button>
-                  )}
-                </div>
+        <Accordion type="multiple" defaultValue={['basic-info','job-application','resume-upload','professional-info']} className="space-y-4">
+          <AccordionItem value="basic-info" className="rounded-[28px] border border-border/80 bg-background shadow-sm">
+            <AccordionTrigger className="px-6 py-4 text-left">
+              <div>
+                <div className="text-base font-semibold">Basic information</div>
+                <div className="text-sm text-muted-foreground">Core identity and contact data used across outreach, interview loops, and reporting.</div>
               </div>
-              {isUploadingResume && (
-                <div className="mt-4 space-y-2">
-                  <Progress value={uploadProgress} className="h-2" />
-                  <p className="text-xs text-muted-foreground">{uploadProgress}% uploaded</p>
-                </div>
-              )}
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6">
+              <div className="grid gap-5 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Full name *</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Ariana Brooks" className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email *</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" placeholder="ariana@domain.com" className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground">{checkingDuplicate ? "Checking duplicates..." : "Unique per job is recommended."}</div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="98765 43210" className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="altPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Alternate phone</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="91234 56789" className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current location</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Pune, India" className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="linkedin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>LinkedIn URL</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="https://linkedin.com/in/..." className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="portfolio"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Portfolio URL</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="https://portfolio.site" className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="currentCompany"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current company</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Orbit Labs" className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="currentRole"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current role</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Senior Product Designer" className="h-11 rounded-2xl" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+        <AccordionItem value="job-application" className="rounded-[28px] border border-border/80 bg-background shadow-sm">
+          <AccordionTrigger className="px-6 py-4 text-left">
+            <div>
+              <div className="text-base font-semibold">Job application</div>
+              <div className="text-sm text-muted-foreground">Link the candidate to a real opening so filtering, ownership, and stage reporting stay accurate.</div>
             </div>
-
-            <FormField
-              control={form.control}
-              name="coverLetter"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cover letter</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} placeholder="Optional context from the recruiter or candidate application." className="min-h-32 rounded-2xl" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Professional information</CardTitle>
-            <CardDescription>Capture searchable talent signals that help recruiters compare and shortlist candidates faster.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <FormField
-              control={form.control}
-              name="skills"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Skills</FormLabel>
-                  <FormControl>
-                    <TagSelector values={field.value} onChange={field.onChange} placeholder="Add skills" limit={25} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
             <div className="grid gap-5 md:grid-cols-2">
               <FormField
                 control={form.control}
-                name="experience.years"
+                name="jobId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Experience years</FormLabel>
+                    <FormLabel>Select job *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-11 rounded-2xl">
+                          <SelectValue placeholder="Choose a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {meta.jobs.map((job) => (
+                          <SelectItem key={job.id} value={job.id}>
+                            {job.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="department"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Department</FormLabel>
+                    <FormControl>
+                      <Input {...field} readOnly className="h-11 rounded-2xl bg-muted/20" placeholder="Auto-filled from job" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="source"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-11 rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {candidateSourceOptions.map((source) => (
+                          <SelectItem key={source} value={source}>
+                            {source.replace("-", " ")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="referredBy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Referred by</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Employee / external referrer" className="h-11 rounded-2xl" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="expectedSalary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Expected salary</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         min={0}
-                        max={50}
-                        value={field.value}
-                        onChange={(event) => field.onChange(Number(event.target.value))}
+                        value={field.value ?? ""}
+                        onChange={(event) => field.onChange(event.target.value === "" ? null : Number(event.target.value))}
+                        placeholder="900000"
                         className="h-11 rounded-2xl"
                       />
                     </FormControl>
@@ -702,303 +575,465 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
               />
               <FormField
                 control={form.control}
-                name="experience.months"
+                name="noticePeriod"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Experience months</FormLabel>
+                    <FormLabel>Notice period</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={11}
-                        value={field.value}
-                        onChange={(event) => field.onChange(Number(event.target.value))}
-                        className="h-11 rounded-2xl"
-                      />
+                      <Input {...field} placeholder="30 days" className="h-11 rounded-2xl" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="workAuthorization"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Work authorization</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Citizen / visa / sponsorship needed" className="h-11 rounded-2xl" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+          </AccordionContent>
+        </AccordionItem>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Education</p>
-                  <p className="text-sm text-muted-foreground">Add one or more academic records.</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={() => educationFields.append({ degree: "", college: "", year: null })}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add education
-                </Button>
-              </div>
-
-              {educationFields.fields.map((field, index) => (
-                <div key={field.id} className="grid gap-4 rounded-[24px] border border-border/80 p-4 md:grid-cols-[1fr_1fr_140px_auto]">
-                  <FormField
-                    control={form.control}
-                    name={`education.${index}.degree`}
-                    render={({ field: currentField }) => (
-                      <FormItem>
-                        <FormLabel>Degree</FormLabel>
-                        <FormControl>
-                          <Input {...currentField} placeholder="B.Tech" className="h-11 rounded-2xl" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+        <AccordionItem value="resume-upload" className="rounded-[28px] border border-border/80 bg-background shadow-sm">
+          <AccordionTrigger className="px-6 py-4 text-left">
+            <div>
+              <div className="text-base font-semibold">Resume upload</div>
+              <div className="text-sm text-muted-foreground">Resume files are stored locally for now. Accepted formats: PDF and DOCX up to 5MB.</div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="space-y-5">
+              <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="font-medium">{watchedResumeMeta.filename || "No resume uploaded yet"}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {watchedResumeMeta.size ? `${Math.round(watchedResumeMeta.size / 1024)} KB` : "Ready for upload"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium">
+                      <UploadCloud className="mr-2 h-4 w-4" />
+                      {isUploadingResume ? "Uploading..." : watchedResumeUrl ? "Replace resume" : "Upload resume"}
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        className="sr-only"
+                        disabled={isUploadingResume}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            void handleResumeUpload(file);
+                          }
+                          event.target.value = "";
+                        }}
+                      />
+                    </Label>
+                    {watchedResumeUrl && (
+                      <Button type="button" variant="outline" className="rounded-2xl" asChild>
+                        <a href={watchedResumeUrl} target="_blank" rel="noreferrer">
+                          <Download className="mr-2 h-4 w-4" />
+                          Preview / download
+                        </a>
+                      </Button>
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`education.${index}.college`}
-                    render={({ field: currentField }) => (
-                      <FormItem>
-                        <FormLabel>College</FormLabel>
-                        <FormControl>
-                          <Input {...currentField} placeholder="IIT Delhi" className="h-11 rounded-2xl" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`education.${index}.year`}
-                    render={({ field: currentField }) => (
-                      <FormItem>
-                        <FormLabel>Year</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={1950}
-                            max={2100}
-                            value={currentField.value ?? ""}
-                            onChange={(event) => currentField.onChange(event.target.value === "" ? null : Number(event.target.value))}
-                            placeholder="2020"
-                            className="h-11 rounded-2xl"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-11 rounded-2xl text-destructive"
-                      disabled={educationFields.fields.length === 1}
-                      onClick={() => educationFields.remove(index)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove
-                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            <FormField
-              control={form.control}
-              name="certifications"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Certifications</FormLabel>
-                  <FormControl>
-                    <TagSelector values={field.value} onChange={field.onChange} placeholder="Add certifications" limit={20} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="languages"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Languages</FormLabel>
-                  <FormControl>
-                    <TagSelector values={field.value} onChange={field.onChange} placeholder="Add languages" limit={15} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Screening</CardTitle>
-            <CardDescription>Set ownership, stage, and ranking signals so the candidate enters the funnel cleanly.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="stage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Initial stage</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="h-11 rounded-2xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {candidateStageOptions.map((stage) => (
-                        <SelectItem key={stage} value={stage}>
-                          {stage}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="recruiterAssigned"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Recruiter assigned</FormLabel>
-                  <Select value={field.value || "unassigned"} onValueChange={(value) => field.onChange(value === "unassigned" ? null : value)}>
-                    <FormControl>
-                      <SelectTrigger className="h-11 rounded-2xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {meta.recruiters.map((recruiter) => (
-                        <SelectItem key={recruiter.id} value={recruiter.id}>
-                          {recruiter.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="priority"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Priority</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="h-11 rounded-2xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {candidatePriorityOptions.map((priority) => (
-                        <SelectItem key={priority} value={priority}>
-                          {priority}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="rating"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Rating</FormLabel>
-                  <Select value={field.value ? String(field.value) : "unrated"} onValueChange={(value) => field.onChange(value === "unrated" ? null : Number(value))}>
-                    <FormControl>
-                      <SelectTrigger className="h-11 rounded-2xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="unrated">Not rated yet</SelectItem>
-                      {[1, 2, 3, 4, 5].map((rating) => (
-                        <SelectItem key={rating} value={String(rating)}>
-                          {rating} / 5
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>AI scoring</CardTitle>
-            <CardDescription>Resume uploads trigger real similarity scoring after save. The final score is generated on the server.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert className="rounded-2xl border-sky-500/20 bg-sky-500/5">
-              <AlertTriangle className="h-4 w-4 text-sky-700" />
-              <AlertTitle>
-                {watchedResumeUrl ? "Resume detected" : "Pending AI analysis"}
-              </AlertTitle>
-              <AlertDescription>
-                {watchedResumeUrl
-                  ? "The next save will queue async resume scoring against the selected job."
-                  : "Upload a resume to unlock parsing, similarity matching, and AI scoring."}
-              </AlertDescription>
-            </Alert>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="aiScore"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>AI score</FormLabel>
-                    <FormControl>
-                      <Input value={field.value ?? ""} readOnly className="h-11 rounded-2xl bg-muted/20" placeholder="Pending" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                {isUploadingResume && (
+                  <div className="mt-4 space-y-2">
+                    <Progress value={uploadProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground">{uploadProgress}% uploaded</p>
+                  </div>
                 )}
-              />
+              </div>
+
               <FormField
                 control={form.control}
-                name="aiReasoning"
+                name="coverLetter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>AI reasoning</FormLabel>
+                    <FormLabel>Cover letter</FormLabel>
                     <FormControl>
-                      <Textarea {...field} readOnly className="min-h-24 rounded-2xl bg-muted/20" placeholder="Pending AI analysis." />
+                      <Textarea {...field} placeholder="Optional context from the recruiter or candidate application." className="min-h-32 rounded-2xl" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-          </CardContent>
-        </Card>
+          </AccordionContent>
+        </AccordionItem>
 
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Notes</CardTitle>
-            <CardDescription>Save an optional internal note immediately after the candidate record is created.</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <AccordionItem value="professional-info" className="rounded-[28px] border border-border/80 bg-background shadow-sm">
+          <AccordionTrigger className="px-6 py-4 text-left">
+            <div>
+              <div className="text-base font-semibold">Professional information</div>
+              <div className="text-sm text-muted-foreground">Capture searchable talent signals that help recruiters compare and shortlist candidates faster.</div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="space-y-5">
+              <FormField
+                control={form.control}
+                name="skills"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Skills</FormLabel>
+                    <FormControl>
+                      <TagSelector values={field.value} onChange={field.onChange} placeholder="Add skills" limit={25} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="experience.years"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Experience years</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={field.value ?? ""}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            field.onChange(nextValue === "" ? null : Number(nextValue));
+                          }}
+                          className="h-11 rounded-2xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="experience.months"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Experience months</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={11}
+                          value={field.value ?? ""}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            field.onChange(nextValue === "" ? null : Number(nextValue));
+                          }}
+                          className="h-11 rounded-2xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Education</p>
+                    <p className="text-sm text-muted-foreground">Add one or more academic records.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-2xl"
+                    onClick={() => educationFields.append({ degree: "", college: "", year: null })}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add education
+                  </Button>
+                </div>
+
+                {educationFields.fields.map((field, index) => (
+                  <div key={field.id} className="grid gap-4 rounded-[24px] border border-border/80 p-4 md:grid-cols-[1fr_1fr_140px_auto]">
+                    <FormField
+                      control={form.control}
+                      name={`education.${index}.degree`}
+                      render={({ field: currentField }) => (
+                        <FormItem>
+                          <FormLabel>Degree</FormLabel>
+                          <FormControl>
+                            <Input {...currentField} placeholder="B.Tech" className="h-11 rounded-2xl" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`education.${index}.college`}
+                      render={({ field: currentField }) => (
+                        <FormItem>
+                          <FormLabel>College</FormLabel>
+                          <FormControl>
+                            <Input {...currentField} placeholder="IIT Delhi" className="h-11 rounded-2xl" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`education.${index}.year`}
+                      render={({ field: currentField }) => (
+                        <FormItem>
+                          <FormLabel>Year</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1950}
+                              max={2100}
+                              value={currentField.value ?? ""}
+                              onChange={(event) => currentField.onChange(event.target.value === "" ? null : Number(event.target.value))}
+                              placeholder="2020"
+                              className="h-11 rounded-2xl"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-11 rounded-2xl text-destructive"
+                        disabled={educationFields.fields.length === 1}
+                        onClick={() => educationFields.remove(index)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <FormField
+                control={form.control}
+                name="certifications"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Certifications</FormLabel>
+                    <FormControl>
+                      <TagSelector values={field.value} onChange={field.onChange} placeholder="Add certifications" limit={20} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="languages"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Languages</FormLabel>
+                    <FormControl>
+                      <TagSelector values={field.value} onChange={field.onChange} placeholder="Add languages" limit={15} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="screening" className="rounded-[28px] border border-border/80 bg-background shadow-sm">
+          <AccordionTrigger className="px-6 py-4 text-left">
+            <div>
+              <div className="text-base font-semibold">Screening</div>
+              <div className="text-sm text-muted-foreground">Set ownership, stage, and ranking signals so the candidate enters the funnel cleanly.</div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="grid gap-5 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="stage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Initial stage</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-11 rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {candidateStageOptions.map((stage) => (
+                          <SelectItem key={stage} value={stage}>
+                            {stage}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="recruiterAssigned"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Recruiter assigned</FormLabel>
+                    <Select value={field.value || "unassigned"} onValueChange={(value) => field.onChange(value === "unassigned" ? null : value)}>
+                      <FormControl>
+                        <SelectTrigger className="h-11 rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {meta.recruiters.map((recruiter) => (
+                          <SelectItem key={recruiter.id} value={recruiter.id}>
+                            {recruiter.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priority</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-11 rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {candidatePriorityOptions.map((priority) => (
+                          <SelectItem key={priority} value={priority}>
+                            {priority}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="rating"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rating</FormLabel>
+                    <Select value={field.value ? String(field.value) : "unrated"} onValueChange={(value) => field.onChange(value === "unrated" ? null : Number(value))}>
+                      <FormControl>
+                        <SelectTrigger className="h-11 rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unrated">Not rated yet</SelectItem>
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <SelectItem key={rating} value={String(rating)}>
+                            {rating} / 5
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="ai-scoring" className="rounded-[28px] border border-border/80 bg-background shadow-sm">
+          <AccordionTrigger className="px-6 py-4 text-left">
+            <div>
+              <div className="text-base font-semibold">AI scoring</div>
+              <div className="text-sm text-muted-foreground">Resume uploads trigger real similarity scoring after save. The final score is generated on the server.</div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="space-y-4">
+              <Alert className="rounded-2xl border-sky-500/20 bg-sky-500/5">
+                <AlertTriangle className="h-4 w-4 text-sky-700" />
+                <AlertTitle>
+                  {watchedResumeUrl ? "Resume detected" : "Pending AI analysis"}
+                </AlertTitle>
+                <AlertDescription>
+                  {watchedResumeUrl
+                    ? "The next save will queue async resume scoring against the selected job."
+                    : "Upload a resume to unlock parsing, similarity matching, and AI scoring."}
+                </AlertDescription>
+              </Alert>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="aiScore"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>AI score</FormLabel>
+                      <FormControl>
+                        <Input value={field.value ?? ""} readOnly className="h-11 rounded-2xl bg-muted/20" placeholder="Pending" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="aiReasoning"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>AI reasoning</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} readOnly className="min-h-24 rounded-2xl bg-muted/20" placeholder="Pending AI analysis." />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="notes" className="rounded-[28px] border border-border/80 bg-background shadow-sm">
+          <AccordionTrigger className="px-6 py-4 text-left">
+            <div>
+              <div className="text-base font-semibold">Notes</div>
+              <div className="text-sm text-muted-foreground">Save an optional internal note immediately after the candidate record is created.</div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
             <RichTextEditor value={watchedInitialNote} onChange={(value) => form.setValue("initialNote", value, { shouldDirty: true })} />
-          </CardContent>
-        </Card>
+          </AccordionContent>
+        </AccordionItem>
+        </Accordion>
 
         <Separator />
 

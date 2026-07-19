@@ -43,8 +43,22 @@ const educationSchema = z.object({
 });
 
 const experienceSchema = z.object({
-  years: z.preprocess((value) => Number(value ?? 0), z.number().min(0).max(50)).default(0),
-  months: z.preprocess((value) => Number(value ?? 0), z.number().int().min(0).max(11)).default(0),
+  years: z.preprocess((value) => {
+    if (value === "" || value === null || typeof value === "undefined") {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? value : parsed;
+  }, z.number().min(0).max(50).nullable()).default(null),
+  months: z.preprocess((value) => {
+    if (value === "" || value === null || typeof value === "undefined") {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? value : parsed;
+  }, z.number().int().min(0).max(11).nullable()).default(null),
 });
 
 const resumeMetaSchema = z.object({
@@ -79,8 +93,8 @@ export const candidateFormSchema = z.object({
   coverLetter: z.string().trim().max(4000).default(""),
   skills: z.array(z.string().trim().min(1).max(40)).max(25).default([]),
   experience: experienceSchema.default({
-    years: 0,
-    months: 0,
+    years: null,
+    months: null,
   }),
   education: z.array(educationSchema).max(10).default([]),
   certifications: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
@@ -137,8 +151,8 @@ export const defaultCandidateFormValues: CandidateFormValues = {
   coverLetter: "",
   skills: [],
   experience: {
-    years: 0,
-    months: 0,
+    years: null,
+    months: null,
   },
   education: [
     {
@@ -180,8 +194,8 @@ export const toCandidateFormValues = (candidate: Candidate): CandidateFormValues
   coverLetter: candidate.coverLetter || "",
   skills: candidate.skills || [],
   experience: candidate.experience || {
-    years: 0,
-    months: 0,
+    years: null,
+    months: null,
   },
   education:
     candidate.education && candidate.education.length
