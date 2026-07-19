@@ -279,7 +279,7 @@ export default function JobApplicationPage() {
                   <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="(555) 000-0000"
                     className="mt-1.5"
                     value={form.phone}
                     onChange={handleFieldChange("phone")}

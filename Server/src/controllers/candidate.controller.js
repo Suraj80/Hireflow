@@ -29,10 +29,6 @@ const {
   notifyNewApplication,
 } = require("../services/notification.service");
 const {
-  extractResumeTextFromFile,
-  parseResumeCandidateData,
-} = require("../services/resumeImport.service");
-const {
   getResumeScoringValidationError,
   queueCandidateResumeScoring,
 } = require("../services/resumeScoring.service");
@@ -1447,19 +1443,6 @@ const requestResumeUploadUrl = async (req, res) => {
     return res.status(400).json({ message: resumeValidationError });
   }
 
-  let parsedCandidate = null;
-
-  try {
-    const resumeText = await extractResumeTextFromFile({
-      filePath: req.file.path,
-      mimeType: req.file.mimetype,
-      filename: req.file.originalname,
-    });
-    parsedCandidate = parseResumeCandidateData(resumeText);
-  } catch (_error) {
-    parsedCandidate = null;
-  }
-
   return res.status(200).json({
     fileUrl: `${getPublicBaseUrl(req)}/uploads/resumes/${req.file.filename}`,
     resumeMeta: {
@@ -1467,7 +1450,6 @@ const requestResumeUploadUrl = async (req, res) => {
       size: req.file.size,
       mimeType: req.file.mimetype,
     },
-    parsedCandidate,
   });
 };
 

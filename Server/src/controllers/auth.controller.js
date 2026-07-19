@@ -34,6 +34,79 @@ const issueSession = async (res, user, securitySettings, rotatedFrom = null) => 
   return accessToken;
 };
 
+const isDemoLoginEnabled = () => {
+  if (process.env.DEMO_LOGIN_ENABLED === "false") return false;
+  if (process.env.DEMO_LOGIN_ENABLED === "true") return true;
+  return process.env.NODE_ENV !== "production";
+};
+
+const getDemoUserCredentials = (role) => {
+  const roleLabel = role === "admin" ? "admin" : "recruiter";
+  const upperRole = roleLabel.toUpperCase();
+
+  return {
+    name: roleLabel === "admin" ? "HireFlow Admin" : "HireFlow Recruiter",
+    email:
+      process.env[`DEMO_${upperRole}_EMAIL`] || `${roleLabel}@hireflow.local`,
+    password:
+      process.env[`DEMO_${upperRole}_PASSWORD`] ||
+      (roleLabel === "admin" ? "HireFlowAdmin!2026" : "HireFlowRecruiter!2026"),
+  };
+};
+
+const ensureDemoUser = async (role, securitySettings) => {
+  const existingUser = await User.findOne({ role, isActive: { $ne: false } }).sort({ createdAt: 1 });
+  if (existingUser) {
+    return existingUser;
+  }
+
+  const credentials = getDemoUserCredentials(role);
+  const passwordPolicyError = validatePasswordAgainstPolicy(credentials.password, securitySettings);
+  if (passwordPolicyError) {
+    throw new Error(passwordPolicyError);
+  }
+
+  const createdUser = await User.create({
+    name: credentials.name,
+    email: credentials.email,
+    password: credentials.password,
+    role,
+    lastLoginAt: new Date(),
+  });
+
+  return createdUser;
+};
+
+const finalizeLogin = async (req, res, user, securitySettings, description, meta = {}) => {
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  const accessToken = await issueSession(res, user, securitySettings);
+
+  await createAuditLog({
+    req,
+    actor: user,
+    action: "login",
+    category: "security",
+    entity: {
+      type: "auth",
+      id: user._id,
+      label: user.email,
+    },
+    description,
+    meta: {
+      lastLoginAt: user.lastLoginAt,
+      ...meta,
+    },
+  });
+
+  return res.status(200).json({
+    message: "Login successful",
+    accessToken,
+    user: sanitizeUser(user),
+  });
+};
+
 const register = async (req, res) => {
   try {
     const existingUsers = await User.countDocuments();
@@ -117,35 +190,51 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    user.lastLoginAt = new Date();
-    await user.save();
+    return finalizeLogin(req, res, user, securitySettings, `Signed in as ${user.email}`);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
 
-    const accessToken = await issueSession(res, user, securitySettings);
+const quickLogin = async (req, res, role, description, meta = {}) => {
+  try {
+    if (!isDemoLoginEnabled()) {
+      return res.status(403).json({ message: "Demo login is disabled." });
+    }
 
-    await createAuditLog({
-      req,
-      actor: user,
-      action: "login",
-      category: "security",
-      entity: {
-        type: "auth",
-        id: user._id,
-        label: user.email,
-      },
-      description: `Signed in as ${user.email}`,
-      meta: {
-        lastLoginAt: user.lastLoginAt,
-      },
-    });
+    const securitySettings = await getSecuritySettings();
+    const user = await ensureDemoUser(role, securitySettings);
 
-    return res.status(200).json({
-      message: "Login successful",
-      accessToken,
-      user: sanitizeUser(user),
+    return finalizeLogin(req, res, user, securitySettings, description, {
+      demoLogin: true,
+      role: user.role,
+      ...meta,
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
+};
+
+const adminLogin = async (req, res) => {
+  return quickLogin(req, res, "admin", "Signed in as admin using quick access", { loginType: "admin" });
+};
+
+const recruiterLogin = async (req, res) => {
+  return quickLogin(req, res, "recruiter", "Signed in as recruiter using quick access", { loginType: "recruiter" });
+};
+
+const demoLogin = async (req, res) => {
+  const { role } = req.body || {};
+
+  if (role === "admin") {
+    return adminLogin(req, res);
+  }
+
+  if (role === "recruiter") {
+    return recruiterLogin(req, res);
+  }
+
+  return res.status(400).json({ message: "Role must be admin or recruiter." });
 };
 
 const refresh = async (req, res) => {
@@ -345,6 +434,9 @@ const updateMe = async (req, res) => {
 module.exports = {
   register,
   login,
+  adminLogin,
+  recruiterLogin,
+  demoLogin,
   refresh,
   logout,
   me,

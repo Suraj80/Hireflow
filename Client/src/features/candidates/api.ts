@@ -150,7 +150,6 @@ export const candidatesApi = {
     return {
       resumeUrl: response.data.fileUrl,
       resumeMeta: response.data.resumeMeta,
-      parsedCandidate: response.data.parsedCandidate || null,
     };
   },
   applyPublic: async (jobId: string, payload: PublicCandidateApplicationPayload) => {

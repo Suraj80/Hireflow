@@ -47,12 +47,21 @@ const createQuery = (result) => {
 const createResponse = () => ({
   statusCode: 200,
   body: null,
+  cookies: {},
   status(code) {
     this.statusCode = code;
     return this;
   },
   json(payload) {
     this.body = payload;
+    return this;
+  },
+  cookie(name, value) {
+    this.cookies[name] = value;
+    return this;
+  },
+  clearCookie(name) {
+    delete this.cookies[name];
     return this;
   },
 });

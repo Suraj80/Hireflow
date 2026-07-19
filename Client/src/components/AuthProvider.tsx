@@ -24,6 +24,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (payload: { email: string; password: string }) => Promise<void>;
+  demoLogin: (role: "admin" | "recruiter") => Promise<void>;
   register: (payload: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (payload: {
@@ -78,6 +79,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (payload: { email: string; password: string }) => {
     const { data } = await authApi.login(payload);
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+  };
+
+  const demoLogin = async (role: "admin" | "recruiter") => {
+    const { data } = await authApi.demoLogin(role);
     setAccessToken(data.accessToken);
     setUser(data.user);
   };
@@ -156,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(user),
       isLoading,
       login,
+      demoLogin,
       register,
       logout,
       updateProfile,

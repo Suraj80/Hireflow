@@ -11,6 +11,75 @@ const {
 
 const controllerPath = path.join(__dirname, "../src/controllers/auth.controller.js");
 
+test("adminLogin signs in an active admin without frontend credentials", async () => {
+  const user = {
+    _id: "507f1f77bcf86cd799439011",
+    name: "Admin User",
+    email: "admin@example.com",
+    role: "admin",
+    isActive: true,
+    save: createSpy(async () => user),
+  };
+
+  const createAuditLog = createSpy(async () => undefined);
+
+  const { loaded, restore } = loadModuleWithMocks(controllerPath, {
+    "../models/User": {
+      findById: createSpy(() => createQuery(user)),
+      findOne: createSpy(() => createQuery(user)),
+      create: createSpy(async () => null),
+    },
+    "../models/RefreshToken": {
+      create: createSpy(async () => null),
+      findOne: createSpy(async () => null),
+      findByIdAndUpdate: createSpy(async () => null),
+      updateMany: createSpy(async () => ({ modifiedCount: 0 })),
+      findOneAndUpdate: createSpy(async () => null),
+    },
+    "../utils/auth": {
+      REFRESH_TOKEN_COOKIE_NAME: "refreshToken",
+      generateTokenId: createSpy(() => "token-id"),
+      getRefreshCookieOptions: createSpy(() => ({})),
+      getRefreshTokenExpiryDate: createSpy(() => new Date()),
+      hashToken: createSpy((token) => token),
+      sanitizeUser: (value) => ({
+        id: value._id,
+        name: value.name,
+        email: value.email,
+        role: value.role,
+        isActive: value.isActive !== false,
+        createdAt: value.createdAt || null,
+        lastLoginAt: value.lastLoginAt || null,
+      }),
+      signAccessToken: createSpy(() => "access-token"),
+      signRefreshToken: createSpy(() => "refresh-token"),
+      verifyRefreshToken: createSpy(() => ({ id: "id" })),
+    },
+    "../services/audit.service": { createAuditLog },
+    "../services/workspace-settings.service": {
+      getSecuritySettings: createSpy(async () => ({
+        passwordMinLength: 6,
+        requireStrongPasswords: false,
+      })),
+      validatePasswordAgainstPolicy: createSpy(() => null),
+    },
+  });
+
+  try {
+    const req = { body: {}, req: {} };
+    const res = createResponse();
+
+    await loaded.adminLogin(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.accessToken, "access-token");
+    assert.equal(res.body.user.role, "admin");
+    assert.equal(createAuditLog.calls.length, 1);
+  } finally {
+    restore();
+  }
+});
+
 test("updateMe allows the signed-in user to update their email", async () => {
   const save = createSpy(async () => user);
   const user = {

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
 import { Eye, EyeOff, Zap } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth, type UserRole } from "@/components/AuthProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
@@ -18,7 +18,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const [demoRoleLoading, setDemoRoleLoading] = useState<UserRole | null>(null);
+  const { login, demoLogin, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = (location.state as { from?: string } | null)?.from || "/dashboard";
@@ -66,6 +67,22 @@ export default function LoginPage() {
       toast.error(getFriendlyError(error));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const showDemoLogin =
+    import.meta.env.DEV || import.meta.env.VITE_DEMO_LOGIN_ENABLED === "true";
+
+  const handleDemoLogin = async (role: "admin" | "recruiter") => {
+    setDemoRoleLoading(role);
+
+    try {
+      await demoLogin(role);
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      toast.error(getFriendlyError(error));
+    } finally {
+      setDemoRoleLoading(null);
     }
   };
 
@@ -133,7 +150,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                       onClick={() => setShowPassword((current) => !current)}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -144,11 +161,39 @@ export default function LoginPage() {
                 <Button
                   className="w-full gradient-primary text-primary-foreground border-0 h-10"
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || demoRoleLoading !== null}
                 >
                   {isSubmitting ? "Please wait..." : "Sign In"}
                 </Button>
               </form>
+
+              {showDemoLogin ? (
+                <div className="mt-6 space-y-3 border-t border-border pt-6">
+                  <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Quick access
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10"
+                      disabled={isSubmitting || demoRoleLoading !== null}
+                      onClick={() => handleDemoLogin("admin")}
+                    >
+                      {demoRoleLoading === "admin" ? "Signing in..." : "Login as Admin"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10"
+                      disabled={isSubmitting || demoRoleLoading !== null}
+                      onClick={() => handleDemoLogin("recruiter")}
+                    >
+                      {demoRoleLoading === "recruiter" ? "Signing in..." : "Login as Recruiter"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </div>

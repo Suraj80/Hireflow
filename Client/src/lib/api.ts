@@ -37,7 +37,15 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
 const shouldSkipRefresh = (url?: string) =>
   Boolean(
     url &&
-      ["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"].some((path) => url.includes(path))
+      [
+        "/auth/login",
+        "/auth/register",
+        "/auth/demo-login",
+        "/auth/admin-login",
+        "/auth/recruiter-login",
+        "/auth/refresh",
+        "/auth/logout",
+      ].some((path) => url.includes(path))
   );
 
 export const api = axios.create({
@@ -94,6 +102,8 @@ api.interceptors.response.use(
 export const authApi = {
   login: (payload: { email: string; password: string }) =>
     api.post("/auth/login", payload),
+  demoLogin: (role: "admin" | "recruiter") =>
+    api.post(role === "admin" ? "/auth/admin-login" : "/auth/recruiter-login"),
   register: (payload: { name: string; email: string; password: string }) =>
     api.post("/auth/register", payload),
   me: () => api.get("/auth/me"),
