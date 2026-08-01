@@ -71,6 +71,7 @@ const jobPayloadBaseSchema = z.object({
   }, z.date().nullable()).default(null),
   maxApplicants: nullableInteger.optional().default(null),
   autoClose: z.boolean().default(false),
+  requireCoverLetter: z.boolean().default(false),
   visibility: z.enum(jobVisibility).default("private"),
   status: z.enum(jobStatuses).default("draft"),
 });

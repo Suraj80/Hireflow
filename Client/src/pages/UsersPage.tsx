@@ -46,6 +46,11 @@ import {
 import { UserListItem, UserRole } from "@/features/users/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
+const PROTECTED_RECRUITER_EMAIL = "surajjangavali80@gmail.com";
+
+const isProtectedRecruiter = (member: Pick<UserListItem, "email" | "role">) =>
+  member.email.trim().toLowerCase() === PROTECTED_RECRUITER_EMAIL && member.role === "recruiter";
+
 const roleLabel: Record<UserRole, string> = {
   admin: "Admin",
   recruiter: "Recruiter",
@@ -341,6 +346,7 @@ export default function UsersPage() {
                 <TableBody>
                   {users.map((member) => {
                     const isCurrentUser = member.id === user?.id;
+                    const isProtected = isProtectedRecruiter(member);
                     const actionsDisabled =
                       changingRoleId === member.id || statusChangingId === member.id || deletingUserId === member.id;
                     return (
@@ -350,6 +356,9 @@ export default function UsersPage() {
                             <p className="font-medium">{member.name}</p>
                             {isCurrentUser && (
                               <p className="text-xs text-muted-foreground">Current admin session</p>
+                            )}
+                            {isProtected && (
+                              <p className="text-xs text-muted-foreground">Protected recruiter account</p>
                             )}
                           </div>
                         </TableCell>
@@ -365,8 +374,8 @@ export default function UsersPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 rounded-lg"
-                                  disabled={changingRoleId === member.id || isCurrentUser || actionsDisabled}
-                                  title="Change role"
+                                  disabled={changingRoleId === member.id || isCurrentUser || isProtected || actionsDisabled}
+                                  title={isProtected ? "Protected recruiter role cannot be changed" : "Change role"}
                                 >
                                   <PencilLine className="h-4 w-4" />
                                 </Button>
@@ -396,9 +405,17 @@ export default function UsersPage() {
                               variant="ghost"
                               size="icon"
                               className="h-9 w-9 rounded-xl"
-                              disabled={isCurrentUser || statusChangingId === member.id}
+                              disabled={
+                                isCurrentUser ||
+                                statusChangingId === member.id ||
+                                (isProtected && member.isActive)
+                              }
                               onClick={() => setConfirmAction({ type: "status", user: member })}
-                              title={renderStatusActionLabel(member)}
+                              title={
+                                isProtected && member.isActive
+                                  ? "Protected recruiter cannot be deactivated"
+                                  : renderStatusActionLabel(member)
+                              }
                             >
                               <AlertCircle className="h-4 w-4" />
                             </Button>
@@ -406,12 +423,12 @@ export default function UsersPage() {
                               variant="ghost"
                               size="icon"
                               className="h-9 w-9 rounded-xl"
-                              disabled={isCurrentUser || passwordSubmitting}
+                              disabled={isCurrentUser || isProtected || passwordSubmitting}
                               onClick={() => {
                                 setPasswordDialogUser(member);
                                 setNewPassword("");
                               }}
-                              title="Update password"
+                              title={isProtected ? "Protected recruiter password cannot be updated" : "Update password"}
                             >
                               <PencilLine className="h-4 w-4" />
                             </Button>
@@ -419,9 +436,9 @@ export default function UsersPage() {
                               variant="ghost"
                               size="icon"
                               className="h-9 w-9 rounded-xl text-destructive hover:text-destructive"
-                              disabled={isCurrentUser || deletingUserId === member.id}
+                              disabled={isCurrentUser || isProtected || deletingUserId === member.id}
                               onClick={() => setConfirmAction({ type: "delete", user: member })}
-                              title="Delete user"
+                              title={isProtected ? "Protected recruiter cannot be deleted" : "Delete user"}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -438,6 +455,7 @@ export default function UsersPage() {
           <div className="grid gap-4 md:hidden">
             {users.map((member) => {
               const isCurrentUser = member.id === user?.id;
+              const isProtected = isProtectedRecruiter(member);
               const actionsDisabled =
                 changingRoleId === member.id || statusChangingId === member.id || deletingUserId === member.id;
               return (
@@ -449,6 +467,9 @@ export default function UsersPage() {
                         <p className="text-sm text-muted-foreground">{member.email}</p>
                         {isCurrentUser && (
                           <p className="mt-1 text-xs text-muted-foreground">Current admin session</p>
+                        )}
+                        {isProtected && (
+                          <p className="mt-1 text-xs text-muted-foreground">Protected recruiter account</p>
                         )}
                       </div>
                       <Badge variant="outline" className={roleBadgeClassName[member.role]}>
@@ -472,7 +493,7 @@ export default function UsersPage() {
                       <Select
                         value={member.role}
                         onValueChange={(value) => void handleRoleChange(member, value as UserRole)}
-                        disabled={changingRoleId === member.id || isCurrentUser || actionsDisabled}
+                        disabled={changingRoleId === member.id || isCurrentUser || isProtected || actionsDisabled}
                       >
                         <SelectTrigger className="h-11 rounded-2xl">
                           <SelectValue />
@@ -488,7 +509,11 @@ export default function UsersPage() {
                       <Button
                         variant="outline"
                         className="rounded-2xl justify-start"
-                        disabled={isCurrentUser || statusChangingId === member.id}
+                        disabled={
+                          isCurrentUser ||
+                          statusChangingId === member.id ||
+                          (isProtected && member.isActive)
+                        }
                         onClick={() => setConfirmAction({ type: "status", user: member })}
                       >
                         {renderStatusActionLabel(member)}
@@ -496,7 +521,7 @@ export default function UsersPage() {
                       <Button
                         variant="outline"
                         className="rounded-2xl justify-start"
-                        disabled={isCurrentUser || passwordSubmitting}
+                        disabled={isCurrentUser || isProtected || passwordSubmitting}
                         onClick={() => {
                           setPasswordDialogUser(member);
                           setNewPassword("");
@@ -507,7 +532,7 @@ export default function UsersPage() {
                       <Button
                         variant="outline"
                         className="rounded-2xl justify-start text-destructive hover:text-destructive"
-                        disabled={isCurrentUser || deletingUserId === member.id}
+                        disabled={isCurrentUser || isProtected || deletingUserId === member.id}
                         onClick={() => setConfirmAction({ type: "delete", user: member })}
                       >
                         Delete user

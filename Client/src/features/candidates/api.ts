@@ -152,6 +152,27 @@ export const candidatesApi = {
       resumeMeta: response.data.resumeMeta,
     };
   },
+  uploadCoverLetter: async (file: File, onProgress?: (progress: number) => void) => {
+    const formData = new FormData();
+    formData.append("coverLetterFile", file);
+    const response = await api.post<ResumeUploadResponse>("/candidates/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      onUploadProgress: (event) => {
+        if (!onProgress || !event.total) {
+          return;
+        }
+
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    });
+
+    return {
+      coverLetterUrl: response.data.fileUrl,
+      coverLetterMeta: response.data.coverLetterMeta || response.data.resumeMeta,
+    };
+  },
   applyPublic: async (jobId: string, payload: PublicCandidateApplicationPayload) => {
     const formData = new FormData();
     formData.append("firstName", payload.firstName);
@@ -161,6 +182,9 @@ export const candidatesApi = {
     formData.append("linkedin", payload.linkedin);
     formData.append("coverLetter", payload.coverLetter);
     formData.append("resume", payload.resume);
+    if (payload.coverLetterFile) {
+      formData.append("coverLetterFile", payload.coverLetterFile);
+    }
 
     const response = await api.post<PublicCandidateApplicationResponse>(
       `/candidates/public/apply/${jobId}`,

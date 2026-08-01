@@ -26,6 +26,7 @@ export type CandidateJobSummary = {
   title: string;
   department: string;
   location?: string;
+  requireCoverLetter?: boolean;
 };
 
 export type ResumeMeta = {
@@ -123,6 +124,8 @@ export type Candidate = {
   resumeUrl: string;
   resumeMeta: ResumeMeta;
   coverLetter: string;
+  coverLetterUrl: string;
+  coverLetterMeta: ResumeMeta;
   skills: string[];
   experience: CandidateExperience;
   education: CandidateEducation[];
@@ -215,6 +218,12 @@ export type ResumeUploadResponse = {
     size: number;
     mimeType: string;
   };
+  coverLetterMeta?: {
+    filename: string;
+    size: number;
+    mimeType: string;
+  };
+  kind?: "resume" | "coverLetter";
 };
 
 export type PublicCandidateApplicationPayload = {
@@ -225,6 +234,7 @@ export type PublicCandidateApplicationPayload = {
   linkedin: string;
   coverLetter: string;
   resume: File;
+  coverLetterFile?: File | null;
 };
 
 export type PublicCandidateApplicationResponse = {

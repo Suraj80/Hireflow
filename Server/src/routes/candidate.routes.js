@@ -2,6 +2,8 @@ const express = require("express");
 const fs = require("fs");
 const multer = require("multer");
 const path = require("path");
+const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = rateLimit;
 const {
   addCandidateNote,
   addCandidateInterview,
@@ -28,6 +30,42 @@ const { getResumeUploadPolicy } = require("../services/workspace-settings.servic
 
 const router = express.Router();
 const uploadsDirectory = path.join(__dirname, "..", "..", "uploads", "resumes");
+
+const aiScoringLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = req.user?.id || req.user?.email;
+    if (userId) {
+      return `user:${userId}`;
+    }
+
+    return `ip:${ipKeyGenerator(req.ip)}`;
+  },
+  message: {
+    message: "AI scoring is rate-limited. Please wait a few minutes before trying again.",
+  },
+});
+
+const bulkAiScoringLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 2,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = req.user?.id || req.user?.email;
+    if (userId) {
+      return `user:${userId}`;
+    }
+
+    return `ip:${ipKeyGenerator(req.ip)}`;
+  },
+  message: {
+    message: "Bulk AI scoring is rate-limited. Please wait a few minutes before trying again.",
+  },
+});
 
 fs.mkdirSync(uploadsDirectory, { recursive: true });
 
@@ -69,16 +107,26 @@ const handleResumeUpload = async (req, res, next) => {
     const policy = await getResumeUploadPolicy();
     const uploadResume = createResumeUploader(policy);
 
-    uploadResume.single("resume")(req, res, (error) => {
+    uploadResume.fields([
+      { name: "resume", maxCount: 1 },
+      { name: "coverLetter", maxCount: 1 },
+      { name: "coverLetterFile", maxCount: 1 },
+    ])(req, res, (error) => {
       if (!error) {
+        // Keep legacy single-file access for resume-only handlers.
+        req.file =
+          req.files?.resume?.[0] ||
+          req.files?.coverLetterFile?.[0] ||
+          req.files?.coverLetter?.[0] ||
+          req.file;
         return next();
       }
 
       if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-        return res.status(400).json({ message: `Resume must be smaller than ${policy.maxSizeMb}MB` });
+        return res.status(400).json({ message: `File must be smaller than ${policy.maxSizeMb}MB` });
       }
 
-      return res.status(400).json({ message: error.message || "Unable to upload resume" });
+      return res.status(400).json({ message: error.message || "Unable to upload file" });
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -91,6 +139,7 @@ router.get("/duplicate-check", protect, checkDuplicateCandidate);
 router.get("/status/:token", getCandidateStatusByToken);
 router.post(
   "/public/apply/:jobId",
+  aiScoringLimiter,
   handleResumeUpload,
   applyToJobPublic
 );
@@ -102,12 +151,24 @@ router.post(
   requestResumeUploadUrl
 );
 router.post("/bulk-action", protect, requireRole("recruiter", "admin"), bulkActionCandidates);
-router.post("/jobs/:jobId/rescore", protect, requireRole("recruiter", "admin"), rescoreCandidatesForJob);
+router.post(
+  "/jobs/:jobId/rescore",
+  protect,
+  requireRole("recruiter", "admin"),
+  bulkAiScoringLimiter,
+  rescoreCandidatesForJob
+);
 router.get("/:id", protect, getCandidateById);
 router.post("/", protect, requireRole("recruiter", "admin"), createCandidate);
 router.patch("/:id", protect, requireRole("recruiter", "admin"), updateCandidate);
 router.put("/:id", protect, requireRole("recruiter", "admin"), updateCandidate);
-router.post("/:id/rescore", protect, requireRole("recruiter", "admin"), rescoreCandidate);
+router.post(
+  "/:id/rescore",
+  protect,
+  requireRole("recruiter", "admin"),
+  aiScoringLimiter,
+  rescoreCandidate
+);
 router.patch("/:id/stage", protect, requireRole("recruiter", "admin"), updateCandidateStage);
 router.patch("/:id/assign", protect, requireRole("recruiter", "admin"), assignCandidate);
 router.post("/:id/note", protect, requireRole("recruiter", "admin"), addCandidateNote);

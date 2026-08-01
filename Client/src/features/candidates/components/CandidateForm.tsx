@@ -77,6 +77,8 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const [coverLetterUploadProgress, setCoverLetterUploadProgress] = useState<number>(0);
+  const [isUploadingCoverLetter, setIsUploadingCoverLetter] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const autosaveTimerRef = useRef<number | null>(null);
   const duplicateTimerRef = useRef<number | null>(null);
@@ -97,12 +99,15 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   const watchedEmail = form.watch("email");
   const watchedResumeUrl = form.watch("resumeUrl");
   const watchedResumeMeta = form.watch("resumeMeta");
+  const watchedCoverLetterUrl = form.watch("coverLetterUrl");
+  const watchedCoverLetterMeta = form.watch("coverLetterMeta");
   const watchedInitialNote = form.watch("initialNote");
 
   const selectedJob = useMemo(
     () => meta.jobs.find((job) => job.id === watchedJobId) || null,
     [meta.jobs, watchedJobId]
   );
+  const requiresCoverLetter = Boolean(selectedJob?.requireCoverLetter);
 
   useEffect(() => {
     if (!meta.jobs.length || !meta.recruiters.length) {
@@ -253,6 +258,43 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
     }
   };
 
+  const handleCoverLetterUpload = async (file: File) => {
+    if (!allowedResumeTypes.includes(file.type)) {
+      toast.error("Cover letter must be PDF or DOCX");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Cover letter must be smaller than 5MB");
+      return;
+    }
+
+    try {
+      setIsUploadingCoverLetter(true);
+      setCoverLetterUploadProgress(0);
+      const uploaded = await candidatesApi.uploadCoverLetter(file, setCoverLetterUploadProgress);
+      form.setValue("coverLetterUrl", uploaded.coverLetterUrl, { shouldDirty: true, shouldValidate: true });
+      form.setValue("coverLetterMeta", uploaded.coverLetterMeta, { shouldDirty: true, shouldValidate: true });
+      toast.success("Cover letter uploaded");
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (error instanceof Error ? error.message : "Unable to upload cover letter");
+      toast.error(message);
+    } finally {
+      setIsUploadingCoverLetter(false);
+    }
+  };
+
+  const clearCoverLetter = () => {
+    form.setValue("coverLetterUrl", "", { shouldDirty: true, shouldValidate: true });
+    form.setValue(
+      "coverLetterMeta",
+      { filename: "", size: 0, mimeType: "" },
+      { shouldDirty: true, shouldValidate: true }
+    );
+  };
+
   const handleCancel = () => {
     if (form.formState.isDirty) {
       setDiscardOpen(true);
@@ -263,6 +305,15 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   };
 
   const handleSubmit = async (values: CandidateFormValues) => {
+    if (requiresCoverLetter && !values.coverLetterUrl.trim()) {
+      form.setError("coverLetterUrl", {
+        type: "manual",
+        message: "Cover letter file is required for this job",
+      });
+      toast.error("Cover letter file is required for this job");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const response =
@@ -656,12 +707,87 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
                 )}
               </div>
 
+              {requiresCoverLetter && (
+                <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5">
+                  <div className="mb-3">
+                    <p className="font-medium">Cover Letter *</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      This job requires a cover letter file. Accepted formats: PDF and DOCX up to 5MB.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="font-medium">
+                        {watchedCoverLetterMeta.filename || "No cover letter uploaded yet"}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {watchedCoverLetterMeta.size
+                          ? `${Math.round(watchedCoverLetterMeta.size / 1024)} KB`
+                          : "Ready for upload"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <Label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium">
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        {isUploadingCoverLetter
+                          ? "Uploading..."
+                          : watchedCoverLetterUrl
+                            ? "Replace cover letter"
+                            : "Upload cover letter"}
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          className="sr-only"
+                          disabled={isUploadingCoverLetter}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) {
+                              void handleCoverLetterUpload(file);
+                            }
+                            event.target.value = "";
+                          }}
+                        />
+                      </Label>
+                      {watchedCoverLetterUrl && (
+                        <>
+                          <Button type="button" variant="outline" className="rounded-2xl" asChild>
+                            <a href={watchedCoverLetterUrl} target="_blank" rel="noreferrer">
+                              <Download className="mr-2 h-4 w-4" />
+                              Preview / download
+                            </a>
+                          </Button>
+                          <Button type="button" variant="outline" className="rounded-2xl" onClick={clearCoverLetter}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Remove
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {isUploadingCoverLetter && (
+                    <div className="mt-4 space-y-2">
+                      <Progress value={coverLetterUploadProgress} className="h-2" />
+                      <p className="text-xs text-muted-foreground">{coverLetterUploadProgress}% uploaded</p>
+                    </div>
+                  )}
+                  <FormField
+                    control={form.control}
+                    name="coverLetterUrl"
+                    render={() => (
+                      <FormItem className="mt-3">
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="coverLetter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cover letter</FormLabel>
+                    <FormLabel>Cover letter notes</FormLabel>
                     <FormControl>
                       <Textarea {...field} placeholder="Optional context from the recruiter or candidate application." className="min-h-32 rounded-2xl" />
                     </FormControl>

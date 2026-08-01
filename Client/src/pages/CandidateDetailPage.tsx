@@ -580,10 +580,22 @@ export default function CandidateDetailPage() {
                     <p className="mt-1 font-medium">{formatShortDate(candidate.createdAt)}</p>
                     <p className="mt-1 text-sm text-muted-foreground">Updated {formatRelative(candidate.updatedAt)}</p>
                   </div>
-                  {candidate.coverLetter && (
+                  {(candidate.coverLetterUrl || candidate.coverLetter) && (
                     <div className="rounded-[22px] border border-border/80 p-4">
                       <p className="text-sm text-muted-foreground">Cover letter</p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm">{candidate.coverLetter}</p>
+                      {candidate.coverLetterUrl ? (
+                        <a
+                          href={candidate.coverLetterUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
+                        >
+                          {candidate.coverLetterMeta?.filename || "View cover letter"}
+                        </a>
+                      ) : null}
+                      {candidate.coverLetter ? (
+                        <p className="mt-2 whitespace-pre-wrap text-sm">{candidate.coverLetter}</p>
+                      ) : null}
                     </div>
                   )}
                 </CardContent>
@@ -627,8 +639,18 @@ export default function CandidateDetailPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="resume">
+        <TabsContent value="resume" className="space-y-6">
           <ResumeViewer resumeUrl={candidate.resumeUrl} resumeMeta={candidate.resumeMeta} uploadedAt={candidate.updatedAt} />
+          {candidate.coverLetterUrl ? (
+            <ResumeViewer
+              resumeUrl={candidate.coverLetterUrl}
+              resumeMeta={candidate.coverLetterMeta || { filename: "", size: 0, mimeType: "" }}
+              uploadedAt={candidate.updatedAt}
+              title="Cover letter"
+              emptyTitle="No cover letter uploaded"
+              emptyDescription="This candidate does not have a cover letter file attached."
+            />
+          ) : null}
         </TabsContent>
 
         <TabsContent value="timeline">

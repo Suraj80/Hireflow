@@ -8,6 +8,11 @@ const {
 } = require("../services/workspace-settings.service");
 
 const ALLOWED_ROLES = ["admin", "recruiter", "viewer"];
+const PROTECTED_RECRUITER_EMAIL = "surajjangavali80@gmail.com";
+
+const isProtectedRecruiter = (user) =>
+  String(user?.email || "").trim().toLowerCase() === PROTECTED_RECRUITER_EMAIL &&
+  String(user?.role || "").trim().toLowerCase() === "recruiter";
 
 const buildUserResponse = (user) => ({
   ...sanitizeUser(user),
@@ -172,6 +177,12 @@ const updateRole = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    if (isProtectedRecruiter(previousUser)) {
+      return res.status(403).json({
+        message: "This recruiter account is protected and cannot have its role changed",
+      });
+    }
+
     const user = await User.findByIdAndUpdate(id, { role }, { new: true });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -227,6 +238,12 @@ const updateStatus = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    if (isProtectedRecruiter(user) && isActive === false) {
+      return res.status(403).json({
+        message: "This recruiter account is protected and cannot be deactivated",
+      });
+    }
+
     user.isActive = isActive;
     await user.save();
 
@@ -274,6 +291,12 @@ const updatePassword = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    if (isProtectedRecruiter(user)) {
+      return res.status(403).json({
+        message: "This recruiter account is protected and cannot have its password updated",
+      });
+    }
+
     user.password = password;
     await user.save();
     await revokeUserSessions(user._id);
@@ -313,6 +336,12 @@ const deleteUser = async (req, res) => {
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (isProtectedRecruiter(user)) {
+      return res.status(403).json({
+        message: "This recruiter account is protected and cannot be deleted",
+      });
     }
 
     await revokeUserSessions(user._id);

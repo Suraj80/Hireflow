@@ -660,6 +660,25 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="requireCoverLetter"
+                render={({ field }) => (
+                  <FormItem className="rounded-2xl border border-border bg-muted/20 p-4 md:col-span-2">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <FormLabel>Require Cover Letter</FormLabel>
+                        <FormDescription>
+                          Ask applicants to upload a cover letter file when applying to this role.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </div>
+                  </FormItem>
+                )}
+              />
             </div>
           </CardContent>
         </Card>

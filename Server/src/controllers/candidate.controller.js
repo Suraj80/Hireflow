@@ -272,7 +272,12 @@ const mapInterview = (interview, index = 0) => ({
 });
 
 const buildCandidateMetaPayload = ({ jobs, departments, recruiters }) => ({
-  jobs: jobs.map((job) => ({ id: job._id, title: job.title, department: job.department })),
+  jobs: jobs.map((job) => ({
+    id: job._id,
+    title: job.title,
+    department: job.department,
+    requireCoverLetter: Boolean(job.requireCoverLetter),
+  })),
   departments: departments.filter(Boolean).sort(),
   recruiters: recruiters.map(normalizeUser),
   stages: stageOptions,
@@ -285,7 +290,7 @@ const buildCandidateMetaPayload = ({ jobs, departments, recruiters }) => ({
 
 const loadCandidateMeta = async () => {
   const [jobs, departments, recruiters] = await Promise.all([
-    Job.find({ archived: false }).select("title department"),
+    Job.find({ archived: false }).select("title department requireCoverLetter"),
     Candidate.distinct("department", { archived: false }),
     User.find({ role: { $in: ["admin", "recruiter"] } }).select("name email role"),
   ]);
@@ -372,6 +377,12 @@ const normalizeCandidateResponse = async (
     resumeUrl: candidate.resumeUrl,
     resumeMeta: candidate.resumeMeta,
     coverLetter: candidate.coverLetter,
+    coverLetterUrl: candidate.coverLetterUrl || "",
+    coverLetterMeta: candidate.coverLetterMeta || {
+      filename: "",
+      size: 0,
+      mimeType: "",
+    },
     skills: candidate.skills,
     experience: candidate.experience,
     education: candidate.education,
@@ -628,6 +639,10 @@ const createCandidate = async (req, res) => {
       return res.status(404).json({ message: "Job not found" });
     }
 
+    if (job.requireCoverLetter && !String(payload.coverLetterUrl || "").trim()) {
+      return res.status(400).json({ message: "Cover letter file is required for this job" });
+    }
+
     if (payload.recruiterAssigned) {
       const recruiter = await ensureAssignableRecruiter(payload.recruiterAssigned);
       if (!recruiter) {
@@ -745,6 +760,27 @@ const updateCandidate = async (req, res) => {
 
       if (!parsedBody.data.department) {
         parsedBody.data.department = job.department;
+      }
+
+      const nextCoverLetterUrl =
+        typeof parsedBody.data.coverLetterUrl === "string"
+          ? parsedBody.data.coverLetterUrl
+          : candidate.coverLetterUrl;
+
+      if (job.requireCoverLetter && !String(nextCoverLetterUrl || "").trim()) {
+        return res.status(400).json({ message: "Cover letter file is required for this job" });
+      }
+    } else if (candidate.jobId) {
+      const job = await Job.findById(candidate.jobId);
+      if (job?.requireCoverLetter) {
+        const nextCoverLetterUrl =
+          typeof parsedBody.data.coverLetterUrl === "string"
+            ? parsedBody.data.coverLetterUrl
+            : candidate.coverLetterUrl;
+
+        if (!String(nextCoverLetterUrl || "").trim()) {
+          return res.status(400).json({ message: "Cover letter file is required for this job" });
+        }
       }
     }
 
@@ -1431,54 +1467,95 @@ const checkDuplicateCandidate = async (req, res) => {
 };
 
 const requestResumeUploadUrl = async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "Resume file is required" });
+  const uploadedFile =
+    req.files?.resume?.[0] ||
+    req.files?.coverLetterFile?.[0] ||
+    req.files?.coverLetter?.[0] ||
+    req.file;
+
+  if (!uploadedFile) {
+    return res.status(400).json({ message: "File is required" });
   }
 
   const resumePolicy = await getResumeUploadPolicy();
-  const resumeValidationError = validateResumeUpload(req.file, resumePolicy);
+  const resumeValidationError = validateResumeUpload(uploadedFile, resumePolicy);
 
   if (resumeValidationError) {
-    fs.unlink(req.file.path, () => undefined);
+    fs.unlink(uploadedFile.path, () => undefined);
     return res.status(400).json({ message: resumeValidationError });
   }
 
+  const kind =
+    uploadedFile.fieldname === "coverLetter" || uploadedFile.fieldname === "coverLetterFile"
+      ? "coverLetter"
+      : "resume";
+  const fileMeta = {
+    filename: uploadedFile.originalname,
+    size: uploadedFile.size,
+    mimeType: uploadedFile.mimetype,
+  };
+
   return res.status(200).json({
-    fileUrl: `${getPublicBaseUrl(req)}/uploads/resumes/${req.file.filename}`,
-    resumeMeta: {
-      filename: req.file.originalname,
-      size: req.file.size,
-      mimeType: req.file.mimetype,
-    },
+    fileUrl: `${getPublicBaseUrl(req)}/uploads/resumes/${uploadedFile.filename}`,
+    resumeMeta: fileMeta,
+    coverLetterMeta: kind === "coverLetter" ? fileMeta : undefined,
+    kind,
+  });
+};
+
+const unlinkUploadedFiles = (files = []) => {
+  files.filter(Boolean).forEach((file) => {
+    fs.unlink(file.path, () => undefined);
   });
 };
 
 const applyToJobPublic = async (req, res) => {
-  if (!req.file) {
+  const resumeFile = req.files?.resume?.[0] || (req.file?.fieldname === "resume" ? req.file : null);
+  const coverLetterFile =
+    req.files?.coverLetterFile?.[0] ||
+    req.files?.coverLetter?.[0] ||
+    (req.file?.fieldname === "coverLetter" || req.file?.fieldname === "coverLetterFile" ? req.file : null);
+  const uploadedFiles = [resumeFile, coverLetterFile].filter(Boolean);
+
+  if (!resumeFile) {
+    unlinkUploadedFiles(uploadedFiles);
     return res.status(400).json({ message: "Resume file is required" });
   }
 
   const parsedBody = publicCandidateApplicationSchema.safeParse(req.body);
 
   if (!parsedBody.success) {
-    fs.unlink(req.file.path, () => undefined);
+    unlinkUploadedFiles(uploadedFiles);
     return res.status(400).json(buildValidationError(parsedBody.error.issues));
   }
 
   try {
     const resumePolicy = await getResumeUploadPolicy();
-    const resumeValidationError = validateResumeUpload(req.file, resumePolicy);
+    const resumeValidationError = validateResumeUpload(resumeFile, resumePolicy);
 
     if (resumeValidationError) {
-      fs.unlink(req.file.path, () => undefined);
+      unlinkUploadedFiles(uploadedFiles);
       return res.status(400).json({ message: resumeValidationError });
+    }
+
+    if (coverLetterFile) {
+      const coverLetterValidationError = validateResumeUpload(coverLetterFile, resumePolicy);
+      if (coverLetterValidationError) {
+        unlinkUploadedFiles(uploadedFiles);
+        return res.status(400).json({ message: coverLetterValidationError.replace(/^Resume/, "Cover letter") });
+      }
     }
 
     const job = await Job.findById(req.params.jobId).populate("createdBy", "name email role");
 
     if (!job || job.archived || job.status !== "open" || job.visibility !== "public") {
-      fs.unlink(req.file.path, () => undefined);
+      unlinkUploadedFiles(uploadedFiles);
       return res.status(404).json({ message: "This job is not accepting public applications" });
+    }
+
+    if (job.requireCoverLetter && !coverLetterFile) {
+      unlinkUploadedFiles(uploadedFiles);
+      return res.status(400).json({ message: "Cover letter file is required for this job" });
     }
 
     const payload = parsedBody.data;
@@ -1492,7 +1569,7 @@ const applyToJobPublic = async (req, res) => {
     }).select("_id name stage statusToken");
 
     if (duplicate) {
-      fs.unlink(req.file.path, () => undefined);
+      unlinkUploadedFiles(uploadedFiles);
       return res.status(409).json({
         message: "An application with this email already exists for this role",
         statusToken: duplicate.statusToken,
@@ -1500,7 +1577,10 @@ const applyToJobPublic = async (req, res) => {
     }
 
     const statusToken = generateStatusToken();
-    const resumeUrl = `${getPublicBaseUrl(req)}/uploads/resumes/${req.file.filename}`;
+    const resumeUrl = `${getPublicBaseUrl(req)}/uploads/resumes/${resumeFile.filename}`;
+    const coverLetterUrl = coverLetterFile
+      ? `${getPublicBaseUrl(req)}/uploads/resumes/${coverLetterFile.filename}`
+      : "";
     const aiState = deriveAIStateForPayload({ resumeUrl });
 
     const candidate = await Candidate.create({
@@ -1513,11 +1593,23 @@ const applyToJobPublic = async (req, res) => {
       source: "portal",
       resumeUrl,
       resumeMeta: {
-        filename: req.file.originalname,
-        size: req.file.size,
-        mimeType: req.file.mimetype,
+        filename: resumeFile.originalname,
+        size: resumeFile.size,
+        mimeType: resumeFile.mimetype,
       },
       coverLetter: payload.coverLetter,
+      coverLetterUrl,
+      coverLetterMeta: coverLetterFile
+        ? {
+            filename: coverLetterFile.originalname,
+            size: coverLetterFile.size,
+            mimeType: coverLetterFile.mimetype,
+          }
+        : {
+            filename: "",
+            size: 0,
+            mimeType: "",
+          },
       stage: "Applied",
       status: "Active",
       statusToken,
@@ -1582,7 +1674,7 @@ const applyToJobPublic = async (req, res) => {
       jobTitle: job.title,
     });
   } catch (error) {
-    fs.unlink(req.file.path, () => undefined);
+    unlinkUploadedFiles(uploadedFiles);
     return res.status(500).json({ message: error.message });
   }
 };

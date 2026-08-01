@@ -8,9 +8,19 @@ type ResumeViewerProps = {
   resumeUrl: string;
   resumeMeta: ResumeMeta;
   uploadedAt?: string;
+  title?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
 };
 
-export function ResumeViewer({ resumeUrl, resumeMeta, uploadedAt }: ResumeViewerProps) {
+export function ResumeViewer({
+  resumeUrl,
+  resumeMeta,
+  uploadedAt,
+  title = "Candidate resume",
+  emptyTitle = "No resume uploaded",
+  emptyDescription = "This candidate does not have a resume attached yet. Recruiters can upload one from the edit form.",
+}: ResumeViewerProps) {
   if (!resumeUrl) {
     return (
       <Card className="rounded-[28px] border border-dashed border-border/80">
@@ -18,10 +28,8 @@ export function ResumeViewer({ resumeUrl, resumeMeta, uploadedAt }: ResumeViewer
           <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-muted">
             <FileText className="h-6 w-6 text-muted-foreground" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold">No resume uploaded</h3>
-          <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            This candidate does not have a resume attached yet. Recruiters can upload one from the edit form.
-          </p>
+          <h3 className="mt-4 text-lg font-semibold">{emptyTitle}</h3>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">{emptyDescription}</p>
         </CardContent>
       </Card>
     );
@@ -33,7 +41,7 @@ export function ResumeViewer({ resumeUrl, resumeMeta, uploadedAt }: ResumeViewer
     <Card className="rounded-[28px] border border-border/80 shadow-sm">
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle className="text-lg">{resumeMeta.filename || "Candidate resume"}</CardTitle>
+          <CardTitle className="text-lg">{resumeMeta.filename || title}</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
             {resumeMeta.size ? `${Math.round(resumeMeta.size / 1024)} KB` : "Unknown size"}
             {uploadedAt ? ` | last updated ${formatTimestamp(uploadedAt)}` : ""}
@@ -50,7 +58,7 @@ export function ResumeViewer({ resumeUrl, resumeMeta, uploadedAt }: ResumeViewer
         {isPdf ? (
           <iframe
             src={resumeUrl}
-            title={resumeMeta.filename || "Resume"}
+            title={resumeMeta.filename || title}
             className="h-[780px] w-full rounded-[24px] border border-border bg-background"
           />
         ) : (

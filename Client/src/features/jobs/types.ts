@@ -33,6 +33,7 @@ export type Job = {
   deadline: string | null;
   maxApplicants: number | null;
   autoClose: boolean;
+  requireCoverLetter: boolean;
   visibility: JobVisibility;
   status: JobStatus;
   archived: boolean;

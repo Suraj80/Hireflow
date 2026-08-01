@@ -43,7 +43,7 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-base font-bold tracking-tight min-[390px]:text-lg sm:text-xl">HireFlow</span>
+            <span className="text-base font-bold tracking-tight text-foreground min-[390px]:text-lg sm:text-xl">HireFlow</span>
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />

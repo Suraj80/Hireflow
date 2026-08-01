@@ -115,6 +115,10 @@ const jobSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    requireCoverLetter: {
+      type: Boolean,
+      default: false,
+    },
     visibility: {
       type: String,
       enum: ["public", "private"],

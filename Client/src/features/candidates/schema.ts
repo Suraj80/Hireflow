@@ -91,6 +91,12 @@ export const candidateFormSchema = z.object({
     mimeType: "",
   }),
   coverLetter: z.string().trim().max(4000).default(""),
+  coverLetterUrl: optionalUrl,
+  coverLetterMeta: resumeMetaSchema.default({
+    filename: "",
+    size: 0,
+    mimeType: "",
+  }),
   skills: z.array(z.string().trim().min(1).max(40)).max(25).default([]),
   experience: experienceSchema.default({
     years: null,
@@ -149,6 +155,12 @@ export const defaultCandidateFormValues: CandidateFormValues = {
     mimeType: "",
   },
   coverLetter: "",
+  coverLetterUrl: "",
+  coverLetterMeta: {
+    filename: "",
+    size: 0,
+    mimeType: "",
+  },
   skills: [],
   experience: {
     years: null,
@@ -192,6 +204,12 @@ export const toCandidateFormValues = (candidate: Candidate): CandidateFormValues
   resumeUrl: candidate.resumeUrl || "",
   resumeMeta: candidate.resumeMeta,
   coverLetter: candidate.coverLetter || "",
+  coverLetterUrl: candidate.coverLetterUrl || "",
+  coverLetterMeta: candidate.coverLetterMeta || {
+    filename: "",
+    size: 0,
+    mimeType: "",
+  },
   skills: candidate.skills || [],
   experience: candidate.experience || {
     years: null,
@@ -238,6 +256,8 @@ export const formatCandidatePayload = (values: CandidateFormValues) => ({
   resumeUrl: values.resumeUrl.trim(),
   resumeMeta: values.resumeMeta,
   coverLetter: values.coverLetter.trim(),
+  coverLetterUrl: values.coverLetterUrl.trim(),
+  coverLetterMeta: values.coverLetterMeta,
   skills: values.skills.map((item) => item.trim().toLowerCase()),
   experience: values.experience,
   education: values.education

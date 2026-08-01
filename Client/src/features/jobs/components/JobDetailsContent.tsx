@@ -57,6 +57,10 @@ export function JobDetailsContent({ job }: JobDetailsContentProps) {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Visibility</p>
           <p className="mt-1 font-medium capitalize">{job.visibility}</p>
         </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Cover Letter</p>
+          <p className="mt-1 font-medium">{job.requireCoverLetter ? "Required" : "Optional"}</p>
+        </div>
       </div>
 
       <div>

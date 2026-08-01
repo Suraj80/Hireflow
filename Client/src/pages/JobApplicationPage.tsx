@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { candidatesApi } from "@/features/candidates/api";
 import { jobsApi } from "@/features/jobs/api";
 import {
@@ -25,6 +24,7 @@ type ApplyFormState = {
   linkedin: string;
   coverLetter: string;
   resume: File | null;
+  coverLetterFile: File | null;
 };
 
 const defaultFormState: ApplyFormState = {
@@ -35,6 +35,7 @@ const defaultFormState: ApplyFormState = {
   linkedin: "",
   coverLetter: "",
   resume: null,
+  coverLetterFile: null,
 };
 
 export default function JobApplicationPage() {
@@ -51,6 +52,7 @@ export default function JobApplicationPage() {
   const [form, setForm] = useState<ApplyFormState>(defaultFormState);
   const tags = Array.isArray(job?.tags) ? job.tags : [];
   const skills = Array.isArray(job?.skills) ? job.skills : [];
+  const requiresCoverLetter = Boolean(job?.requireCoverLetter);
 
   useEffect(() => {
     const loadJob = async () => {
@@ -80,8 +82,16 @@ export default function JobApplicationPage() {
     return `${form.resume.name} | ${Math.round(form.resume.size / 1024)} KB`;
   }, [form.resume]);
 
+  const coverLetterLabel = useMemo(() => {
+    if (!form.coverLetterFile) {
+      return "Drop your cover letter here or click to upload";
+    }
+
+    return `${form.coverLetterFile.name} | ${Math.round(form.coverLetterFile.size / 1024)} KB`;
+  }, [form.coverLetterFile]);
+
   const handleFieldChange =
-    (field: Exclude<keyof ApplyFormState, "resume">) =>
+    (field: Exclude<keyof ApplyFormState, "resume" | "coverLetterFile">) =>
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((current) => ({ ...current, [field]: event.target.value }));
     };
@@ -89,6 +99,11 @@ export default function JobApplicationPage() {
   const handleSubmit = async () => {
     if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.resume) {
       setError("First name, last name, email, and resume are required.");
+      return;
+    }
+
+    if (requiresCoverLetter && !form.coverLetterFile) {
+      setError("Cover letter file is required for this job.");
       return;
     }
 
@@ -103,6 +118,7 @@ export default function JobApplicationPage() {
         linkedin: form.linkedin.trim(),
         coverLetter: form.coverLetter.trim(),
         resume: form.resume,
+        coverLetterFile: form.coverLetterFile,
       });
 
       setSubmitted({
@@ -312,16 +328,25 @@ export default function JobApplicationPage() {
                     />
                   </label>
                 </div>
-                <div>
-                  <Label htmlFor="cover">Cover Letter</Label>
-                  <Textarea
-                    id="cover"
-                    placeholder="Why are you interested in this role?"
-                    className="mt-1.5 min-h-[120px]"
-                    value={form.coverLetter}
-                    onChange={handleFieldChange("coverLetter")}
-                  />
-                </div>
+                {requiresCoverLetter && (
+                  <div>
+                    <Label>Cover Letter *</Label>
+                    <label className="mt-1.5 block cursor-pointer border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">{coverLetterLabel}</p>
+                      <p className="text-xs text-muted-foreground mt-1">PDF or DOCX up to 5MB</p>
+                      <input
+                        type="file"
+                        accept=".pdf,.docx"
+                        className="sr-only"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] || null;
+                          setForm((current) => ({ ...current, coverLetterFile: file }));
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
                 {error && <p className="text-sm text-destructive">{error}</p>}
                 <Button
                   className="w-full gradient-primary text-primary-foreground border-0 h-11"

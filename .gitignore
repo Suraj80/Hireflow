@@ -1,1 +1,6 @@
+# Ignore all markdown except the project README
+*.md
+!Readme.md
+
+# Keep existing PRD ignore explicit (covered by *.md, listed for clarity)
 HireFlow_PRD.md

@@ -10,7 +10,7 @@ const { protect, requireRole } = require("../middleware/auth.middleware");
 
 const router = express.Router();
 
-router.get("/", protect, requireRole("admin"), getSettings);
+router.get("/", protect, getSettings);
 router.patch("/", protect, requireRole("admin"), updateSettings);
 router.get("/integrations/status", protect, requireRole("admin"), getIntegrationStatuses);
 router.get("/integrations/email", protect, requireRole("admin"), getEmailIntegrationSettings);

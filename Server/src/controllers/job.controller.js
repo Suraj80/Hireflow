@@ -80,6 +80,7 @@ const sanitizePublicJob = (job) => {
     skills: requirements.skills,
     tags: job.tags,
     deadline: job.deadline,
+    requireCoverLetter: Boolean(job.requireCoverLetter),
     visibility: job.visibility,
     status: job.status,
     createdAt: job.createdAt,
@@ -119,6 +120,7 @@ const normalizeJobResponse = (job, applicantsCount = 0) => {
     deadline: job.deadline,
     maxApplicants: job.maxApplicants,
     autoClose: job.autoClose,
+    requireCoverLetter: Boolean(job.requireCoverLetter),
     visibility: job.visibility,
     status: job.status,
     archived: job.archived,
@@ -417,6 +419,7 @@ const updateJob = async (req, res) => {
       deadline: typeof req.body.deadline === "undefined" ? job.deadline : req.body.deadline,
       maxApplicants: typeof req.body.maxApplicants === "undefined" ? job.maxApplicants : req.body.maxApplicants,
       autoClose: req.body.autoClose ?? job.autoClose,
+      requireCoverLetter: req.body.requireCoverLetter ?? job.requireCoverLetter,
       visibility: req.body.visibility ?? job.visibility,
       status: req.body.status ?? job.status,
     };

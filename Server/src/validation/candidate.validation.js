@@ -86,6 +86,12 @@ const candidateBaseSchema = z.object({
     mimeType: "",
   }),
   coverLetter: z.string().trim().max(4000).optional().default(""),
+  coverLetterUrl: optionalUrl,
+  coverLetterMeta: resumeMetaSchema.default({
+    filename: "",
+    size: 0,
+    mimeType: "",
+  }),
   skills: z.array(z.string().trim().min(1).max(40)).max(25).default([]),
   experience: experienceSchema.default({
     years: 0,

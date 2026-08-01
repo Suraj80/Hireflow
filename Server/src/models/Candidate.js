@@ -262,6 +262,19 @@ const candidateSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    coverLetterUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    coverLetterMeta: {
+      type: resumeMetaSchema,
+      default: () => ({
+        filename: "",
+        size: 0,
+        mimeType: "",
+      }),
+    },
     skills: {
       type: [String],
       default: [],

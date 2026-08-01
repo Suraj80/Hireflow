@@ -47,6 +47,7 @@ export const jobFormSchema = z
       .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), "Deadline is invalid"),
     maxApplicants: optionalInteger.optional().default(null),
     autoClose: z.boolean().default(false),
+    requireCoverLetter: z.boolean().default(false),
     visibility: z.enum(visibilityOptions).default("private"),
     status: z.enum(["draft", "open"]).default("draft"),
   })
@@ -97,6 +98,7 @@ export const defaultJobFormValues: JobFormValues = {
   deadline: null,
   maxApplicants: null,
   autoClose: false,
+  requireCoverLetter: false,
   visibility: "private",
   status: "draft",
 };
@@ -134,6 +136,7 @@ export const toJobFormValues = (job: Job): JobFormValues => ({
   deadline: job.deadline,
   maxApplicants: job.maxApplicants,
   autoClose: job.autoClose,
+  requireCoverLetter: Boolean(job.requireCoverLetter),
   visibility: job.visibility,
   status: job.status === "closed" ? "draft" : job.status,
 });
