@@ -127,10 +127,6 @@ npm run dev
 
 ![HireFlow landing page](docs/screenshots/landing.png)
 
-### Login Page
-
-![HireFlow login page](docs/screenshots/login.png)
-
 ## Main Features
 
 - Authentication and role-based access
