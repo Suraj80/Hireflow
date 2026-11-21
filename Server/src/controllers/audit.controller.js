@@ -45,19 +45,7 @@ const allowedCategories = [
   "settings",
 ];
 
-const buildValidationError = (message, field = null) => ({
-  message,
-  ...(field
-    ? {
-        errors: [
-          {
-            field,
-            message,
-          },
-        ],
-      }
-    : {}),
-});
+const { buildValidationError } = require("../utils/api-response");
 
 const normalizeAuditLog = (item, actorLookup = new Map()) => {
   const actorId = item.actor?.id ? String(item.actor.id) : "";

@@ -6,6 +6,7 @@ const {
   getSecuritySettings,
   validatePasswordAgainstPolicy,
 } = require("../services/workspace-settings.service");
+const { buildValidationError } = require("../utils/api-response");
 
 const ALLOWED_ROLES = ["admin", "recruiter", "viewer"];
 const PROTECTED_RECRUITER_EMAIL = "surajjangavali80@gmail.com";
@@ -26,20 +27,6 @@ const buildUserOption = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
-});
-
-const buildValidationError = (message, field = null) => ({
-  message,
-  ...(field
-    ? {
-        errors: [
-          {
-            field,
-            message,
-          },
-        ],
-      }
-    : {}),
 });
 
 const listUsers = async (req, res) => {

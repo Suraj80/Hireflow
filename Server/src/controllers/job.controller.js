@@ -11,14 +11,7 @@ const {
   jobsQuerySchema,
   jobUpdateSchema,
 } = require("../validation/job.validation");
-
-const buildValidationError = (issues) => ({
-  message: "Validation failed",
-  errors: issues.map((issue) => ({
-    field: issue.path.join("."),
-    message: issue.message,
-  })),
-});
+const { buildValidationError } = require("../utils/api-response");
 
 const canManageJob = (job, user) =>
   user && (user.role === "admin" || job.createdBy.toString() === user.id);

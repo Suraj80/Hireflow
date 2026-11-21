@@ -19,6 +19,7 @@ const dashboardRoutes = require("./routes/dashboard.routes");
 const auditRoutes = require("./routes/audit.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const offerRoutes = require("./routes/offer.routes");
+const { publicErrorMessage, sendError } = require("./utils/api-response");
 
 const app = express();
 
@@ -27,6 +28,10 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:8080")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+app.use((req, _res, next) => {
+  req.requestId = req.headers["x-request-id"] || `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  next();
+});
 app.use(helmet());
 app.use(compression());
 app.use(
@@ -40,13 +45,14 @@ app.use(
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { message: "Too many requests, please try again later." },
+    handler: (req, res) => {
+      sendError(res, 429, req, {
+        code: "RATE_LIMITED",
+        message: "Too many requests, please try again later.",
+      });
+    },
   })
 );
-app.use((req, _res, next) => {
-  req.requestId = req.headers["x-request-id"] || `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  next();
-});
 app.use(
   cors({
     origin: allowedOrigins,
@@ -74,5 +80,26 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/audit-logs", auditRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/offers", offerRoutes);
+
+app.use((req, res) => {
+  sendError(res, 404, req, {
+    code: "NOT_FOUND",
+    message: "Route not found",
+  });
+});
+
+app.use((error, req, res, _next) => {
+  const statusCode = Number(error?.statusCode || error?.status) || 500;
+
+  if (res.headersSent) {
+    return _next(error);
+  }
+
+  sendError(res, statusCode, req, {
+    code: error?.code || (statusCode >= 500 ? "INTERNAL_ERROR" : "REQUEST_FAILED"),
+    message: statusCode >= 500 ? publicErrorMessage(error) : error?.message || "Request failed",
+    errors: error?.errors,
+  });
+});
 
 module.exports = app;

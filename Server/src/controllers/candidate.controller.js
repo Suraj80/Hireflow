@@ -37,14 +37,7 @@ const {
   getResumeUploadPolicy,
   validateResumeUpload,
 } = require("../services/workspace-settings.service");
-
-const buildValidationError = (issues) => ({
-  message: "Validation failed",
-  errors: issues.map((issue) => ({
-    field: issue.path.join("."),
-    message: issue.message,
-  })),
-});
+const { buildValidationError } = require("../utils/api-response");
 
 const generateStatusToken = () => crypto.randomBytes(18).toString("hex");
 

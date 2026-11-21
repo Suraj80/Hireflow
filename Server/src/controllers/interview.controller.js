@@ -28,14 +28,7 @@ const {
   interviewTypeOptions,
   interviewUpdateSchema,
 } = require("../validation/interview.validation");
-
-const buildValidationError = (issues) => ({
-  message: "Validation failed",
-  errors: issues.map((issue) => ({
-    field: issue.path.join("."),
-    message: issue.message,
-  })),
-});
+const { buildValidationError } = require("../utils/api-response");
 
 const normalizeUser = (user) => {
   if (!user) {

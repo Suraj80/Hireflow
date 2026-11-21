@@ -21,14 +21,7 @@ const {
   offerUpdateSchema,
   publicOfferDecisionSchema,
 } = require("../validation/offer.validation");
-
-const buildValidationError = (issues) => ({
-  message: "Validation failed",
-  errors: issues.map((issue) => ({
-    field: issue.path.join("."),
-    message: issue.message,
-  })),
-});
+const { buildValidationError } = require("../utils/api-response");
 
 const generateOfferToken = () => crypto.randomBytes(18).toString("hex");
 
