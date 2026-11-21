@@ -48,7 +48,6 @@ type JobFormServerError = {
 export function JobForm({ mode, job = null }: JobFormProps) {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState<"draft" | "open" | null>(null);
-  const [autosaveStamp, setAutosaveStamp] = useState<string | null>(null);
   const [departmentOptions, setDepartmentOptions] = useState<JobDepartmentOption[]>([]);
   const [hiringManagerOptions, setHiringManagerOptions] = useState<UserSummary[]>([]);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -160,9 +159,6 @@ export function JobForm({ mode, job = null }: JobFormProps) {
         ...values,
         skills: values.skills?.length ? values.skills : requirements?.skills || [],
       });
-      if (_savedAt) {
-        setAutosaveStamp(_savedAt);
-      }
       toast.message("Restored local autosave");
     } catch (_error) {
       localStorage.removeItem(storageKey);
@@ -182,7 +178,6 @@ export function JobForm({ mode, job = null }: JobFormProps) {
 
         const savedAt = new Date().toISOString();
         localStorage.setItem(storageKey, JSON.stringify({ ...(values as JobFormValues), _savedAt: savedAt }));
-        setAutosaveStamp(savedAt);
       }, 600);
     });
 
@@ -232,7 +227,6 @@ export function JobForm({ mode, job = null }: JobFormProps) {
 
       form.reset(toJobFormValues(savedJob));
       localStorage.removeItem(storageKey);
-      setAutosaveStamp(new Date().toISOString());
       toast.success(submitIntentRef.current === "draft" ? "Draft saved successfully" : "Job published successfully");
       navigate("/jobs");
     } catch (error) {
@@ -281,13 +275,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
               Set up a hiring-ready job with clear structure, internal controls, and a polished public application experience.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 p-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div>
-              <p className="text-sm font-medium text-foreground">Draft protection</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Local autosave is active{autosaveStamp ? ` | last saved ${format(new Date(autosaveStamp), "MMM d, h:mm a")}` : ""}.
-              </p>
-            </div>
+          <CardContent className="p-6">
             <Alert className="rounded-2xl border-primary/20 bg-primary/5">
               <ShieldAlert className="h-4 w-4 text-primary" />
               <AlertTitle>Publish checklist</AlertTitle>
@@ -320,7 +308,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
             <FormField
               control={form.control}
               name="department"
-              render={({ field, fieldState }) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Department *</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange} disabled={metaLoading}>
@@ -337,11 +325,6 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
-                  {!fieldState.error ? (
-                    <FormDescription>
-                      Departments are managed centrally in Settings to keep reporting and filters consistent.
-                    </FormDescription>
-                  ) : null}
                   <FormMessage />
                 </FormItem>
               )}
@@ -378,9 +361,6 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Select from existing internal users instead of typing manually, so ownership stays clean.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

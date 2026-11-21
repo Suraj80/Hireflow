@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         if (getAccessToken()) {
           await loadCurrentUser();
-        } else {
+        } else if (!isPublicPath(location.pathname)) {
           await refreshSession();
           await loadCurrentUser();
         }
@@ -156,6 +156,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
     };
   }, []);
+
+  // Restore cookie session when leaving a public page for the workspace (no refresh on / or /login).
+  useEffect(() => {
+    if (isPublicPath(location.pathname) || user || getAccessToken()) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const restoreFromCookie = async () => {
+      try {
+        await refreshSession();
+        if (isMounted) {
+          await loadCurrentUser();
+        }
+      } catch {
+        if (isMounted) {
+          clearSession();
+        }
+      }
+    };
+
+    void restoreFromCookie();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [location.pathname, user]);
 
   const value = useMemo(
     () => ({

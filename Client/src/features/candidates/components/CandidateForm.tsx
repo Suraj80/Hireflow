@@ -72,7 +72,6 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   const updateCandidate = useCandidatesStore((state) => state.updateCandidate);
   const addNote = useCandidatesStore((state) => state.addNote);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [autosaveStamp, setAutosaveStamp] = useState<string | null>(null);
   const [duplicateCandidate, setDuplicateCandidate] = useState<Candidate | null>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -137,9 +136,6 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
             ? values.education
             : defaultCandidateFormValues.education,
       });
-      if (_savedAt) {
-        setAutosaveStamp(_savedAt);
-      }
       toast.message("Restored local candidate draft");
     } catch (_error) {
       localStorage.removeItem(storageKey);
@@ -159,7 +155,6 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
 
         const savedAt = new Date().toISOString();
         localStorage.setItem(storageKey, JSON.stringify({ ...(values as CandidateFormValues), _savedAt: savedAt }));
-        setAutosaveStamp(savedAt);
       }, 600);
     });
 
@@ -333,7 +328,6 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
         initialNote: "",
       });
       localStorage.removeItem(storageKey);
-      setAutosaveStamp(new Date().toISOString());
 
       if (response.duplicateWarning) {
         toast.warning(`Possible duplicate: ${response.duplicateWarning.name} is already in this job pipeline.`);
@@ -361,14 +355,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
               Capture a polished internal profile with recruiter notes, structured experience, and resume-backed AI scoring.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 p-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <div>
-              <p className="text-sm font-medium text-foreground">Draft protection</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Local autosave is active
-                {autosaveStamp ? ` | last saved ${format(new Date(autosaveStamp), "MMM d, h:mm a")}` : ""}.
-              </p>
-            </div>
+          <CardContent className="p-6">
             <Alert className="rounded-2xl border-primary/20 bg-primary/5">
               <ShieldAlert className="h-4 w-4 text-primary" />
               <AlertTitle>ATS entry checklist</AlertTitle>
