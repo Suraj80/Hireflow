@@ -11,11 +11,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { notificationsApi } from "@/features/notifications/api";
+import { useInterviewsStore } from "@/features/interviews/store";
+import { getNotificationNavigation, setPendingNotificationTarget } from "@/features/notifications/navigation";
 import { NotificationItem } from "@/features/notifications/types";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { useAuth } from "@/components/AuthProvider";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export function TopNavbar() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -24,6 +27,7 @@ export function TopNavbar() {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const loadNotifications = async () => {
     if (!user) {
@@ -68,6 +72,29 @@ export function TopNavbar() {
     } catch (_error) {
       await loadNotifications();
     }
+  };
+
+  const handleNotificationClick = async (notification: NotificationItem) => {
+    const destination = getNotificationNavigation(notification, user?.role);
+
+    setShowNotifications(false);
+    await handleMarkRead(notification.id);
+
+    if (!destination) {
+      toast.message("No linked page for this notification");
+      return;
+    }
+
+    if (destination.target?.page === "interview" && destination.pathname === location.pathname) {
+      void useInterviewsStore.getState().openDrawer(destination.target.interviewId);
+      return;
+    }
+
+    if (destination.target) {
+      setPendingNotificationTarget(destination.target);
+    }
+
+    navigate(destination.pathname);
   };
 
   const handleMarkAllRead = async () => {
@@ -138,6 +165,7 @@ export function TopNavbar() {
               onClose={() => setShowNotifications(false)}
               onRefresh={() => void loadNotifications()}
               onMarkRead={(notificationId) => void handleMarkRead(notificationId)}
+              onItemClick={(notification) => void handleNotificationClick(notification)}
               onMarkAllRead={() => void handleMarkAllRead()}
             />
           )}

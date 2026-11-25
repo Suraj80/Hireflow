@@ -19,6 +19,7 @@ import { WorkspaceSettings } from "@/features/settings/types";
 import { defaultOfficeHours, defaultOfficeWeek, downloadInterviewCsv, getWeekStart } from "@/features/interviews/helpers";
 import { useInterviewsStore } from "@/features/interviews/store";
 import { Interview } from "@/features/interviews/types";
+import { consumePendingNotificationTarget } from "@/features/notifications/navigation";
 
 export default function InterviewsPage() {
   const navigate = useNavigate();
@@ -66,6 +67,13 @@ export default function InterviewsPage() {
   const [rescheduleDuration, setRescheduleDuration] = useState<number>(30);
   const [rescheduleReason, setRescheduleReason] = useState("");
   const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
+
+  useEffect(() => {
+    const target = consumePendingNotificationTarget();
+    if (target?.page === "interview" && target.interviewId) {
+      void openDrawer(target.interviewId);
+    }
+  }, [openDrawer]);
 
   useEffect(() => {
     void fetchCalendar();

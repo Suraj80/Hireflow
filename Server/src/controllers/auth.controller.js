@@ -34,11 +34,7 @@ const issueSession = async (res, user, securitySettings, rotatedFrom = null) => 
   return accessToken;
 };
 
-const isDemoLoginEnabled = () => {
-  if (process.env.DEMO_LOGIN_ENABLED === "false") return false;
-  if (process.env.DEMO_LOGIN_ENABLED === "true") return true;
-  return process.env.NODE_ENV !== "production";
-};
+const isDemoLoginEnabled = () => process.env.DEMO_LOGIN_ENABLED !== "false";
 
 const getDemoUserCredentials = (role) => {
   const roleLabel = role === "admin" ? "admin" : "recruiter";

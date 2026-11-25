@@ -70,8 +70,7 @@ export default function LoginPage() {
     }
   };
 
-  const showDemoLogin =
-    import.meta.env.DEV || import.meta.env.VITE_DEMO_LOGIN_ENABLED === "true";
+  const showDemoLogin = import.meta.env.VITE_DEMO_LOGIN_ENABLED !== "false";
 
   const handleDemoLogin = async (role: "admin" | "recruiter") => {
     setDemoRoleLoading(role);

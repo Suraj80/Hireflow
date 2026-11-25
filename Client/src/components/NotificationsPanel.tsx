@@ -52,6 +52,7 @@ type NotificationsPanelProps = {
   onRefresh: () => void;
   onMarkRead: (notificationId: string) => void;
   onMarkAllRead: () => void;
+  onItemClick: (notification: NotificationItem) => void;
 };
 
 export function NotificationsPanel({
@@ -62,6 +63,7 @@ export function NotificationsPanel({
   onRefresh,
   onMarkRead,
   onMarkAllRead,
+  onItemClick,
 }: NotificationsPanelProps) {
   const visibleItems = items.filter((notification) => !notification.readAt);
 
@@ -97,7 +99,7 @@ export function NotificationsPanel({
                 type="button"
                 key={notification.id}
                 className="flex w-full gap-3 p-3 text-left hover:bg-muted/50 transition-colors border-b border-border last:border-0"
-                onClick={() => onMarkRead(notification.id)}
+                onClick={() => onItemClick(notification)}
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <Icon className="h-4 w-4 text-primary" />
