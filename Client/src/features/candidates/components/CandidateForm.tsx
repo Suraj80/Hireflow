@@ -594,20 +594,29 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
         <AccordionItem value="resume-upload" className="rounded-[28px] border border-border/80 bg-background shadow-sm">
           <AccordionTrigger className="px-6 py-4 text-left">
             <div>
-              <div className="text-base font-semibold">Resume upload</div>
-              <div className="text-sm text-muted-foreground">Resume files are stored locally for now. Accepted formats: PDF and DOCX up to 5MB.</div>
+              <div className="text-base font-semibold">Resume & cover letter</div>
+              <div className="text-sm text-muted-foreground">
+                Upload resume and optional cover letter files. Accepted formats: PDF and DOCX up to 5MB.
+              </div>
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-6 pb-6">
             <div className="space-y-5">
               <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5">
+                <div className="mb-3">
+                  <p className="font-medium">Resume file</p>
+                </div>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="font-medium">{watchedResumeMeta.filename || "No resume uploaded yet"}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {watchedResumeMeta.size ? `${Math.round(watchedResumeMeta.size / 1024)} KB` : "Ready for upload"}
-                    </p>
-                  </div>
+                  {watchedResumeMeta.filename ? (
+                    <div>
+                      <p className="font-medium">{watchedResumeMeta.filename}</p>
+                      {watchedResumeMeta.size ? (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {Math.round(watchedResumeMeta.size / 1024)} KB
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="flex flex-wrap gap-3">
                     <Label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium">
                       <UploadCloud className="mr-2 h-4 w-4" />
@@ -644,25 +653,24 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
                 )}
               </div>
 
-              {requiresCoverLetter && (
-                <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5">
+              <div className="rounded-[24px] border border-dashed border-border/80 bg-muted/20 p-5">
                   <div className="mb-3">
-                    <p className="font-medium">Cover Letter *</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      This job requires a cover letter file. Accepted formats: PDF and DOCX up to 5MB.
-                    </p>
+                    <p className="font-medium">Cover letter file{requiresCoverLetter ? " *" : ""}</p>
+                    {requiresCoverLetter ? (
+                      <p className="mt-1 text-sm text-muted-foreground">This job requires a cover letter file.</p>
+                    ) : null}
                   </div>
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="font-medium">
-                        {watchedCoverLetterMeta.filename || "No cover letter uploaded yet"}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {watchedCoverLetterMeta.size
-                          ? `${Math.round(watchedCoverLetterMeta.size / 1024)} KB`
-                          : "Ready for upload"}
-                      </p>
-                    </div>
+                    {watchedCoverLetterMeta.filename ? (
+                      <div>
+                        <p className="font-medium">{watchedCoverLetterMeta.filename}</p>
+                        {watchedCoverLetterMeta.size ? (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {Math.round(watchedCoverLetterMeta.size / 1024)} KB
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="flex flex-wrap gap-3">
                       <Label className="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium">
                         <UploadCloud className="mr-2 h-4 w-4" />
@@ -717,21 +725,6 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
                     )}
                   />
                 </div>
-              )}
-
-              <FormField
-                control={form.control}
-                name="coverLetter"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cover letter notes</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Optional context from the recruiter or candidate application." className="min-h-32 rounded-2xl" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
           </AccordionContent>
         </AccordionItem>

@@ -40,6 +40,7 @@ const {
   validateResumeUpload,
 } = require("../services/workspace-settings.service");
 const { buildValidationError } = require("../utils/api-response");
+const { getMergedDepartments } = require("./department.controller");
 
 const generateStatusToken = () => crypto.randomBytes(18).toString("hex");
 
@@ -326,12 +327,28 @@ const buildCandidateMetaPayload = ({ jobs, departments, recruiters }) => ({
   interviewStatuses: interviewStatusOptions,
 });
 
+const mergeDepartmentNames = (...groups) =>
+  Array.from(
+    new Set(
+      groups
+        .flat()
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  ).sort((left, right) => left.localeCompare(right));
+
 const loadCandidateMeta = async () => {
-  const [jobs, departments, recruiters] = await Promise.all([
+  const [jobs, mergedDepartments, candidateDepartments, recruiters] = await Promise.all([
     Job.find({ archived: false }).select("title department requireCoverLetter"),
+    getMergedDepartments(),
     Candidate.distinct("department", { archived: false }),
     User.find({ role: { $in: ["admin", "recruiter"] } }).select("name email role"),
   ]);
+
+  const departments = mergeDepartmentNames(
+    mergedDepartments.filter((item) => item.isActive).map((item) => item.name),
+    candidateDepartments
+  );
 
   return buildCandidateMetaPayload({ jobs, departments, recruiters });
 };

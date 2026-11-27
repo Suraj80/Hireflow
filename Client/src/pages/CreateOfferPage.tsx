@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, LoaderCircle } from "lucide-react";
+import { ArrowLeft, LoaderCircle, Save } from "lucide-react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,9 @@ const defaultMeta: OfferMetaResponse = {
   statuses: ["Draft", "Sent", "Accepted", "Declined", "Withdrawn", "Expired"],
 };
 
+/** Set to true when the candidate context sidebar should be visible again. */
+const showCandidateContext = false;
+
 const toFormValues = (offer: Offer): OfferFormValues => ({
   candidateId: offer.candidate?.id || "",
   title: offer.title,
@@ -57,7 +60,7 @@ export default function CreateOfferPage() {
   const [offer, setOffer] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [working, setWorking] = useState(false);
+  const [working, setWorking] = useState<"draft" | "finalize" | null>(null);
   const [workspaceCurrency, setWorkspaceCurrency] = useState(defaultForm.currency);
 
   useEffect(() => {
@@ -124,31 +127,40 @@ export default function CreateOfferPage() {
     }));
   };
 
-  const handleSave = async () => {
-    if (!form.candidateId || !form.title.trim()) {
-      toast.error("Candidate and offer title are required");
+  const handleSave = async (intent: "draft" | "finalize") => {
+    if (!form.candidateId) {
+      toast.error("Select a candidate to continue");
+      return;
+    }
+
+    if (intent === "finalize" && !form.title.trim()) {
+      toast.error("Offer title is required");
       return;
     }
 
     try {
-      setWorking(true);
+      setWorking(intent);
       if (offerId) {
         await offersApi.update(offerId, form);
-        toast.success("Offer updated");
-      } else {
-        await offersApi.create(form);
-        toast.success("Offer created");
+        toast.success(intent === "draft" ? "Draft saved" : "Offer updated");
+        navigate(intent === "draft" ? `/offers/${offerId}` : "/offers");
+        return;
       }
-      navigate("/offers");
+
+      const created = await offersApi.create(form, intent);
+      toast.success(intent === "draft" ? "Draft saved" : "Offer created");
+      navigate(intent === "draft" ? `/offers/${created.id}` : `/offers/${created.id}`);
     } catch (saveError) {
       const message =
         (saveError as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (saveError instanceof Error ? saveError.message : "Unable to save offer");
       toast.error(message);
     } finally {
-      setWorking(false);
+      setWorking(null);
     }
   };
+
+  const showDraftActions = !offerId || offer?.status === "Draft";
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -291,7 +303,10 @@ export default function CreateOfferPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-[28px] border border-border/80 shadow-sm">
+          <Card
+            className={`rounded-[28px] border border-border/80 shadow-sm ${showCandidateContext ? "" : "hidden"}`}
+            aria-hidden={!showCandidateContext}
+          >
             <CardHeader>
               <CardTitle>Candidate context</CardTitle>
             </CardHeader>
@@ -329,11 +344,29 @@ export default function CreateOfferPage() {
                 placeholder="<p>Dear candidate...</p>"
               />
               <div className="flex flex-wrap justify-end gap-2">
-                <Button variant="ghost" className="rounded-2xl" onClick={() => navigate("/offers")}>
+                <Button variant="ghost" className="rounded-2xl" disabled={Boolean(working)} onClick={() => navigate("/offers")}>
                   Cancel
                 </Button>
-                <Button className="rounded-2xl" disabled={working} onClick={() => void handleSave()}>
-                  {offerId ? "Save changes" : "Create offer"}
+                {showDraftActions ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-2xl"
+                    disabled={Boolean(working)}
+                    onClick={() => void handleSave("draft")}
+                  >
+                    {working === "draft" ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save draft
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  className="rounded-2xl"
+                  disabled={Boolean(working)}
+                  onClick={() => void handleSave("finalize")}
+                >
+                  {working === "finalize" ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {showDraftActions && !offerId ? "Create offer" : "Save changes"}
                 </Button>
               </div>
             </CardContent>

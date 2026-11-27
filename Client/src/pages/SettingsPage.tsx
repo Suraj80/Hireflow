@@ -665,9 +665,6 @@ export default function SettingsPage() {
               <div className="lg:col-span-2 flex flex-col gap-3 rounded-[22px] border border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">Save workspace configuration</p>
-                  <p className="text-sm text-muted-foreground">
-                    These defaults apply across the workspace and can be updated later from this admin-only page.
-                  </p>
                 </div>
                 <Button
                   className="h-11 rounded-2xl"

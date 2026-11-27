@@ -52,11 +52,24 @@ const getNextWeekRange = () => {
   return { start, end };
 };
 
+const getRecentActivityCutoff = () => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  return cutoff;
+};
+
+const buildRecentActivityCandidateMatch = (candidateMatch) => ({
+  ...candidateMatch,
+  status: { $nin: ["Archived", "Draft"] },
+});
+
 const getDashboardOverview = async (req, res) => {
   try {
     const { candidateMatch, jobMatch, interviewMatch } = buildDashboardFilters(req.user);
     const { start: monthStart, end: monthEnd } = getThisMonthRange();
     const { start: nextWeekStart, end: nextWeekEnd } = getNextWeekRange();
+    const recentActivityCutoff = getRecentActivityCutoff();
+    const recentActivityCandidateMatch = buildRecentActivityCandidateMatch(candidateMatch);
 
     const candidateSummaryPromise = Candidate.aggregate([
       { $match: candidateMatch },
@@ -197,46 +210,75 @@ const getDashboardOverview = async (req, res) => {
     });
 
     const recentStageActivityPromise = Candidate.aggregate([
-      { $match: candidateMatch },
-      { $unwind: "$stageHistory" },
-      { $sort: { "stageHistory.changedAt": -1 } },
-      { $limit: 8 },
+      { $match: recentActivityCandidateMatch },
       {
         $lookup: {
           from: "jobs",
-          localField: "jobId",
-          foreignField: "_id",
+          let: { jobId: "$jobId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$jobId"] },
+                archived: false,
+              },
+            },
+            { $project: { title: 1 } },
+          ],
           as: "job",
         },
       },
+      { $match: { "job.0": { $exists: true } } },
+      {
+        $addFields: {
+          latestStageChange: { $arrayElemAt: ["$stageHistory", 0] },
+        },
+      },
+      {
+        $match: {
+          latestStageChange: { $ne: null },
+          "latestStageChange.changedAt": { $gte: recentActivityCutoff },
+        },
+      },
+      { $sort: { "latestStageChange.changedAt": -1 } },
+      { $limit: 8 },
       {
         $project: {
           type: { $literal: "candidate-stage-changed" },
           title: {
-            $concat: ["Moved to ", "$stageHistory.stage"],
+            $concat: ["Moved to ", "$latestStageChange.stage"],
           },
           description: {
-            $concat: ["$name", " for ", { $ifNull: [{ $arrayElemAt: ["$job.title", 0] }, "Unknown job"] }],
+            $concat: ["$name", " for ", { $arrayElemAt: ["$job.title", 0] }],
           },
-          createdAt: "$stageHistory.changedAt",
+          createdAt: "$latestStageChange.changedAt",
         },
       },
     ]);
 
-    const recentCandidateActivityPromise = Candidate.find(candidateMatch)
-      .populate("jobId", "title")
+    const recentCandidateActivityPromise = Candidate.find({
+      ...recentActivityCandidateMatch,
+      createdAt: { $gte: recentActivityCutoff },
+    })
+      .populate({ path: "jobId", select: "title", match: { archived: false } })
       .sort({ createdAt: -1 })
-      .limit(4)
+      .limit(12)
       .select("name createdAt jobId");
 
-    const recentInterviewActivityPromise = Interview.find(interviewMatch)
-      .populate("candidateId", "name")
-      .populate("jobId", "title")
+    const recentInterviewActivityPromise = Interview.find({
+      ...interviewMatch,
+      status: { $nin: ["Cancelled"] },
+      createdAt: { $gte: recentActivityCutoff },
+    })
+      .populate({ path: "candidateId", select: "name", match: { archived: false } })
+      .populate({ path: "jobId", select: "title", match: { archived: false } })
       .sort({ createdAt: -1 })
-      .limit(4)
+      .limit(12)
       .select("candidateId jobId createdAt round");
 
-    const recentJobActivityPromise = Job.find(jobMatch)
+    const recentJobActivityPromise = Job.find({
+      ...jobMatch,
+      createdAt: { $gte: recentActivityCutoff },
+    })
       .sort({ createdAt: -1 })
       .limit(4)
       .select("title status createdAt");
@@ -286,16 +328,22 @@ const getDashboardOverview = async (req, res) => {
 
     const recentActivity = [
       ...recentStageActivity,
-      ...recentCandidateActivity.map((item) => ({
+      ...recentCandidateActivity
+        .filter((item) => item.jobId)
+        .slice(0, 4)
+        .map((item) => ({
         type: "candidate-applied",
         title: "New application",
-        description: `${item.name} applied for ${item.jobId?.title || "Unknown job"}`,
+        description: `${item.name} applied for ${item.jobId.title}`,
         createdAt: item.createdAt,
       })),
-      ...recentInterviewActivity.map((item) => ({
+      ...recentInterviewActivity
+        .filter((item) => item.candidateId && item.jobId)
+        .slice(0, 4)
+        .map((item) => ({
         type: "interview-scheduled",
         title: "Interview scheduled",
-        description: `${item.candidateId?.name || "Unknown candidate"} for ${item.jobId?.title || "Unknown job"}`,
+        description: `${item.candidateId.name} for ${item.jobId.title}`,
         createdAt: item.createdAt,
       })),
       ...recentJobActivity.map((item) => ({

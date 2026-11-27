@@ -20,9 +20,7 @@ const nullableDateString = z.preprocess((value) => {
   return String(value);
 }, z.string().trim().datetime().nullable());
 
-const offerCreateSchema = z.object({
-  candidateId: objectIdSchema,
-  title: z.string().trim().min(2).max(120),
+const offerFieldsSchema = {
   salaryAmount: nullableNumber.optional().default(null),
   bonusAmount: nullableNumber.optional().default(null),
   equity: z.string().trim().max(120).optional().default(""),
@@ -31,6 +29,20 @@ const offerCreateSchema = z.object({
   expiresAt: nullableDateString.optional().default(null),
   letterHtml: z.string().trim().max(50000).optional().default(""),
   notes: z.string().trim().max(4000).optional().default(""),
+};
+
+const offerDraftCreateSchema = z.object({
+  candidateId: objectIdSchema,
+  title: z.string().trim().max(120).optional().default(""),
+  intent: z.literal("draft").optional(),
+  ...offerFieldsSchema,
+});
+
+const offerCreateSchema = z.object({
+  candidateId: objectIdSchema,
+  title: z.string().trim().min(2).max(120),
+  intent: z.literal("finalize").optional(),
+  ...offerFieldsSchema,
 });
 
 const offerUpdateSchema = z.object({
@@ -72,6 +84,7 @@ const publicOfferDecisionSchema = z.object({
 
 module.exports = {
   offerCreateSchema,
+  offerDraftCreateSchema,
   offerListQuerySchema,
   offerSendSchema,
   offerStatusOptions,

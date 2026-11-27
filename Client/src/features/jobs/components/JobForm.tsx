@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Copy, LoaderCircle, Save, Send } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { FieldErrors, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,70 @@ type JobFormProps = {
 type JobFormServerError = {
   field?: string;
   message?: string;
+};
+
+const JOB_FORM_FIELD_ORDER: (keyof JobFormValues)[] = [
+  "title",
+  "department",
+  "hiringManagerId",
+  "hiringManager",
+  "type",
+  "location",
+  "workMode",
+  "salaryMin",
+  "salaryMax",
+  "currency",
+  "showSalary",
+  "requirementsHTML",
+  "descriptionHTML",
+  "skills",
+  "tags",
+  "deadline",
+  "maxApplicants",
+  "autoClose",
+  "visibility",
+  "requireCoverLetter",
+  "status",
+];
+
+const JOB_FORM_FIELD_SECTION: Partial<Record<keyof JobFormValues, string>> = {
+  title: "job-form-basic-info",
+  department: "job-form-basic-info",
+  hiringManagerId: "job-form-basic-info",
+  hiringManager: "job-form-basic-info",
+  type: "job-form-basic-info",
+  location: "job-form-basic-info",
+  workMode: "job-form-basic-info",
+  salaryMin: "job-form-compensation",
+  salaryMax: "job-form-compensation",
+  currency: "job-form-compensation",
+  showSalary: "job-form-compensation",
+  requirementsHTML: "job-form-requirements",
+  descriptionHTML: "job-form-requirements",
+  skills: "job-form-skills",
+  tags: "job-form-skills",
+  deadline: "job-form-application-settings",
+  maxApplicants: "job-form-application-settings",
+  autoClose: "job-form-application-settings",
+  visibility: "job-form-application-settings",
+  requireCoverLetter: "job-form-application-settings",
+  status: "job-form-application-settings",
+};
+
+const getFirstJobFormErrorField = (errors: FieldErrors<JobFormValues>) =>
+  JOB_FORM_FIELD_ORDER.find((field) => Boolean(errors[field])) ?? null;
+
+const scrollToJobFormError = (field: keyof JobFormValues) => {
+  const sectionId = JOB_FORM_FIELD_SECTION[field];
+  if (sectionId) {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  requestAnimationFrame(() => {
+    const fieldElement = document.querySelector<HTMLElement>(`[data-job-field="${String(field)}"]`);
+    fieldElement?.scrollIntoView({ behavior: "smooth", block: "center" });
+    fieldElement?.focus({ preventScroll: true });
+  });
 };
 
 export function JobForm({ mode, job = null }: JobFormProps) {
@@ -192,6 +256,11 @@ export function JobForm({ mode, job = null }: JobFormProps) {
           });
         });
 
+        const serverField = fieldErrors.find((entry) => entry.field)?.field as keyof JobFormValues | undefined;
+        if (serverField) {
+          scrollToJobFormError(serverField);
+        }
+
         return;
       }
 
@@ -201,21 +270,28 @@ export function JobForm({ mode, job = null }: JobFormProps) {
     }
   };
 
+  const handleInvalid = (errors: FieldErrors<JobFormValues>) => {
+    const firstField = getFirstJobFormErrorField(errors);
+    if (firstField) {
+      scrollToJobFormError(firstField);
+    }
+  };
+
   const handleSubmitWithStatus = (status: "draft" | "open") => {
     submitIntentRef.current = status;
     form.setValue("status", status, {
       shouldDirty: true,
       shouldValidate: true,
     });
-    void form.handleSubmit(handleSubmit)();
+    void form.handleSubmit(handleSubmit, handleInvalid)();
   };
 
   const publicUrl = `${window.location.origin}/apply/${job?.id || "preview-after-save"}`;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
+      <form onSubmit={form.handleSubmit(handleSubmit, handleInvalid)} className="space-y-6">
+        <Card id="job-form-basic-info" className="scroll-mt-24 rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Basic Info</CardTitle>
             <CardDescription>Core details recruiters and candidates will see first.</CardDescription>
@@ -225,7 +301,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
               control={form.control}
               name="title"
               render={({ field }) => (
-                <FormItem className="md:col-span-2">
+                <FormItem className="md:col-span-2" data-job-field="title">
                   <FormLabel>Job Title *</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="Enter job title" className="h-11 rounded-2xl" />
@@ -238,7 +314,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
               control={form.control}
               name="department"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-job-field="department">
                   <FormLabel>Department *</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange} disabled={metaLoading}>
                     <FormControl>
@@ -359,12 +435,12 @@ export function JobForm({ mode, job = null }: JobFormProps) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
+        <Card id="job-form-compensation" className="scroll-mt-24 rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Compensation</CardTitle>
             <CardDescription>Keep this flexible for internal-only or public salary ranges.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-5" data-job-field="salaryMin">
             <SalaryInput
               currency={form.watch("currency")}
               salaryMin={form.watch("salaryMin")}
@@ -401,7 +477,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
+        <Card id="job-form-requirements" className="scroll-mt-24 rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Requirements</CardTitle>
             <CardDescription>Describe the role, responsibilities, and what you expect from candidates.</CardDescription>
@@ -411,7 +487,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
               control={form.control}
               name="requirementsHTML"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-job-field="requirementsHTML">
                   <FormLabel>Requirements</FormLabel>
                   <FormControl>
                     <RichTextEditor value={field.value} onChange={field.onChange} />
@@ -424,7 +500,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
+        <Card id="job-form-skills" className="scroll-mt-24 rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Skills</CardTitle>
             <CardDescription>Capture the concrete skills you want the AI and filters to understand.</CardDescription>
@@ -434,7 +510,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
               control={form.control}
               name="skills"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-job-field="skills">
                   <FormControl>
                     <TagSelector
                       values={field.value}
@@ -452,7 +528,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
+        <Card id="job-form-application-settings" className="scroll-mt-24 rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Application Settings</CardTitle>
             <CardDescription>Define the lifecycle and public exposure of this role.</CardDescription>
@@ -463,7 +539,7 @@ export function JobForm({ mode, job = null }: JobFormProps) {
                 control={form.control}
                 name="deadline"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem className="flex flex-col" data-job-field="deadline">
                     <FormLabel>Deadline</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>

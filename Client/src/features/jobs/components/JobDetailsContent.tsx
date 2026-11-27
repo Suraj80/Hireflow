@@ -19,6 +19,7 @@ type JobDetailsContentProps = {
 export function JobDetailsContent({ job }: JobDetailsContentProps) {
   const skills = Array.isArray(job.skills) ? job.skills : [];
   const applyUrl = `${window.location.origin}/apply/${job.id}`;
+  const showPublicApplyUrl = job.visibility === "public" && job.status === "open";
 
   return (
     <div className="space-y-6">
@@ -89,25 +90,27 @@ export function JobDetailsContent({ job }: JobDetailsContentProps) {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Globe className="h-4 w-4 text-primary" />
-          Public apply URL
+      {showPublicApplyUrl ? (
+        <div className="rounded-3xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Globe className="h-4 w-4 text-primary" />
+            Public apply URL
+          </div>
+          <p className="mt-3 break-all text-sm text-muted-foreground">{applyUrl}</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4 w-full rounded-2xl"
+            onClick={async () => {
+              await navigator.clipboard.writeText(applyUrl);
+              toast.success("Public URL copied");
+            }}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            Copy apply link
+          </Button>
         </div>
-        <p className="mt-3 break-all text-sm text-muted-foreground">{applyUrl}</p>
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-4 w-full rounded-2xl"
-          onClick={async () => {
-            await navigator.clipboard.writeText(applyUrl);
-            toast.success("Public URL copied");
-          }}
-        >
-          <Copy className="mr-2 h-4 w-4" />
-          Copy apply link
-        </Button>
-      </div>
+      ) : null}
     </div>
   );
 }

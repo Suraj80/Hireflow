@@ -183,6 +183,13 @@ export const buildTimeLabels = (officeHours?: WorkspaceSettings["officeHours"]) 
 export const getCalendarHourRowHeight = () => pixelsPerHalfHour * 2;
 export const getCalendarHalfHourRowHeight = () => pixelsPerHalfHour;
 
+export const formatOfficeHourLabel = (value: string) => {
+  const { hour, minute } = parseOfficeHour(value);
+  const slot = new Date();
+  slot.setHours(hour, minute, 0, 0);
+  return format(slot, "h:mm a");
+};
+
 export const formatInterviewDate = (value: string) => format(parseISO(value), "EEE, MMM d");
 export const formatInterviewTime = (value: string) => format(parseISO(value), "h:mm a");
 export const formatInterviewDateTime = (value: string) => format(parseISO(value), "EEE, MMM d • h:mm a");

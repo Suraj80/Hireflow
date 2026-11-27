@@ -10,6 +10,7 @@ import {
   buildTimeLabels,
   buildTimeSlots,
   buildWeekDays,
+  formatOfficeHourLabel,
   formatInterviewTime,
   getCalendarHourRowHeight,
   getInterviewLayout,
@@ -93,7 +94,7 @@ export function InterviewCalendarView({
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">This Week</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Showing {officeHours.start} to {officeHours.end}
+          Showing {formatOfficeHourLabel(officeHours.start)} to {formatOfficeHourLabel(officeHours.end)}
         </p>
       </CardHeader>
       <CardContent className="overflow-visible pb-6">

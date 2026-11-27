@@ -1,7 +1,8 @@
 import { api } from "@/lib/api";
 import { Offer, OfferFormValues, OfferListResponse, OfferMetaResponse, OfferStatus, PublicOffer } from "@/features/offers/types";
 
-const formatOfferPayload = (values: OfferFormValues) => ({
+const formatOfferPayload = (values: OfferFormValues, intent: "draft" | "finalize" = "finalize") => ({
+  intent,
   candidateId: values.candidateId,
   title: values.title.trim(),
   salaryAmount: values.salaryAmount.trim() ? Number(values.salaryAmount) : null,
@@ -35,8 +36,8 @@ export const offersApi = {
     const response = await api.get<Offer>(`/offers/${id}`);
     return response.data;
   },
-  create: async (values: OfferFormValues) => {
-    const response = await api.post<Offer>("/offers", formatOfferPayload(values));
+  create: async (values: OfferFormValues, intent: "draft" | "finalize" = "finalize") => {
+    const response = await api.post<Offer>("/offers", formatOfferPayload(values, intent));
     return response.data;
   },
   update: async (id: string, values: Omit<OfferFormValues, "candidateId"> & { candidateId?: string }) => {

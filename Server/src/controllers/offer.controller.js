@@ -15,6 +15,7 @@ const {
 } = require("../services/notification.service");
 const {
   offerCreateSchema,
+  offerDraftCreateSchema,
   offerListQuerySchema,
   offerSendSchema,
   offerStatusSchema,
@@ -420,7 +421,8 @@ const downloadOfferPdf = async (req, res) => {
 };
 
 const createOffer = async (req, res) => {
-  const parsedBody = offerCreateSchema.safeParse(req.body);
+  const isDraftIntent = req.body?.intent === "draft";
+  const parsedBody = (isDraftIntent ? offerDraftCreateSchema : offerCreateSchema).safeParse(req.body);
   if (!parsedBody.success) {
     return res.status(400).json(buildValidationError(parsedBody.error.issues));
   }
@@ -444,21 +446,27 @@ const createOffer = async (req, res) => {
 
     const workspaceSettings = await WorkspaceSetting.findOne().select("companyName");
     const payload = parsedBody.data;
+    const offerTitle =
+      String(payload.title || "").trim() ||
+      String(job.title || "").trim() ||
+      `Offer for ${candidate.name}`;
     const letterHtml =
       payload.letterHtml ||
-      buildDefaultLetterHtml({
-        candidateName: candidate.name,
-        title: payload.title,
-        salaryAmount: payload.salaryAmount,
-        currency: payload.currency,
-        startDate: payload.startDate,
-        companyName: workspaceSettings?.companyName || "HireFlow",
-      });
+      (isDraftIntent
+        ? ""
+        : buildDefaultLetterHtml({
+            candidateName: candidate.name,
+            title: offerTitle,
+            salaryAmount: payload.salaryAmount,
+            currency: payload.currency,
+            startDate: payload.startDate,
+            companyName: workspaceSettings?.companyName || "HireFlow",
+          }));
 
     const offer = await Offer.create({
       candidateId: candidate._id,
       jobId: job._id,
-      title: payload.title,
+      title: offerTitle,
       salaryAmount:
         payload.salaryAmount === null && job.salaryMax !== null ? job.salaryMax : payload.salaryAmount,
       bonusAmount: payload.bonusAmount,
@@ -476,24 +484,28 @@ const createOffer = async (req, res) => {
       updatedBy: req.user.id,
     });
 
-    await syncCandidateStage({
-      candidate,
-      nextStage: "Offer",
-      actorId: req.user.id,
-      actorName: req.user.name || req.user.role,
-      reason: "Offer created",
-    });
+    if (!isDraftIntent) {
+      await syncCandidateStage({
+        candidate,
+        nextStage: "Offer",
+        actorId: req.user.id,
+        actorName: req.user.name || req.user.role,
+        reason: "Offer created",
+      });
+    }
 
     await createAuditLog({
       req,
-      action: "offer-created",
+      action: isDraftIntent ? "offer-draft-saved" : "offer-created",
       category: "offers",
       entity: {
         type: "offer",
         id: offer._id,
         label: `${candidate.name} - ${offer.title}`,
       },
-      description: `Created offer for ${candidate.name}`,
+      description: isDraftIntent
+        ? `Saved draft offer for ${candidate.name}`
+        : `Created offer for ${candidate.name}`,
       meta: {
         candidateId: candidate._id,
         jobId: job._id,
@@ -507,9 +519,11 @@ const createOffer = async (req, res) => {
       candidate,
       job,
       actorId: req.user.id,
-      type: "offer-created",
-      title: "Offer created",
-      message: `A draft offer was created for ${candidate.name}.`,
+      type: isDraftIntent ? "offer-draft-saved" : "offer-created",
+      title: isDraftIntent ? "Offer draft saved" : "Offer created",
+      message: isDraftIntent
+        ? `A draft offer was saved for ${candidate.name}.`
+        : `An offer was created for ${candidate.name}.`,
     });
 
     const hydrated = await Offer.findById(offer._id)
