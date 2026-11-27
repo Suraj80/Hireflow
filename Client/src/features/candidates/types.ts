@@ -1,7 +1,7 @@
 export type CandidateStage = "Applied" | "Screening" | "Interview" | "Offer" | "Hired" | "Rejected";
 export type CandidateSource = "portal" | "referral" | "manual" | "campus" | "linkedin" | "agency";
 export type CandidatePriority = "Low" | "Medium" | "High";
-export type CandidateStatus = "Active" | "Hired" | "Rejected" | "Archived";
+export type CandidateStatus = "Draft" | "Active" | "Hired" | "Rejected" | "Archived";
 export type CandidateInterviewMode = "Virtual" | "Onsite" | "Phone";
 export type CandidateInterviewStatus = "Scheduled" | "Completed" | "Cancelled";
 export type CandidateSort = "newest" | "oldest" | "highest-ai" | "stage" | "name";

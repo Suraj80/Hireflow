@@ -37,7 +37,7 @@ export const jobFormSchema = z
     salaryMax: optionalNumber.optional().default(null),
     currency: z.string().trim().min(3, "Currency is required").max(5).default("USD"),
     showSalary: z.boolean().default(false),
-    descriptionHTML: z.string().trim().min(30, "Description should be at least 30 characters"),
+    descriptionHTML: z.string().trim().max(50000).default(""),
     requirementsHTML: z.string().trim().max(50000).default(""),
     skills: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
     tags: z.array(z.string().trim().min(1).max(24)).max(10, "Use up to 10 tags"),
@@ -73,6 +73,14 @@ export const jobFormSchema = z
         code: z.ZodIssueCode.custom,
         path: ["deadline"],
         message: "Publish requires a valid deadline",
+      });
+    }
+
+    if (data.status === "open" && data.requirementsHTML.replace(/<[^>]+>/g, "").trim().length < 30) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["requirementsHTML"],
+        message: "Requirements should be at least 30 characters when publishing",
       });
     }
   });
@@ -111,8 +119,8 @@ export const formatJobPayload = (values: JobFormValues) => ({
   hiringManagerId: values.hiringManagerId || null,
   location: values.location.trim(),
   currency: values.currency.trim().toUpperCase(),
-  descriptionHTML: values.descriptionHTML.trim(),
   requirementsHTML: values.requirementsHTML.trim(),
+  descriptionHTML: values.requirementsHTML.trim() || values.descriptionHTML.trim(),
   skills: values.skills.map((skill) => skill.trim().toLowerCase()),
   tags: values.tags.map((tag) => tag.trim().toLowerCase()),
 });
@@ -129,8 +137,8 @@ export const toJobFormValues = (job: Job): JobFormValues => ({
   salaryMax: job.salaryMax,
   currency: job.currency,
   showSalary: job.showSalary,
-  descriptionHTML: job.descriptionHTML,
-  requirementsHTML: job.requirementsHTML || "",
+  descriptionHTML: "",
+  requirementsHTML: job.requirementsHTML?.trim() || job.descriptionHTML || "",
   skills: job.skills || [],
   tags: job.tags || [],
   deadline: job.deadline,

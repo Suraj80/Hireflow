@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Copy, LoaderCircle, Save, Send, ShieldAlert } from "lucide-react";
+import { Calendar as CalendarIcon, Copy, LoaderCircle, Save, Send } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,10 +35,6 @@ type JobFormProps = {
   job?: Job | null;
 };
 
-type AutosavedValues = JobFormValues & {
-  _savedAt?: string;
-};
-
 type JobFormServerError = {
   field?: string;
   message?: string;
@@ -53,8 +48,6 @@ export function JobForm({ mode, job = null }: JobFormProps) {
   const [metaLoading, setMetaLoading] = useState(true);
   const [workspaceCurrency, setWorkspaceCurrency] = useState(defaultJobFormValues.currency);
   const submitIntentRef = useRef<"draft" | "open">("draft");
-  const autosaveTimerRef = useRef<number | null>(null);
-  const storageKey = `hireflow-job-draft:${job?.id || "new"}`;
 
   const form = useForm<JobFormValues>({
     resolver: zodResolver(jobFormSchema),
@@ -141,53 +134,8 @@ export function JobForm({ mode, job = null }: JobFormProps) {
   useEffect(() => {
     if (job) {
       form.reset(toJobFormValues(job));
-      return;
     }
-
-    const savedDraft = localStorage.getItem(storageKey);
-    if (!savedDraft) {
-      return;
-    }
-
-    try {
-      const parsedDraft = JSON.parse(savedDraft) as AutosavedValues;
-      const { _savedAt, requirements, ...values } = parsedDraft as AutosavedValues & {
-        requirements?: { skills?: string[] };
-      };
-      form.reset({
-        ...defaultJobFormValues,
-        ...values,
-        skills: values.skills?.length ? values.skills : requirements?.skills || [],
-      });
-      toast.message("Restored local autosave");
-    } catch (_error) {
-      localStorage.removeItem(storageKey);
-    }
-  }, [form, job, storageKey]);
-
-  useEffect(() => {
-    const subscription = form.watch((values) => {
-      if (autosaveTimerRef.current) {
-        window.clearTimeout(autosaveTimerRef.current);
-      }
-
-      autosaveTimerRef.current = window.setTimeout(() => {
-        if (!form.formState.isDirty) {
-          return;
-        }
-
-        const savedAt = new Date().toISOString();
-        localStorage.setItem(storageKey, JSON.stringify({ ...(values as JobFormValues), _savedAt: savedAt }));
-      }, 600);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-      if (autosaveTimerRef.current) {
-        window.clearTimeout(autosaveTimerRef.current);
-      }
-    };
-  }, [form, storageKey]);
+  }, [form, job]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -226,7 +174,6 @@ export function JobForm({ mode, job = null }: JobFormProps) {
           : await jobsApi.create(nextValues);
 
       form.reset(toJobFormValues(savedJob));
-      localStorage.removeItem(storageKey);
       toast.success(submitIntentRef.current === "draft" ? "Draft saved successfully" : "Job published successfully");
       navigate("/jobs");
     } catch (error) {
@@ -268,24 +215,6 @@ export function JobForm({ mode, job = null }: JobFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <Card className="overflow-hidden rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader className="bg-gradient-to-r from-primary/10 via-background to-emerald-500/10">
-            <CardTitle>{mode === "edit" ? "Edit job" : "Create a new role"}</CardTitle>
-            <CardDescription>
-              Set up a hiring-ready job with clear structure, internal controls, and a polished public application experience.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <Alert className="rounded-2xl border-primary/20 bg-primary/5">
-              <ShieldAlert className="h-4 w-4 text-primary" />
-              <AlertTitle>Publish checklist</AlertTitle>
-              <AlertDescription>
-                Open jobs should include a deadline, description, and enough context for candidates to self-qualify.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-
         <Card className="rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
             <CardTitle>Basic Info</CardTitle>
@@ -474,29 +403,8 @@ export function JobForm({ mode, job = null }: JobFormProps) {
 
         <Card className="rounded-[28px] border border-border/80 shadow-sm">
           <CardHeader>
-            <CardTitle>Job Description</CardTitle>
-            <CardDescription>Use structured content so candidates can scan the role quickly.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="descriptionHTML"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <RichTextEditor value={field.value} onChange={field.onChange} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader>
             <CardTitle>Requirements</CardTitle>
-            <CardDescription>Use the same rich text editor as the description to capture freeform requirements.</CardDescription>
+            <CardDescription>Describe the role, responsibilities, and what you expect from candidates.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <FormField

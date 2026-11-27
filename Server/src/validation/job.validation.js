@@ -33,7 +33,7 @@ const jobPayloadBaseSchema = z.object({
   department: trimString(2, 80),
   hiringManager: z.string().trim().max(120).optional().default(""),
   hiringManagerId: z.string().trim().optional().nullable().default(null),
-  descriptionHTML: trimString(30, 50000),
+  descriptionHTML: z.string().trim().max(50000).default(""),
   type: z.enum(employmentTypes),
   location: trimString(2, 120),
   workMode: z.enum(workModes).default("onsite"),
@@ -99,6 +99,18 @@ const withJobRules = (schema) =>
         code: z.ZodIssueCode.custom,
         message: "An open job requires an application deadline",
         path: ["deadline"],
+      });
+    }
+
+    const requirementsText = String(data.requirementsHTML || "").replace(/<[^>]+>/g, "").trim();
+    const descriptionText = String(data.descriptionHTML || "").replace(/<[^>]+>/g, "").trim();
+    const roleDetailsLength = Math.max(requirementsText.length, descriptionText.length);
+
+    if (data.status === "open" && roleDetailsLength < 30) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Requirements should be at least 30 characters when publishing",
+        path: ["requirementsHTML"],
       });
     }
   });

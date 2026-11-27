@@ -63,22 +63,14 @@ export function JobDetailsContent({ job }: JobDetailsContentProps) {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Description</h2>
-        <div
-          className="prose prose-sm mt-4 max-w-none [&>p]:my-0 [&>p]:leading-6 [&>ul]:my-0 [&>ol]:my-0"
-          dangerouslySetInnerHTML={{ __html: job.descriptionHTML }}
-        />
-      </div>
-
-      <Separator />
-
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Requirements</h2>
           <div
             className="prose prose-sm mt-4 max-w-none [&>p]:my-0 [&>p]:leading-6 [&>ul]:my-0 [&>ol]:my-0"
-            dangerouslySetInnerHTML={{ __html: job.requirementsHTML || "<p>No requirements added</p>" }}
+            dangerouslySetInnerHTML={{
+              __html: job.requirementsHTML || job.descriptionHTML || "<p>No requirements added</p>",
+            }}
           />
           <div className="mt-5">
             <p className="text-sm font-medium">Skills</p>

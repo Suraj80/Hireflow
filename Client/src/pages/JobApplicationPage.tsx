@@ -223,16 +223,15 @@ export default function JobApplicationPage() {
                   </span>
                 </div>
                 <p className="mt-4 text-sm font-medium text-foreground">{formatJobSalary(job)}</p>
-                <div
-                  className="prose prose-sm mt-5 max-w-none [&>p]:my-0 [&>p]:leading-6 [&>ul]:my-0 [&>ol]:my-0"
-                  dangerouslySetInnerHTML={{ __html: job.descriptionHTML }}
-                />
-                <div className="mt-6">
+                <div className="mt-5">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">Requirements</p>
                   <div
                     className="prose prose-sm mt-3 max-w-none [&>p]:my-0 [&>p]:leading-6 [&>ul]:my-0 [&>ol]:my-0"
                     dangerouslySetInnerHTML={{
-                      __html: job.requirementsHTML || "<p>No requirements added.</p>",
+                      __html:
+                        job.requirementsHTML ||
+                        job.descriptionHTML ||
+                        "<p>No requirements added.</p>",
                     }}
                   />
                 </div>

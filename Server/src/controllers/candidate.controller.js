@@ -7,8 +7,10 @@ const Job = require("../models/Job");
 const User = require("../models/User");
 const {
   candidateAssignSchema,
+  candidateActiveCreateSchema,
   candidateBulkActionSchema,
   candidateCreateSchema,
+  candidateDraftCreateSchema,
   candidateInterviewSchema,
   candidateNoteSchema,
   publicCandidateApplicationSchema,
@@ -55,6 +57,45 @@ const deriveStatusFromStage = (stage, archived = false) => {
   }
 
   return "Active";
+};
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+
+const ensureDraftEmail = (email) => {
+  const trimmed = String(email || "").trim();
+  if (trimmed && isValidEmail(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+
+  return `draft.${crypto.randomBytes(12).toString("hex")}@draft.hireflow.local`;
+};
+
+const resolveCandidateRecordStatus = (candidate, payloadStatus, nextStage, archived) => {
+  if (payloadStatus === "Draft") {
+    return "Draft";
+  }
+
+  if (candidate?.status === "Draft" && payloadStatus !== "Active") {
+    return "Draft";
+  }
+
+  if (payloadStatus === "Active") {
+    return deriveStatusFromStage(nextStage, archived);
+  }
+
+  return deriveStatusFromStage(nextStage, archived);
+};
+
+const shouldTreatCandidateAsActive = (candidate, payloadStatus) => {
+  if (payloadStatus === "Draft") {
+    return false;
+  }
+
+  if (payloadStatus === "Active") {
+    return true;
+  }
+
+  return candidate?.status !== "Draft";
 };
 
 const inferMentionsFromContent = (content) => {
@@ -184,6 +225,10 @@ const deriveCandidatePermissions = (candidate, viewerUser) => {
 const deriveStatusIndicator = (candidate) => {
   if (candidate.archived || candidate.status === "Archived") {
     return { tone: "muted", label: "Archived" };
+  }
+
+  if (candidate.status === "Draft") {
+    return { tone: "muted", label: "Draft" };
   }
 
   if (candidate.stage === "Hired") {
@@ -611,7 +656,8 @@ const getCandidateStatusByToken = async (req, res) => {
 };
 
 const createCandidate = async (req, res) => {
-  const parsedBody = candidateCreateSchema.safeParse(req.body);
+  const isDraft = req.body?.status === "Draft";
+  const parsedBody = (isDraft ? candidateDraftCreateSchema : candidateActiveCreateSchema).safeParse(req.body);
 
   if (!parsedBody.success) {
     return res.status(400).json(buildValidationError(parsedBody.error.issues));
@@ -632,7 +678,7 @@ const createCandidate = async (req, res) => {
       return res.status(404).json({ message: "Job not found" });
     }
 
-    if (job.requireCoverLetter && !String(payload.coverLetterUrl || "").trim()) {
+    if (!isDraft && job.requireCoverLetter && !String(payload.coverLetterUrl || "").trim()) {
       return res.status(400).json({ message: "Cover letter file is required for this job" });
     }
 
@@ -643,18 +689,28 @@ const createCandidate = async (req, res) => {
       }
     }
 
-    const duplicate = await Candidate.findOne({
-      email: payload.email.toLowerCase(),
-      jobId: payload.jobId,
-      archived: false,
-    }).select("_id name createdAt stage");
+    const normalizedEmail = isDraft
+      ? ensureDraftEmail(payload.email)
+      : String(payload.email || "").toLowerCase();
+
+    const duplicate =
+      !isDraft &&
+      (await Candidate.findOne({
+        email: normalizedEmail,
+        jobId: payload.jobId,
+        archived: false,
+      }).select("_id name createdAt stage"));
+
+    const recordStatus = isDraft ? "Draft" : deriveStatusFromStage(payload.stage, false);
+    const candidateName = String(payload.name || "").trim() || "Untitled candidate";
 
     const candidate = await Candidate.create({
       ...payload,
-      ...deriveAIStateForPayload(payload),
+      ...(isDraft ? {} : deriveAIStateForPayload(payload)),
+      name: candidateName,
       department: payload.department || job.department,
-      email: payload.email.toLowerCase(),
-      status: deriveStatusFromStage(payload.stage, false),
+      email: normalizedEmail,
+      status: recordStatus,
       createdBy: req.user.id,
       updatedBy: req.user.id,
       stageHistory: [
@@ -662,14 +718,16 @@ const createCandidate = async (req, res) => {
           stage: payload.stage,
           changedBy: req.user.id,
           changedAt: new Date(),
-          reason: "Candidate created",
+          reason: isDraft ? "Candidate draft saved" : "Candidate created",
         },
       ],
       activityLog: [
         {
           type: "created",
-          title: "Candidate created",
-          description: `${payload.name} was added to the pipeline for ${job.title}.`,
+          title: isDraft ? "Candidate draft saved" : "Candidate created",
+          description: isDraft
+            ? `${candidateName} was saved as a draft for ${job.title}.`
+            : `${candidateName} was added to the pipeline for ${job.title}.`,
           actorId: req.user.id,
           actorName: req.user.name || req.user.role,
           createdAt: new Date(),
@@ -680,7 +738,7 @@ const createCandidate = async (req, res) => {
       ],
     });
 
-    if (candidate.resumeUrl) {
+    if (!isDraft && candidate.resumeUrl) {
       await queueCandidateResumeScoring(candidate._id.toString());
     }
 
@@ -744,6 +802,22 @@ const updateCandidate = async (req, res) => {
     const nextStage = parsedBody.data.stage || previousStage;
     const nextJobId = parsedBody.data.jobId || candidate.jobId?.toString();
     const nextEmail = (parsedBody.data.email || candidate.email).toLowerCase();
+    const isActivating = candidate.status === "Draft" && parsedBody.data.status === "Active";
+    const treatsAsActive = shouldTreatCandidateAsActive(candidate, parsedBody.data.status);
+
+    if (isActivating) {
+      const activePayload = candidateActiveCreateSchema.safeParse({
+        ...candidate.toObject(),
+        ...parsedBody.data,
+        jobId: nextJobId,
+        email: nextEmail,
+        status: "Active",
+      });
+
+      if (!activePayload.success) {
+        return res.status(400).json(buildValidationError(activePayload.error.issues));
+      }
+    }
 
     if (parsedBody.data.jobId) {
       const job = await Job.findById(parsedBody.data.jobId);
@@ -760,7 +834,7 @@ const updateCandidate = async (req, res) => {
           ? parsedBody.data.coverLetterUrl
           : candidate.coverLetterUrl;
 
-      if (job.requireCoverLetter && !String(nextCoverLetterUrl || "").trim()) {
+      if (treatsAsActive && job.requireCoverLetter && !String(nextCoverLetterUrl || "").trim()) {
         return res.status(400).json({ message: "Cover letter file is required for this job" });
       }
     } else if (candidate.jobId) {
@@ -771,7 +845,7 @@ const updateCandidate = async (req, res) => {
             ? parsedBody.data.coverLetterUrl
             : candidate.coverLetterUrl;
 
-        if (!String(nextCoverLetterUrl || "").trim()) {
+        if (treatsAsActive && !String(nextCoverLetterUrl || "").trim()) {
           return res.status(400).json({ message: "Cover letter file is required for this job" });
         }
       }
@@ -784,12 +858,15 @@ const updateCandidate = async (req, res) => {
       }
     }
 
-    const duplicate = await Candidate.findOne({
-      _id: { $ne: candidate._id },
-      email: nextEmail,
-      jobId: nextJobId,
-      archived: false,
-    }).select("_id name");
+    const duplicate =
+      treatsAsActive &&
+      !String(nextEmail).includes("@draft.hireflow.local") &&
+      (await Candidate.findOne({
+        _id: { $ne: candidate._id },
+        email: nextEmail,
+        jobId: nextJobId,
+        archived: false,
+      }).select("_id name"));
 
     if (duplicate) {
       return res.status(409).json({
@@ -802,11 +879,23 @@ const updateCandidate = async (req, res) => {
     }
 
     const shouldRefreshAIScore = Object.keys(parsedBody.data).some((key) => aiScoringFields.has(key));
+    const nextRecordStatus = resolveCandidateRecordStatus(
+      candidate,
+      parsedBody.data.status,
+      nextStage,
+      parsedBody.data.archived ?? candidate.archived
+    );
+
+    const resolvedEmail =
+      parsedBody.data.status === "Draft" && !isValidEmail(nextEmail)
+        ? ensureDraftEmail(nextEmail)
+        : nextEmail;
+
     const assignmentPayload = {
       ...parsedBody.data,
       updatedBy: req.user.id,
-      status: deriveStatusFromStage(nextStage, parsedBody.data.archived ?? candidate.archived),
-      email: nextEmail,
+      status: nextRecordStatus,
+      email: resolvedEmail,
     };
 
     if (shouldRefreshAIScore) {

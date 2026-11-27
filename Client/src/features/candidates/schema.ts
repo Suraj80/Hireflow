@@ -68,8 +68,8 @@ const resumeMetaSchema = z.object({
 });
 
 export const candidateFormSchema = z.object({
-  name: z.string().trim().min(2, "Full name is required").max(120),
-  email: z.string().trim().email("Enter a valid email address"),
+  name: z.string().trim().max(120),
+  email: z.string().trim().max(320).default(""),
   phone: z.string().trim().max(30).default(""),
   altPhone: z.string().trim().max(30).default(""),
   location: z.string().trim().max(120).default(""),
@@ -77,8 +77,8 @@ export const candidateFormSchema = z.object({
   portfolio: optionalUrl,
   currentCompany: z.string().trim().max(120).default(""),
   currentRole: z.string().trim().max(120).default(""),
-  jobId: z.string().trim().min(1, "Select a job"),
-  department: z.string().trim().min(2, "Department is required").max(80),
+  jobId: z.string().trim().default(""),
+  department: z.string().trim().max(80).default(""),
   source: z.enum(candidateSourceOptions).default("manual"),
   referredBy: z.string().trim().max(120).default(""),
   expectedSalary: optionalNumber.default(null),
@@ -119,12 +119,65 @@ export const candidateFormSchema = z.object({
   aiScore: z.number().min(0).max(100).nullable().default(null),
   aiReasoning: z.string().trim().max(4000).default(""),
   initialNote: z.string().default(""),
+  status: z.enum(["Draft", "Active"]).default("Active"),
 }).superRefine((data, context) => {
   if (data.source !== "referral" && data.referredBy) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["referredBy"],
       message: "Referrer is only needed for referral candidates",
+    });
+  }
+
+  if (data.status === "Draft") {
+    if (!data.jobId.trim()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["jobId"],
+        message: "Select a job to save draft",
+      });
+    }
+
+    if (data.name.trim().length < 1) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["name"],
+        message: "Add a name to save draft",
+      });
+    }
+
+    return;
+  }
+
+  if (data.name.trim().length < 2) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["name"],
+      message: "Full name is required",
+    });
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["email"],
+      message: "Enter a valid email address",
+    });
+  }
+
+  if (!data.jobId.trim()) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["jobId"],
+      message: "Select a job",
+    });
+  }
+
+  if (data.department.trim().length < 2) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["department"],
+      message: "Department is required",
     });
   }
 });
@@ -182,6 +235,7 @@ export const defaultCandidateFormValues: CandidateFormValues = {
   aiScore: null,
   aiReasoning: "",
   initialNote: "",
+  status: "Active",
 };
 
 export const toCandidateFormValues = (candidate: Candidate): CandidateFormValues => ({
@@ -234,6 +288,7 @@ export const toCandidateFormValues = (candidate: Candidate): CandidateFormValues
   aiScore: candidate.aiScore,
   aiReasoning: candidate.aiReasoning || "",
   initialNote: "",
+  status: candidate.status === "Draft" ? "Draft" : "Active",
 });
 
 export const formatCandidatePayload = (values: CandidateFormValues) => ({
@@ -275,6 +330,7 @@ export const formatCandidatePayload = (values: CandidateFormValues) => ({
   rating: values.rating,
   aiScore: values.aiScore,
   aiReasoning: values.aiReasoning.trim(),
+  status: values.status,
 });
 
 export const noteSchema = z.object({

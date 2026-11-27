@@ -373,7 +373,7 @@ const candidateSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Active", "Hired", "Rejected", "Archived"],
+      enum: ["Draft", "Active", "Hired", "Rejected", "Archived"],
       default: "Active",
     },
     statusToken: {

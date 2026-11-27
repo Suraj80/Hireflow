@@ -7,7 +7,6 @@ import {
   LoaderCircle,
   Plus,
   Save,
-  ShieldAlert,
   Trash2,
   UploadCloud,
 } from "lucide-react";
@@ -26,7 +25,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,10 +53,6 @@ type CandidateFormProps = {
   candidate?: Candidate | null;
 };
 
-type AutosavedValues = CandidateFormValues & {
-  _savedAt?: string;
-};
-
 const allowedResumeTypes = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -71,7 +65,8 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   const createCandidate = useCandidatesStore((state) => state.createCandidate);
   const updateCandidate = useCandidatesStore((state) => state.updateCandidate);
   const addNote = useCandidatesStore((state) => state.addNote);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState<"draft" | "active" | null>(null);
+  const submitIntentRef = useRef<"draft" | "active">("active");
   const [duplicateCandidate, setDuplicateCandidate] = useState<Candidate | null>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -79,9 +74,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   const [coverLetterUploadProgress, setCoverLetterUploadProgress] = useState<number>(0);
   const [isUploadingCoverLetter, setIsUploadingCoverLetter] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
-  const autosaveTimerRef = useRef<number | null>(null);
   const duplicateTimerRef = useRef<number | null>(null);
-  const storageKey = `hireflow-candidate-draft:${candidate?.id || "new"}`;
 
   const form = useForm<CandidateFormValues>({
     resolver: zodResolver(candidateFormSchema),
@@ -117,54 +110,8 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   useEffect(() => {
     if (candidate) {
       form.reset(toCandidateFormValues(candidate));
-      return;
     }
-
-    const savedDraft = localStorage.getItem(storageKey);
-    if (!savedDraft) {
-      return;
-    }
-
-    try {
-      const parsedDraft = JSON.parse(savedDraft) as AutosavedValues;
-      const { _savedAt, ...values } = parsedDraft;
-      form.reset({
-        ...defaultCandidateFormValues,
-        ...values,
-        education:
-          values.education && values.education.length
-            ? values.education
-            : defaultCandidateFormValues.education,
-      });
-      toast.message("Restored local candidate draft");
-    } catch (_error) {
-      localStorage.removeItem(storageKey);
-    }
-  }, [candidate, form, storageKey]);
-
-  useEffect(() => {
-    const subscription = form.watch((values) => {
-      if (autosaveTimerRef.current) {
-        window.clearTimeout(autosaveTimerRef.current);
-      }
-
-      autosaveTimerRef.current = window.setTimeout(() => {
-        if (!form.formState.isDirty) {
-          return;
-        }
-
-        const savedAt = new Date().toISOString();
-        localStorage.setItem(storageKey, JSON.stringify({ ...(values as CandidateFormValues), _savedAt: savedAt }));
-      }, 600);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-      if (autosaveTimerRef.current) {
-        window.clearTimeout(autosaveTimerRef.current);
-      }
-    };
-  }, [form, storageKey]);
+  }, [candidate, form]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -300,7 +247,9 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
   };
 
   const handleSubmit = async (values: CandidateFormValues) => {
-    if (requiresCoverLetter && !values.coverLetterUrl.trim()) {
+    const isDraftSave = values.status === "Draft";
+
+    if (!isDraftSave && requiresCoverLetter && !values.coverLetterUrl.trim()) {
       form.setError("coverLetterUrl", {
         type: "manual",
         message: "Cover letter file is required for this job",
@@ -309,14 +258,16 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
       return;
     }
 
+    const saveIntent = submitIntentRef.current;
+
     try {
-      setIsSubmitting(true);
+      setIsSubmitting(saveIntent);
       const response =
         mode === "edit" && candidate
           ? { item: await updateCandidate(candidate.id, values), duplicateWarning: null }
           : await createCandidate(values);
 
-      if (values.initialNote.replace(/<[^>]+>/g, "").trim()) {
+      if (!isDraftSave && values.initialNote.replace(/<[^>]+>/g, "").trim()) {
         await addNote(response.item.id, {
           content: values.initialNote,
           pinned: false,
@@ -327,13 +278,19 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
         ...toCandidateFormValues(response.item),
         initialNote: "",
       });
-      localStorage.removeItem(storageKey);
-
       if (response.duplicateWarning) {
         toast.warning(`Possible duplicate: ${response.duplicateWarning.name} is already in this job pipeline.`);
       }
 
-      toast.success(mode === "edit" ? "Candidate updated" : "Candidate created");
+      if (isDraftSave) {
+        toast.success(mode === "edit" ? "Draft updated" : "Draft saved");
+        navigate(`/candidates/${response.item.id}`);
+        return;
+      }
+
+      toast.success(
+        mode === "edit" ? (candidate?.status === "Draft" ? "Candidate created" : "Candidate updated") : "Candidate created"
+      );
       navigate(`/candidates/${response.item.id}`);
     } catch (error) {
       const message =
@@ -341,31 +298,24 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
         (error instanceof Error ? error.message : "Unable to save candidate");
       toast.error(message);
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(null);
     }
   };
+
+  const handleSubmitWithIntent = (intent: "draft" | "active") => {
+    submitIntentRef.current = intent;
+    form.setValue("status", intent === "draft" ? "Draft" : "Active", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    void form.handleSubmit(handleSubmit)();
+  };
+
+  const showDraftActions = mode === "create" || candidate?.status === "Draft";
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <Card className="overflow-hidden rounded-[28px] border border-border/80 shadow-sm">
-          <CardHeader className="bg-gradient-to-r from-primary/10 via-background to-sky-500/10">
-            <CardTitle>{mode === "edit" ? "Update candidate profile" : "Create candidate profile"}</CardTitle>
-            <CardDescription>
-              Capture a polished internal profile with recruiter notes, structured experience, and resume-backed AI scoring.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <Alert className="rounded-2xl border-primary/20 bg-primary/5">
-              <ShieldAlert className="h-4 w-4 text-primary" />
-              <AlertTitle>ATS entry checklist</AlertTitle>
-              <AlertDescription>
-                Add the job, stage, resume, and ownership up front so downstream interview scheduling and reporting stay clean.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-
         {duplicateCandidate && (
           <Alert className="rounded-[28px] border-amber-500/30 bg-amber-500/5">
             <AlertTriangle className="h-4 w-4 text-amber-700" />
@@ -1151,9 +1101,26 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
         <Separator />
 
         <div className="flex flex-col gap-3 pb-8 sm:flex-row sm:items-center">
-          <Button type="submit" className="h-11 rounded-2xl" disabled={isSubmitting || isUploadingResume}>
-            {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {mode === "edit" ? "Update candidate" : "Create candidate"}
+          {showDraftActions ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-2xl"
+              disabled={Boolean(isSubmitting) || isUploadingResume}
+              onClick={() => handleSubmitWithIntent("draft")}
+            >
+              {isSubmitting === "draft" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save draft
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            className="h-11 rounded-2xl"
+            disabled={Boolean(isSubmitting) || isUploadingResume}
+            onClick={() => handleSubmitWithIntent("active")}
+          >
+            {isSubmitting === "active" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {showDraftActions ? "Create candidate" : mode === "edit" ? "Update candidate" : "Create candidate"}
           </Button>
           <Button type="button" variant="ghost" className="h-11 rounded-2xl sm:ml-auto" onClick={handleCancel}>
             Cancel
@@ -1166,7 +1133,7 @@ export function CandidateForm({ mode, candidate = null }: CandidateFormProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              This draft has local edits that have not been saved yet. If you leave now, those changes will remain in autosave but will not be submitted.
+              You have unsaved changes. If you leave now, your edits will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

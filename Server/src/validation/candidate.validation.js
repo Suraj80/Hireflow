@@ -4,7 +4,7 @@ const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, "Invalid identifier");
 const stageOptions = ["Applied", "Screening", "Interview", "Offer", "Hired", "Rejected"];
 const sourceOptions = ["portal", "referral", "manual", "campus", "linkedin", "agency"];
 const priorityOptions = ["Low", "Medium", "High"];
-const statusOptions = ["Active", "Hired", "Rejected", "Archived"];
+const statusOptions = ["Draft", "Active", "Hired", "Rejected", "Archived"];
 const interviewModeOptions = ["Virtual", "Onsite", "Phone"];
 const interviewStatusOptions = ["Scheduled", "Completed", "Cancelled"];
 const allowedSorts = ["newest", "oldest", "highest-ai", "stage", "name"];
@@ -134,7 +134,24 @@ const normalizeCandidatePayload = (data) => ({
   languages: Array.isArray(data.languages) ? data.languages.map((item) => item.trim()) : data.languages,
 });
 
-const candidateCreateSchema = candidateBaseSchema.transform(normalizeCandidatePayload);
+const candidateDraftCreateSchema = candidateBaseSchema
+  .omit({ name: true, email: true, department: true, status: true })
+  .extend({
+    status: z.literal("Draft"),
+    name: z.string().trim().min(1, "Add a name to save draft").max(120),
+    email: z.string().trim().max(320).optional().default(""),
+    department: z.string().trim().max(80).optional().default(""),
+  })
+  .transform(normalizeCandidatePayload);
+
+const candidateActiveCreateSchema = candidateBaseSchema
+  .omit({ status: true })
+  .extend({
+    status: z.enum(["Active", "Hired", "Rejected", "Archived"]).default("Active"),
+  })
+  .transform(normalizeCandidatePayload);
+
+const candidateCreateSchema = z.union([candidateDraftCreateSchema, candidateActiveCreateSchema]);
 const candidateUpdateSchema = candidateBaseSchema.partial().transform(normalizeCandidatePayload);
 
 const candidatesQuerySchema = z.object({
@@ -221,7 +238,9 @@ const resumeUploadRequestSchema = z.object({
 module.exports = {
   candidateAssignSchema,
   candidateBulkActionSchema,
+  candidateActiveCreateSchema,
   candidateCreateSchema,
+  candidateDraftCreateSchema,
   candidateInterviewSchema,
   candidateNoteSchema,
   publicCandidateApplicationSchema,

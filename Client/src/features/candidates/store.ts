@@ -39,7 +39,7 @@ export const defaultCandidateMeta: CandidateMeta = {
   stages: ["Applied", "Screening", "Interview", "Offer", "Hired", "Rejected"],
   sources: ["portal", "referral", "manual", "campus", "linkedin", "agency"],
   priorities: ["Low", "Medium", "High"],
-  statuses: ["Active", "Hired", "Rejected", "Archived"],
+  statuses: ["Draft", "Active", "Hired", "Rejected", "Archived"],
   interviewModes: ["Virtual", "Onsite", "Phone"],
   interviewStatuses: ["Scheduled", "Completed", "Cancelled"],
 };
