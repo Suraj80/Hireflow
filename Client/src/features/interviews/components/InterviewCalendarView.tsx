@@ -51,7 +51,8 @@ export function InterviewCalendarView({
   const halfHourRowHeight = useMemo(() => getCalendarHalfHourRowHeight(), []);
   const calendarMinHeight = useMemo(() => {
     const totalRows = Math.max(1, slots.length);
-    return totalRows * hourRowHeight + 48;
+    // 48px = day header row; keeps grid tall enough so inner wrappers do not clip or scroll vertically
+    return 48 + totalRows * hourRowHeight;
   }, [hourRowHeight, slots.length]);
 
   useEffect(() => {
@@ -88,15 +89,15 @@ export function InterviewCalendarView({
   }, [halfHourRowHeight, items, onReschedule, resizing]);
 
   return (
-    <Card className="lg:col-span-2 border border-border">
+    <Card className="overflow-visible border border-border lg:col-span-2">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold">This Week</CardTitle>
         <p className="text-sm text-muted-foreground">
           Showing {officeHours.start} to {officeHours.end}
         </p>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
+      <CardContent className="overflow-visible pb-6">
+        <div className="overflow-x-auto overflow-y-clip">
           <div
             className="grid min-w-[980px]"
             style={{

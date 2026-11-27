@@ -48,7 +48,7 @@ export const weekdayOrder: Array<WorkspaceSettings["officeWeek"][number]> = [
   "saturday",
 ];
 
-const pixelsPerHalfHour = 56;
+const pixelsPerHalfHour = 88;
 
 export const statusToneMap: Record<InterviewStatus, string> = {
   Scheduled: "bg-blue-500/12 text-blue-700 border-blue-200",

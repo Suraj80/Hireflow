@@ -336,11 +336,19 @@ export default function CandidatesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
-        <p className="mt-1 text-muted-foreground">
-          Review talent, manage pipeline movement, and keep candidate activity in one place.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
+          <p className="mt-1 text-muted-foreground">
+            Review talent, manage pipeline movement, and keep candidate activity in one place.
+          </p>
+        </div>
+        {canManageCandidates && (
+          <Button className="h-11 rounded-2xl self-start sm:self-auto" onClick={() => navigate("/candidates/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create candidate
+          </Button>
+        )}
       </div>
 
       <Card className="rounded-[28px] border border-border/80 shadow-sm">
@@ -610,12 +618,6 @@ export default function CandidatesPage() {
             >
               Next
             </Button>
-            {canManageCandidates && (
-              <Button className="rounded-2xl" onClick={() => navigate("/candidates/new")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create candidate
-              </Button>
-            )}
           </div>
         </div>
       )}

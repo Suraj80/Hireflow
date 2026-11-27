@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Download, Eye, FileText, MailCheck, Pencil, Plus } from "lucide-react";
+import { Copy, Download, Eye, FileText, MailCheck, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -285,10 +285,27 @@ export default function OffersPage() {
                           <Copy className="h-4 w-4" />
                         </Button>
                         {offer.status === "Draft" && (
-                          <Button variant="outline" size="icon" className="h-9 w-9 rounded-2xl" onClick={() => void handleSendOffer(offer)} aria-label={`Mark offer as sent for ${offer.candidate?.name || "candidate"}`}>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 rounded-2xl"
+                            disabled={working}
+                            onClick={() => void handleSendOffer(offer)}
+                            aria-label={`Mark offer as sent for ${offer.candidate?.name || "candidate"}`}
+                          >
                             <MailCheck className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-2xl text-destructive hover:text-destructive"
+                          disabled={working}
+                          onClick={() => void handleDelete(offer)}
+                          aria-label={`Delete offer for ${offer.candidate?.name || "candidate"}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
